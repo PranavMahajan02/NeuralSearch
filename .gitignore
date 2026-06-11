@@ -1,10 +1,20 @@
+# Virtual Environments
 venv/
+florence_env/
+
+# Python Cache
 __pycache__/
 *.pyc
 
+# Project Generated Files
 index.pkl
 
+# Local Data Files
 data/
 
-.idea/
+# IDE Files
 .vscode/
+.idea/
+
+# HuggingFace Cache
+.cache/

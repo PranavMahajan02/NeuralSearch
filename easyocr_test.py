@@ -1,5 +1,18 @@
 from easyocr_extract import extract_image_text
 
-text = extract_image_text("data/medical bill.jpeg")
+images = [
+    "data/Hall ticket.jpeg",
+    "data/india_post.jpeg",
+    "data/mit_receipt.jpeg",
+    "data/medical bill.jpeg"
+]
 
-print(text)
+for image_path in images:
+
+    print("\n" + "=" * 80)
+    print("FILE:", image_path)
+    print("=" * 80)
+
+    text = extract_image_text(image_path)
+
+    print(text)
