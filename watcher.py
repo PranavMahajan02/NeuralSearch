@@ -14,10 +14,15 @@ class FileWatcher(FileSystemEventHandler):
 
         print(f"\nNew file detected: {event.src_path}")
 
-        print("Running index.py...")
+        print("Running index_single.py...")
 
         subprocess.run(
-            ["python", "index.py"]
+            [
+                r"venv\Scripts\python.exe",
+                "index_single.py",
+                event.src_path
+            ],
+            check=True
         )
 
         print("Index updated!")
@@ -42,7 +47,6 @@ try:
         time.sleep(1)
 
 except KeyboardInterrupt:
-
     observer.stop()
 
 observer.join()
