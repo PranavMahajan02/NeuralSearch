@@ -7,10 +7,10 @@ from extract import extract_text
 from docx_extract import extract_docx
 from txt_extract import extract_txt
 
-from ocr_extract import extract_image_text as tesseract_ocr
-from easyocr_extract import extract_image_text as easyocr_ocr
+from paddle_extract import extract_text as paddle_ocr
 
 from chunk import chunk_text
+
 
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
@@ -35,17 +35,13 @@ for filename in os.listdir(data_folder):
     elif filename.endswith(".txt"):
         text = extract_txt(file_path)
 
-    elif filename.lower().endswith((".jpg", ".jpeg", ".png")):
+    elif filename.lower().endswith(
+        (".jpg", ".jpeg", ".png")
+    ):
 
-        print(f"Running OCR: {filename}")
+        print(f"Running PaddleOCR: {filename}")
 
-        easy_text = easyocr_ocr(file_path)
-        tess_text = tesseract_ocr(file_path)
-
-        if len(easy_text) >= len(tess_text):
-            text = easy_text
-        else:
-            text = tess_text
+        text = paddle_ocr(file_path)
 
     else:
         continue
@@ -55,22 +51,37 @@ for filename in os.listdir(data_folder):
 
     print(f"Processing: {filename}")
 
-    chunks = chunk_text(text, chunk_size=500)
+    chunks = chunk_text(
+        text,
+        chunk_size=500
+    )
 
-    embeddings = model.encode(chunks)
+    embeddings = model.encode(
+        chunks
+    )
 
-    for chunk, embedding in zip(chunks, embeddings):
+    for chunk, embedding in zip(
+        chunks,
+        embeddings
+    ):
 
-        all_documents.append({
-            "file": filename,
-            "path": file_path,
-            "chunk": chunk,
-            "embedding": embedding
-        })
+        all_documents.append(
+            {
+                "file": filename,
+                "path": file_path,
+                "chunk": chunk,
+                "embedding": embedding
+            }
+        )
 
-print(f"\nTotal Chunks Indexed: {len(all_documents)}")
+print(
+    f"\nTotal Chunks Indexed: {len(all_documents)}"
+)
 
 with open("index.pkl", "wb") as f:
-    pickle.dump(all_documents, f)
+    pickle.dump(
+        all_documents,
+        f
+    )
 
 print("\nIndex saved as index.pkl")

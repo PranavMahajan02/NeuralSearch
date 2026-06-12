@@ -8,8 +8,7 @@ from extract import extract_text
 from docx_extract import extract_docx
 from txt_extract import extract_txt
 
-from ocr_extract import extract_image_text as tesseract_ocr
-from easyocr_extract import extract_image_text as easyocr_ocr
+from paddle_extract import extract_text as paddle_ocr
 
 from chunk import chunk_text
 
@@ -37,7 +36,12 @@ else:
     all_documents = []
 
 print(f"Existing chunks: {len(all_documents)}")
+
 before_count = len(all_documents)
+
+# -----------------------------
+# Remove old entries
+# -----------------------------
 
 all_documents = [
     doc
@@ -49,7 +53,6 @@ all_documents = [
 removed = before_count - len(all_documents)
 
 print(f"Removed old chunks: {removed}")
-
 
 # -----------------------------
 # Extract text
@@ -70,15 +73,9 @@ elif filename.lower().endswith(
     (".jpg", ".jpeg", ".png")
 ):
 
-    print(f"Running OCR: {filename}")
+    print(f"Running PaddleOCR: {filename}")
 
-    easy_text = easyocr_ocr(file_path)
-    tess_text = tesseract_ocr(file_path)
-
-    if len(easy_text) >= len(tess_text):
-        text = easy_text
-    else:
-        text = tess_text
+    text = paddle_ocr(file_path)
 
 else:
     print("Unsupported file type")
@@ -125,12 +122,6 @@ with open("index.pkl", "wb") as f:
         f
     )
 
-print(
-    f"Added {len(chunks)} new chunks"
-)
-
-print(
-    f"Total chunks: {len(all_documents)}"
-)
-
+print(f"Added {len(chunks)} new chunks")
+print(f"Total chunks: {len(all_documents)}")
 print("Index updated successfully")

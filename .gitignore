@@ -18,3 +18,11 @@ data/
 
 # HuggingFace Cache
 .cache/
+
+venv/
+paddle_env/
+florence_env/
+
+__pycache__/
+
+index.pkl
