@@ -3,6 +3,7 @@ import pickle
 
 from sentence_transformers import SentenceTransformer
 
+from pptx_extract import extract_pptx
 from extract import extract_text
 from docx_extract import extract_docx
 from txt_extract import extract_txt
@@ -31,6 +32,9 @@ for filename in os.listdir(data_folder):
 
     elif filename.endswith(".docx"):
         text = extract_docx(file_path)
+
+    elif filename.endswith(".pptx"):
+        text = extract_pptx(file_path)
 
     elif filename.endswith(".txt"):
         text = extract_txt(file_path)

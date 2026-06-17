@@ -1,28 +1,23 @@
 # Virtual Environments
 venv/
+paddle_env/
 florence_env/
 
 # Python Cache
 __pycache__/
 *.pyc
 
-# Project Generated Files
+# Generated Indexes
 index.pkl
+image_index.pkl
 
-# Local Data Files
+# Local Data
 data/
+test_images/
 
-# IDE Files
+# IDE
 .vscode/
 .idea/
 
 # HuggingFace Cache
 .cache/
-
-venv/
-paddle_env/
-florence_env/
-
-__pycache__/
-
-index.pkl
