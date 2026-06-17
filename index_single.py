@@ -7,6 +7,7 @@ from sentence_transformers import SentenceTransformer
 from extract import extract_text
 from docx_extract import extract_docx
 from txt_extract import extract_txt
+from pptx_extract import extract_pptx
 
 from paddle_extract import extract_text as paddle_ocr
 
@@ -68,6 +69,10 @@ elif filename.endswith(".docx"):
 
 elif filename.endswith(".txt"):
     text = extract_txt(file_path)
+
+elif filename.endswith(".pptx"):
+        text = extract_pptx(file_path)
+
 
 elif filename.lower().endswith(
     (".jpg", ".jpeg", ".png")

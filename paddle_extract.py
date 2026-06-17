@@ -12,10 +12,10 @@ print("PaddleOCR Loaded")
 
 def extract_text(image_path):
 
-    result = ocr.ocr(
-        image_path,
-        cls=True
-    )
+    result = ocr.ocr(image_path)
+
+    if result is None or result[0] is None:
+        return ""
 
     text = []
 
