@@ -13,7 +13,7 @@ while True:
     if choice == "1":
 
         os.system(
-            "python document_search.py"
+            "python document_search_v2.py"
         )
 
     elif choice == "2":

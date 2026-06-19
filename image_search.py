@@ -53,16 +53,18 @@ def get_content_score(
 
     for word in query_words:
 
-     found = False
+        found = False
 
-    for c_word in content_words:
+        for c_word in content_words:
 
-        if fuzz.ratio(word, c_word) >= 85:
-            found = True
-            break
+            if fuzz.ratio(word, c_word) >= 85:
 
-    if found:
-        matches += 1
+                found = True
+                break
+
+        if found:
+            matches += 1
+
     if not query_words:
         return 0
 
@@ -83,18 +85,32 @@ while True:
     clip_results = clip_search(
         query
     )
+    
     MIN_IMAGE_SCORE = 0.20
+
     filtered_results = []
+
     for clip_score, image in clip_results:
 
-     if clip_score >= MIN_IMAGE_SCORE:
-        filtered_results.append(
-            (clip_score, image)
+        if clip_score >= MIN_IMAGE_SCORE:
+
+            filtered_results.append(
+                (clip_score, image)
+            )
+
+    filtered_results = sorted(
+        filtered_results,
+        key=lambda x: x[0],
+        reverse=True
+    )
+
+    if not filtered_results:
+
+        print(
+            "\nNo relevant images found."
         )
 
-     if not filtered_results:
-      print("\nNo relevant images found.")
-     continue
+        continue
 
     print(
         "\nTop Image Results:\n"

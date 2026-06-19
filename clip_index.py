@@ -6,7 +6,7 @@ from paddle_extract import extract_text as paddle_ocr
 
 all_images = []
 
-data_folder = "test_images"
+data_folder = "data"
 
 print("Building CLIP Image Index...\n")
 
