@@ -13,7 +13,7 @@ print("Building CLIP Image Index...\n")
 for filename in os.listdir(data_folder):
 
     if not filename.lower().endswith(
-        (".jpg", ".jpeg", ".png", ".webp")
+        (".jpg", ".jpeg", ".png", ".webp",".avif")
     ):
         continue
 
