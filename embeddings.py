@@ -1,22 +1,17 @@
 from sentence_transformers import SentenceTransformer
-from extract import extract_text
-from chunk import chunk_text
 
-# Load model
-model = SentenceTransformer("all-MiniLM-L6-v2")
+print("Loading embedding model...")
 
-# Extract text
-text = extract_text("data/ADHAR.pdf")
+model = SentenceTransformer(
+    "all-MiniLM-L6-v2"
+)
 
-# Create chunks
-chunks = chunk_text(text)
+print("Embedding model loaded.")
 
-# Generate embeddings
-embeddings = model.encode(chunks)
 
-print("Number of Chunks:", len(chunks))
-print("Embedding Dimension:", len(embeddings[0]))
+def get_embeddings(texts):
+    """
+    Generate embeddings for a list of texts/chunks.
+    """
 
-for i, embedding in enumerate(embeddings):
-    print(f"\nChunk {i+1} Embedding (First 10 values):")
-    print(embedding[:10])
+    return model.encode(texts)
