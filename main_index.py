@@ -59,6 +59,62 @@ def run_image_index():
         )
 
 
+def run_audio_index():
+
+    print("\n======================")
+    print("AUDIO INDEXING STARTED")
+    print("======================\n")
+
+    start = time.time()
+
+    result = subprocess.run(
+        [sys.executable, "audio_index.py"]
+    )
+
+    end = time.time()
+
+    if result.returncode == 0:
+
+        print(
+            f"\nAudio Indexing Finished "
+            f"in {end-start:.2f}s"
+        )
+
+    else:
+
+        print(
+            "\nAudio Indexing Failed"
+        )
+
+
+def run_video_index():
+
+    print("\n======================")
+    print("VIDEO INDEXING STARTED")
+    print("======================\n")
+
+    start = time.time()
+
+    result = subprocess.run(
+        [sys.executable, "video_index.py"]
+    )
+
+    end = time.time()
+
+    if result.returncode == 0:
+
+        print(
+            f"\nVideo Indexing Finished "
+            f"in {end-start:.2f}s"
+        )
+
+    else:
+
+        print(
+            "\nVideo Indexing Failed"
+        )
+
+
 if __name__ == "__main__":
 
     print(
@@ -80,6 +136,10 @@ if __name__ == "__main__":
     run_document_index()
 
     run_image_index()
+
+    run_audio_index()
+
+    run_video_index()
 
     total_time = (
         time.time()
