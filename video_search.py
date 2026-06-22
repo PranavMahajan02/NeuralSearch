@@ -147,21 +147,19 @@ def cosine_similarity_clip(a, b):
     return np.dot(a, b) / denominator
 
 
-while True:
+# ==========================
+# SEARCH FUNCTION
+# ==========================
 
-    query = input(
-        "\nVideo Query (exit): "
-    ).strip()
+def search_video(query):
 
-    if query.lower() == "exit":
-        break
     if not query:
-        continue
+        return []
 
     query_embedding = model.encode(
         [query]
     )
-    
+
     clip_inputs = clip_processor(
         text=[query],
         return_tensors="pt",
@@ -185,7 +183,7 @@ while True:
             query_embedding,
             [video["embedding"]]
         )[0][0]
-        
+
         best_clip_score = 0
 
         for frame_embedding in video["clip_embeddings"]:
@@ -222,7 +220,7 @@ while True:
             0.20 * semantic_score +
             0.30 * best_clip_score
         )
-      
+
         results.append(
             (
                 final_score,
@@ -239,19 +237,12 @@ while True:
         reverse=True
     )
 
-    print(
-        "\n===================="
-    )
+    # ----------------------
+    # Remove Duplicates
+    # ----------------------
 
-    print(
-        "TOP VIDEO RESULTS"
-    )
+    unique_results = []
 
-    print(
-        "====================\n"
-    )
-    
-    found = False
     shown = set()
 
     for (
@@ -272,46 +263,130 @@ while True:
         shown.add(
             video["file"]
         )
-        
-        found = True
 
-        print(
-            f"File : {video['file']}"
-        )
-
-        print(
-            f"Final Score    : {final_score:.4f}"
-        )
-
-        print(
-            f"Filename Score : {filename_score:.4f}"
+        unique_results.append(
+            (
+                final_score,
+                filename_score,
+                content_score,
+                semantic_score,
+                best_clip_score,
+                video
+            )
         )
 
+    # ----------------------
+    # No Results
+    # ----------------------
+
+    if not unique_results:
+        return []
+
+    # ----------------------
+    # Build Output
+    # ----------------------
+
+    output = []
+
+    for (
+        final_score,
+        filename_score,
+        content_score,
+        semantic_score,
+        best_clip_score,
+        video
+    ) in unique_results[:TOP_K]:
+
+        output.append({
+            "type": "video",
+            "file": video["file"],
+            "score": final_score,
+            "path": video["path"],
+            "platform": video.get("platform", "local"),
+            "filename_score": filename_score,
+            "content_score": content_score,
+            "semantic_score": semantic_score,
+            "clip_score": best_clip_score,
+            "preview": video["chunk"][:300]
+        })
+
+    return output
+
+
+# ==========================
+# MAIN SEARCH LOOP (terminal)
+# ==========================
+
+if __name__ == "__main__":
+
+    while True:
+
+        query = input(
+            "\nVideo Query (exit): "
+        ).strip()
+
+        if query.lower() == "exit":
+            break
+
+        if not query:
+            continue
+
+        results = search_video(query)
+
         print(
-            f"Content Score  : {content_score:.4f}"
+            "\n===================="
         )
 
         print(
-            f"Semantic Score : {semantic_score:.4f}"
-        )
-        
-        print(
-            f"CLIP Score     : {best_clip_score:.4f}"
+            "TOP VIDEO RESULTS"
         )
 
         print(
-            "\nTranscript Preview:"
+            "====================\n"
         )
 
-        print(
-            video["chunk"][:300]
-        )
+        if not results:
 
-        print(
-            "\n------------------------\n"
-        )
-        
-    if not found:
-        print(
-            "\nNo relevant videos found."
-        )
+            print(
+                "\nNo relevant videos found."
+            )
+
+            continue
+
+        for result in results:
+
+            print(
+                f"File : {result['file']}"
+            )
+
+            print(
+                f"Final Score    : {result['score']:.4f}"
+            )
+
+            print(
+                f"Filename Score : {result['filename_score']:.4f}"
+            )
+
+            print(
+                f"Content Score  : {result['content_score']:.4f}"
+            )
+
+            print(
+                f"Semantic Score : {result['semantic_score']:.4f}"
+            )
+
+            print(
+                f"CLIP Score     : {result['clip_score']:.4f}"
+            )
+
+            print(
+                "\nTranscript Preview:"
+            )
+
+            print(
+                result["preview"]
+            )
+
+            print(
+                "\n------------------------\n"
+            )

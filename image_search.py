@@ -73,19 +73,19 @@ def get_content_score(
     )
 
 
-while True:
+# ==========================
+# SEARCH FUNCTION
+# ==========================
 
-    query = input(
-        "\nImage Query (exit): "
-    ).strip()
+def search_images(query):
 
-    if query.lower() == "exit":
-        break
+    if not query:
+        return []
 
     clip_results = clip_search(
         query
     )
-    
+
     MIN_IMAGE_SCORE = 0.20
 
     filtered_results = []
@@ -105,22 +105,11 @@ while True:
     )
 
     if not filtered_results:
+        return []
 
-        print(
-            "\nNo relevant images found."
-        )
+    results = []
 
-        continue
-
-    print(
-        "\nTop Image Results:\n"
-    )
-    
-    top_images = []
-
-    # 1. Process and print the results
     for clip_score, image in filtered_results[:5]:
-        top_images.append(image)
 
         content_score = (
             get_content_score(
@@ -141,39 +130,91 @@ while True:
         else:
             image_score = clip_score
 
-        print(
-            image["file"]
-        )
+        results.append({
+            "type": "image",
+            "file": image["file"],
+            "score": image_score,
+            "path": image["path"],
+            "platform": image.get("platform", "local"),
+            "ocr_score": content_score,
+            "clip_score": float(clip_score)
+        })
 
-        print(
-            f"  Image Score : {image_score:.4f}"
-        )
+    return results
 
-        print(
-            f"  OCR Score   : {content_score:.4f}"
-        )
 
-        print(
-            f"  CLIP Score  : {float(clip_score):.4f}"
-        )
+# ==========================
+# MAIN SEARCH LOOP (terminal)
+# ==========================
 
-        print()
+if __name__ == "__main__":
 
-    # 2. Show the numbered list to the user
-    for i, img in enumerate(top_images, start=1):
-        print(f"  {i}. {img['file']}")
+    while True:
 
-    # 3. Prompt to open the image
-    choice = input(
-        "\nEnter image number to open (0 to skip): "
-    ).strip()
+        query = input(
+            "\nImage Query (exit): "
+        ).strip()
 
-    if choice.isdigit():
+        if query.lower() == "exit":
+            break
 
-        idx = int(choice)
+        results = search_images(query)
 
-        if 1 <= idx <= len(top_images):
+        if not results:
 
-            open_image(
-                top_images[idx - 1]["path"]
+            print(
+                "\nNo relevant images found."
             )
+
+            continue
+
+        print(
+            "\nTop Image Results:\n"
+        )
+
+        top_images = []
+
+        # 1. Process and print the results
+        for result in results:
+
+            top_images.append({
+                "file": result["file"],
+                "path": result["path"]
+            })
+
+            print(
+                result["file"]
+            )
+
+            print(
+                f"  Image Score : {result['score']:.4f}"
+            )
+
+            print(
+                f"  OCR Score   : {result['ocr_score']:.4f}"
+            )
+
+            print(
+                f"  CLIP Score  : {result['clip_score']:.4f}"
+            )
+
+            print()
+
+        # 2. Show the numbered list to the user
+        for i, img in enumerate(top_images, start=1):
+            print(f"  {i}. {img['file']}")
+
+        # 3. Prompt to open the image
+        choice = input(
+            "\nEnter image number to open (0 to skip): "
+        ).strip()
+
+        if choice.isdigit():
+
+            idx = int(choice)
+
+            if 1 <= idx <= len(top_images):
+
+                open_image(
+                    top_images[idx - 1]["path"]
+                )

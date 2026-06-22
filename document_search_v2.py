@@ -224,18 +224,13 @@ def fuzzy_match_doc(doc: dict, query_words: list) -> int:
 
 
 # ==========================
-# MAIN SEARCH LOOP
+# SEARCH FUNCTION
 # ==========================
 
-while True:
-
-    query = input("\nEnter search query (or 'exit'): ").strip()
-
-    if query.lower() == "exit":
-        break
+def search_documents(query):
 
     if not query:
-        continue
+        return []
 
     query_words = [
         w for w in query.lower().split()
@@ -323,7 +318,7 @@ while True:
         key=lambda x: x[1][0],
         reverse=True
     )
-    
+
     MIN_FINAL_SCORE = 0.30
 
     ranked = [
@@ -333,14 +328,9 @@ while True:
     ]
 
     if not ranked:
-        print("\nNo relevant documents found.")
-        continue
+        return []
 
-    print("\n===================")
-    print("Top Results")
-    print("===================\n")
-
-    top_docs = []
+    results = []
 
     for file, scores in ranked[:10]:
         (
@@ -352,14 +342,58 @@ while True:
             doc
         ) = scores
 
-        print(file)
-        print(f" Final Score    : {final_score:.4f}")
-        print(f" Title Score    : {title_score:.4f}")
-        print(f" Content Score  : {content_score:.4f}")
-        print(f" Fuzzy Score    : {fuzzy_score:.4f}")
-        print(f" Semantic Score : {semantic_score:.4f}")
-        print()
+        results.append({
+            "type": "document",
+            "file": file,
+            "score": final_score,
+            "path": doc["path"],
+            "platform": doc.get("platform", "local"),
+            "title_score": title_score,
+            "content_score": content_score,
+            "fuzzy_score": fuzzy_score,
+            "semantic_score": semantic_score
+        })
 
-        top_docs.append(doc)
+    return results
 
-    prompt_pick_and_open(top_docs)
+
+# ==========================
+# MAIN SEARCH LOOP (terminal)
+# ==========================
+
+if __name__ == "__main__":
+
+    while True:
+
+        query = input("\nEnter search query (or 'exit'): ").strip()
+
+        if query.lower() == "exit":
+            break
+
+        if not query:
+            continue
+
+        results = search_documents(query)
+
+        if not results:
+            print("\nNo relevant documents found.")
+            continue
+
+        print("\n===================")
+        print("Top Results")
+        print("===================\n")
+
+        top_docs = []
+
+        for result in results:
+            print(result["file"])
+            print(f" Final Score    : {result['score']:.4f}")
+            print(f" Title Score    : {result['title_score']:.4f}")
+            print(f" Content Score  : {result['content_score']:.4f}")
+            print(f" Fuzzy Score    : {result['fuzzy_score']:.4f}")
+            print(f" Semantic Score : {result['semantic_score']:.4f}")
+            print()
+
+            top_docs.append({"file": result["file"], "path": result["path"]})
+
+        prompt_pick_and_open(top_docs)
