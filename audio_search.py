@@ -136,21 +136,15 @@ def get_content_score(
         query_words
     )
 
+
 # ==========================
-# SEARCH LOOP
+# SEARCH FUNCTION
 # ==========================
 
-while True:
-
-    query = input(
-        "\nAudio Query (exit): "
-    ).strip()
-
-    if query.lower() == "exit":
-        break
+def search_audio(query):
 
     if not query:
-        continue
+        return []
 
     # ----------------------
     # Query Embedding
@@ -255,28 +249,13 @@ while True:
     # ----------------------
 
     if not unique_results:
-
-        print(
-            "\nNo relevant audio found."
-        )
-
-        continue
+        return []
 
     # ----------------------
-    # Display Results
+    # Build Output
     # ----------------------
 
-    print(
-        "\n===================="
-    )
-
-    print(
-        "TOP AUDIO RESULTS"
-    )
-
-    print(
-        "====================\n"
-    )
+    output = []
 
     for (
         final_score,
@@ -286,34 +265,91 @@ while True:
         audio
     ) in unique_results[:TOP_K]:
 
+        output.append({
+            "type": "audio",
+            "file": audio["file"],
+            "score": final_score,
+            "path": audio["path"],
+            "platform": audio.get("platform", "local"),
+            "filename_score": filename_score,
+            "content_score": content_score,
+            "semantic_score": semantic_score,
+            "preview": audio["chunk"][:300]
+        })
+
+    return output
+
+
+# ==========================
+# MAIN SEARCH LOOP (terminal)
+# ==========================
+
+if __name__ == "__main__":
+
+    while True:
+
+        query = input(
+            "\nAudio Query (exit): "
+        ).strip()
+
+        if query.lower() == "exit":
+            break
+
+        if not query:
+            continue
+
+        results = search_audio(query)
+
+        if not results:
+
+            print(
+                "\nNo relevant audio found."
+            )
+
+            continue
+
         print(
-            f"File : {audio['file']}"
+            "\n===================="
         )
 
         print(
-            f"Final Score    : {final_score:.4f}"
+            "TOP AUDIO RESULTS"
         )
 
         print(
-            f"Filename Score : {filename_score:.4f}"
+            "====================\n"
         )
 
-        print(
-            f"Content Score  : {content_score:.4f}"
-        )
+        for result in results:
 
-        print(
-            f"Semantic Score : {semantic_score:.4f}"
-        )
+            print(
+                f"File : {result['file']}"
+            )
 
-        print(
-            "\nTranscript Preview:"
-        )
+            print(
+                f"Final Score    : {result['score']:.4f}"
+            )
 
-        print(
-            audio["chunk"][:300]
-        )
+            print(
+                f"Filename Score : {result['filename_score']:.4f}"
+            )
 
-        print(
-            "\n------------------------\n"
-        )
+            print(
+                f"Content Score  : {result['content_score']:.4f}"
+            )
+
+            print(
+                f"Semantic Score : {result['semantic_score']:.4f}"
+            )
+
+            print(
+                "\nTranscript Preview:"
+            )
+
+            print(
+                result["preview"]
+            )
+
+            print(
+                "\n------------------------\n"
+            )
