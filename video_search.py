@@ -16,7 +16,7 @@ from sklearn.metrics.pairwise import (
 )
 
 TOP_K = 5
-MIN_SCORE = 0.10
+MIN_SCORE = 0.05  # Reduced from 0.10 (matches image search threshold)
 
 print("Loading video index...")
 
@@ -52,19 +52,19 @@ def get_filename_score(
     query,
     filename
 ):
-
-    query = query.lower()
-
-    filename = (
-        filename.lower()
-        .rsplit(".", 1)[0]
+    # Normalize: lowercase, strip extension, replace _ and - with spaces
+    filename = re.sub(
+        r"[_\-]+",
+        " ",
+        filename.lower().rsplit(".", 1)[0]
     )
 
+    # query already normalized by caller
     if query == filename:
         return 1.0
 
     if query in filename:
-        return 0.9
+        return 0.95  # Raised from 0.9
 
     query_words = set(
         re.findall(
@@ -73,6 +73,7 @@ def get_filename_score(
         )
     )
 
+    # After normalization, \w+ tokenization works correctly
     filename_words = set(
         re.findall(
             r"\w+",
@@ -97,12 +98,8 @@ def get_content_score(
     query,
     transcript
 ):
-
-    query = query.lower()
-
-    transcript = (
-        transcript.lower()
-    )
+    # query already normalized by caller
+    transcript = str(transcript).lower()
 
     if query in transcript:
         return 1.0
@@ -156,6 +153,9 @@ def search_video(query):
     if not query:
         return []
 
+    # Normalize query once here; helper functions can assume lowercase
+    query = query.strip().lower()
+
     query_embedding = model.encode(
         [query]
     )
@@ -179,14 +179,23 @@ def search_video(query):
 
     for video in all_video:
 
-        semantic_score = cosine_similarity(
-            query_embedding,
-            [video["embedding"]]
-        )[0][0]
+        if "file" not in video:
+            continue
+
+        embedding = video.get("embedding")
+
+        if embedding is None:
+            semantic_score = 0.0
+        else:
+            semantic_score = cosine_similarity(
+                query_embedding,
+                [embedding]
+            )[0][0]
 
         best_clip_score = 0
 
-        for frame_embedding in video["clip_embeddings"]:
+        # Safe access; skip gracefully if key missing or list is empty
+        for frame_embedding in video.get("clip_embeddings", []):
 
             clip_score = (
                 cosine_similarity_clip(
@@ -210,16 +219,34 @@ def search_video(query):
         content_score = (
             get_content_score(
                 query,
-                video["transcript"]
+                video.get("transcript", "")  # Safe access
             )
         )
 
-        final_score = (
-            0.20 * filename_score +
-            0.30 * content_score +
-            0.20 * semantic_score +
-            0.30 * best_clip_score
-        )
+        # Adaptive scoring: weight shifts based on which signals fire
+        if filename_score > 0:
+
+            final_score = (
+                0.50 * filename_score +
+                0.20 * content_score +
+                0.15 * semantic_score +
+                0.15 * best_clip_score
+            )
+
+        elif content_score > 0:
+
+            final_score = (
+                0.60 * content_score +
+                0.25 * semantic_score +
+                0.15 * best_clip_score
+            )
+
+        else:
+
+            final_score = (
+                0.60 * semantic_score +
+                0.40 * best_clip_score
+            )
 
         results.append(
             (
@@ -257,12 +284,12 @@ def search_video(query):
         if final_score < MIN_SCORE:
             continue
 
-        if video["file"] in shown:
+        filename = video.get("file", "")
+
+        if filename in shown:
             continue
 
-        shown.add(
-            video["file"]
-        )
+        shown.add(filename)
 
         unique_results.append(
             (
@@ -299,15 +326,15 @@ def search_video(query):
 
         output.append({
             "type": "video",
-            "file": video["file"],
+            "file": video.get("file", ""),
             "score": final_score,
-            "path": video["path"],
+            "path": video.get("path", ""),
             "platform": video.get("platform", "local"),
             "filename_score": filename_score,
             "content_score": content_score,
             "semantic_score": semantic_score,
             "clip_score": best_clip_score,
-            "preview": video["chunk"][:300]
+            "preview": video.get("chunk", "")[:300]  # Safe access
         })
 
     return output

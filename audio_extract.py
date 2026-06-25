@@ -5,8 +5,8 @@ print("Loading Whisper model... (This may take some time on first run)")
 # Load the model only once
 model = WhisperModel(
     "base",
-    device="cpu",
-    compute_type="int8"
+    device="cuda",
+    compute_type="float16"
 )
 
 print("Whisper model loaded successfully!")

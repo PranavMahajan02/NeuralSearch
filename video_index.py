@@ -70,7 +70,7 @@ def build_video_index(
                 file_path
             )
         )
-        
+
         # ----------------------
         # FRAME EXTRACTION
         # ----------------------
@@ -116,24 +116,36 @@ def build_video_index(
         # TRANSCRIPT CHUNKING
         # ----------------------
 
-        if not transcript.strip():
+        if transcript.strip():
 
-            print(
-                "No transcript generated."
+            chunks = chunk_text(
+                transcript,
+                chunk_size=500
             )
 
-            continue
-
-        chunks = chunk_text(
-            transcript,
-            chunk_size=500
-        )
-
-        embeddings = (
-            get_embeddings(
+            embeddings = get_embeddings(
                 chunks
             )
-        )
+
+        else:
+
+            print("No transcript generated.")
+
+            # Index silent videos using a cleaned filename so the
+            # sentence embedding isn't polluted by underscores,
+            # hyphens, or the file extension
+            filename_text = (
+                filename
+                .rsplit(".", 1)[0]
+                .replace("_", " ")
+                .replace("-", " ")
+            )
+
+            chunks = [filename_text]
+
+            embeddings = get_embeddings(
+                chunks
+            )
 
         for chunk, embedding in zip(
             chunks,
