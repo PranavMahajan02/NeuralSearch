@@ -18,17 +18,14 @@ from sklearn.metrics.pairwise import (
 TOP_K = 5
 MIN_SCORE = 0.05  # Reduced from 0.10 (matches image search threshold)
 
-print("Loading video index...")
+INDEX_FILE = "video_index.pkl"
 
-with open(
-    "video_index.pkl",
-    "rb"
-) as f:
-    all_video = pickle.load(f)
 
-print(
-    f"Loaded {len(all_video)} video chunks"
-)
+def load_index():
+
+    with open(INDEX_FILE, "rb") as f:
+        return pickle.load(f)
+
 
 model = SentenceTransformer(
     "all-MiniLM-L6-v2"
@@ -148,10 +145,17 @@ def cosine_similarity_clip(a, b):
 # SEARCH FUNCTION
 # ==========================
 
-def search_video(query):
+def search_video(
+    query,
+    platform="all"
+):
 
     if not query:
         return []
+
+    all_video = load_index()
+
+    print(f"Loaded {len(all_video)} video chunks.")
 
     # Normalize query once here; helper functions can assume lowercase
     query = query.strip().lower()
@@ -178,6 +182,11 @@ def search_video(query):
     results = []
 
     for video in all_video:
+        if (
+            platform != "all"
+            and video.get("platform", "local") != platform
+        ):
+            continue
 
         if "file" not in video:
             continue
@@ -325,17 +334,18 @@ def search_video(query):
     ) in unique_results[:TOP_K]:
 
         output.append({
-            "type": "video",
-            "file": video.get("file", ""),
-            "score": final_score,
-            "path": video.get("path", ""),
-            "platform": video.get("platform", "local"),
-            "filename_score": filename_score,
-            "content_score": content_score,
-            "semantic_score": semantic_score,
-            "clip_score": best_clip_score,
-            "preview": video.get("chunk", "")[:300]  # Safe access
-        })
+    "type": "video",
+    "file": video.get("file", ""),
+    "score": float(final_score),
+    "path": video.get("path", ""),
+    "platform": video.get("platform", "local"),
+    "filename_score": float(filename_score),
+    "content_score": float(content_score),
+    "semantic_score": float(semantic_score),
+    "clip_score": float(best_clip_score),
+    "preview": video.get("chunk", "")[:300],
+    "file_id": video.get("file_id"),
+})
 
     return output
 

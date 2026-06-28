@@ -16,22 +16,14 @@ from sklearn.metrics.pairwise import (
 TOP_K = 5
 MIN_SCORE = 0.15
 
-# ==========================
-# LOAD INDEX
-# ==========================
+INDEX_FILE = "audio_index.pkl"
 
-print("Loading audio index...")
 
-with open(
-    "audio_index.pkl",
-    "rb"
-) as f:
+def load_index():
 
-    all_audio = pickle.load(f)
+    with open(INDEX_FILE, "rb") as f:
+        return pickle.load(f)
 
-print(
-    f"Loaded {len(all_audio)} audio chunks"
-)
 
 # ==========================
 # LOAD MODEL
@@ -141,10 +133,17 @@ def get_content_score(
 # SEARCH FUNCTION
 # ==========================
 
-def search_audio(query):
+def search_audio(
+    query,
+    platform="all"
+):
 
     if not query:
         return []
+
+    all_audio = load_index()
+
+    print(f"Loaded {len(all_audio)} audio chunks.")
 
     # ----------------------
     # Query Embedding
@@ -161,6 +160,11 @@ def search_audio(query):
     results = []
 
     for audio in all_audio:
+        if (
+            platform != "all"
+            and audio.get("platform", "local") != platform
+        ):
+            continue
 
         semantic_score = cosine_similarity(
             query_embedding,
@@ -274,7 +278,8 @@ def search_audio(query):
             "filename_score": filename_score,
             "content_score": content_score,
             "semantic_score": semantic_score,
-            "preview": audio["chunk"][:300]
+            "preview": audio["chunk"][:300],
+            "file_id": audio.get("file_id"),
         })
 
     return output
