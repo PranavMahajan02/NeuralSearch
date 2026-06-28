@@ -15,30 +15,27 @@ MIN_WORD_LENGTH      = 4    # Ignore words shorter than this (reduces noise)
 SEMANTIC_THRESHOLD   = 0.35 # Min cosine similarity for semantic search
 INDEX_FILE           = "index.pkl"
 
+def load_index():
+
+    with open(INDEX_FILE, "rb") as f:
+        all_documents = pickle.load(f)
+
+    content_lookup = {}
+
+    for doc in all_documents:
+
+        filename = doc["file"]
+
+        if filename not in content_lookup:
+            content_lookup[filename] = ""
+
+        content_lookup[filename] += " " + doc["chunk"]
+
+    return all_documents, content_lookup
+
 # ==========================
 # LOAD MODEL & INDEX
 # ==========================
-
-print("Loading index...")
-
-with open(INDEX_FILE, "rb") as f:
-    all_documents = pickle.load(f)
-
-content_lookup = {}
-
-for doc in all_documents:
-    filename = doc["file"]
-    
-    if filename not in content_lookup:
-        content_lookup[filename] = ""
-        
-    content_lookup[filename] += " " + doc["chunk"]
-    if filename == "final report.docx":
-        if "ADT24SOCB0787" in doc["chunk"]:
-            print("\nFOUND IN CHUNK")
-            print(doc["chunk"][:300])
-
-print(f"Loaded {len(all_documents)} chunks")
 
 print("Loading semantic model...")
 model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -144,10 +141,9 @@ def get_content_score(query, content):
         for c_word in content_words:
             
             if (
-    abs(len(q_word) - len(c_word)) <= 2
-    and
-    fuzz.ratio(q_word, c_word) >= 88
-):
+                abs(len(q_word) - len(c_word)) <= 2
+                and fuzz.ratio(q_word, c_word) >= 88
+            ):
                 found = True
                 break
 
@@ -157,9 +153,15 @@ def get_content_score(query, content):
     return matches / len(query_words)
 
 
-def get_file_fuzzy_score(filename, query_words):
+# Fix 1: all_documents is now an explicit parameter instead of a global
+def get_file_fuzzy_score(
+    filename,
+    query_words,
+    all_documents
+):
     best_score = 0
 
+    # Fix 2: loop variable unchanged — uses the parameter, not a global
     for doc in all_documents:
         if doc["file"] != filename:
             continue
@@ -227,10 +229,16 @@ def fuzzy_match_doc(doc: dict, query_words: list) -> int:
 # SEARCH FUNCTION
 # ==========================
 
-def search_documents(query):
+def search_documents(
+    query,
+    platform="all"
+):
 
     if not query:
         return []
+    all_documents, content_lookup = load_index()
+
+    print(f"Loaded {len(all_documents)} chunks.")
 
     query_words = [
         w for w in query.lower().split()
@@ -270,6 +278,13 @@ def search_documents(query):
     unique_files = {}
 
     for doc in all_documents:
+        
+        if (
+            platform != "all"
+            and doc.get("platform", "local") != platform
+        ):
+            continue
+
         filename = doc["file"]
 
         if filename in unique_files:
@@ -287,7 +302,12 @@ def search_documents(query):
             content_lookup.get(filename, "")
         )
 
-        fuzzy_score = get_file_fuzzy_score(filename, query_words)
+        # Fix 3: pass all_documents through to the helper
+        fuzzy_score = get_file_fuzzy_score(
+            filename,
+            query_words,
+            all_documents
+        )
 
         semantic_score = semantic_lookup.get(filename, 0)
         
@@ -351,7 +371,8 @@ def search_documents(query):
             "title_score": title_score,
             "content_score": content_score,
             "fuzzy_score": fuzzy_score,
-            "semantic_score": semantic_score
+            "semantic_score": semantic_score,
+            "file_id": doc.get("file_id"),
         })
 
     return results

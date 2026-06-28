@@ -1,16 +1,29 @@
 from paddleocr import PaddleOCR
 
-print("Loading PaddleOCR...")
+ocr = None
 
-ocr = PaddleOCR(
-    use_angle_cls=True,
-    lang="en"
-)
 
-print("PaddleOCR Loaded")
+def get_ocr():
+
+    global ocr
+
+    if ocr is None:
+
+        print("Loading PaddleOCR...")
+
+        ocr = PaddleOCR(
+            use_angle_cls=True,
+            lang="en"
+        )
+
+        print("PaddleOCR Loaded")
+
+    return ocr
 
 
 def extract_text(image_path):
+
+    ocr = get_ocr()
 
     result = ocr.ocr(image_path)
 

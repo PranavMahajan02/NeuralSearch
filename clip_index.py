@@ -4,57 +4,64 @@ import pickle
 from clip_extract import get_image_embedding
 from paddle_extract import extract_text as paddle_ocr
 
-all_images = []
 
-data_folder = "data"
+def build_image_index():
 
-print("Building CLIP Image Index...\n")
+    all_images = []
 
-for filename in os.listdir(data_folder):
+    data_folder = "data"
 
-    if not filename.lower().endswith(
-        (".jpg", ".jpeg", ".png", ".webp",".avif")
-    ):
-        continue
+    print("Building CLIP Image Index...\n")
 
-    file_path = os.path.join(
-        data_folder,
-        filename
+    for filename in os.listdir(data_folder):
+
+        if not filename.lower().endswith(
+            (".jpg", ".jpeg", ".png", ".webp", ".avif")
+        ):
+            continue
+
+        file_path = os.path.join(
+            data_folder,
+            filename
+        )
+
+        print(f"Processing: {filename}")
+
+        embedding = get_image_embedding(
+            file_path
+        )
+
+        ocr_text = paddle_ocr(
+            file_path
+        )
+
+        all_images.append(
+            {
+                "file": filename,
+                "path": file_path,
+                "embedding": embedding,
+                "ocr_text": ocr_text
+            }
+        )
+
+    print(
+        f"\nTotal Images Indexed: {len(all_images)}"
     )
 
-    print(f"Processing: {filename}")
+    with open(
+        "image_index.pkl",
+        "wb"
+    ) as f:
 
-    embedding = get_image_embedding(
-        file_path
+        pickle.dump(
+            all_images,
+            f
+        )
+
+    print(
+        "\nImage index saved as image_index.pkl"
     )
 
-    ocr_text = paddle_ocr(
-        file_path
-    )
 
-    all_images.append(
-        {
-            "file": filename,
-            "path": file_path,
-            "embedding": embedding,
-            "ocr_text": ocr_text
-        }
-    )
-
-print(
-    f"\nTotal Images Indexed: {len(all_images)}"
-)
-
-with open(
-    "image_index.pkl",
-    "wb"
-) as f:
-
-    pickle.dump(
-        all_images,
-        f
-    )
-
-print(
-    "\nImage index saved as image_index.pkl"
-)
+if __name__ == "__main__":
+    build_image_index()

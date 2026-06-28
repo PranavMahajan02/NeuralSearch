@@ -21,3 +21,10 @@ test_images/
 
 # HuggingFace Cache
 .cache/
+
+credentials/
+.env
+.env.*
+token.json
+client_secret.json
+google_photos_token.json

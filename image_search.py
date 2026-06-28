@@ -14,6 +14,14 @@ from clip_utils import clip_search
 TOP_K = 5
 MIN_FINAL_SCORE = 0.05
 
+INDEX_FILE = "image_index.pkl"
+
+
+def load_index():
+
+    with open(INDEX_FILE, "rb") as f:
+        return pickle.load(f)
+
 
 # ==========================
 # HELPERS
@@ -29,10 +37,6 @@ def open_image(path):
             os.system(f'xdg-open "{path}"')
     except Exception as e:
         print(f"Could not open image: {e}")
-
-
-with open("image_index.pkl", "rb") as f:
-    image_index = pickle.load(f)
 
 
 def get_filename_score(query, filename):
@@ -81,9 +85,16 @@ def get_content_score(query, content):
 # SEARCH FUNCTION
 # ==========================
 
-def search_images(query):
+def search_images(
+    query,
+    platform="all"
+):
     if not query:
         return []
+
+    image_index = load_index()
+
+    print(f"Loaded {len(image_index)} images.")
 
     # Improvement 2: normalise query once up front
     query = query.strip().lower()
@@ -100,6 +111,11 @@ def search_images(query):
 
     # Fix 1: iterate over the full index, not just CLIP's top-20
     for image in image_index:
+        if (
+            platform != "all"
+            and image.get("platform", "local") != platform
+        ):
+            continue
 
         # Fix 2: pull CLIP score from lookup (0.0 if absent)
         clip_score = clip_lookup.get(image.get("file", ""), 0.0)
@@ -137,6 +153,7 @@ def search_images(query):
             "clip_score": clip_score,
             # Remove before production deployment (debug only)
             "ocr_text": image.get("ocr_text", ""),
+            "file_id": image.get("file_id"),
         })
 
     # Fix 6: single sort at the end only
