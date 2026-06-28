@@ -3,10 +3,6 @@ import pdfplumber
 
 from pdf2image import convert_from_path
 
-from paddle_extract import (
-    extract_text as paddle_ocr
-)
-
 POPPLER_PATH = (
     r"C:\Users\Pranav Mahajan\Downloads"
     r"\Release-26.02.0-0"
@@ -55,6 +51,8 @@ def extract_text(pdf_path):
     print(
         "Running PaddleOCR..."
     )
+
+    from paddle_extract import extract_text as paddle_ocr
 
     pages = convert_from_path(
         pdf_path,
