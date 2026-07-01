@@ -1,0 +1,15 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+credentials/
+.env
+.env.*
+token.json
+client_secret.json
+google_photos_token.json
+github_oauth.json

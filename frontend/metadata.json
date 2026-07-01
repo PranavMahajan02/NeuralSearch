@@ -1,0 +1,6 @@
+{
+  "name": "CogniSeek",
+  "description": "Unified, modern enterprise AI search platform that connects and indexes documents, images, audio, and videos across multiple storage services.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
