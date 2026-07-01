@@ -1,3 +1,4 @@
+import os
 import pickle
 import re
 
@@ -20,6 +21,9 @@ INDEX_FILE = "audio_index.pkl"
 
 
 def load_index():
+
+    if not os.path.exists(INDEX_FILE):
+        return []
 
     with open(INDEX_FILE, "rb") as f:
         return pickle.load(f)

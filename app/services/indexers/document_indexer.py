@@ -54,12 +54,33 @@ def index_document(
     elif extension == ".docx":
 
         text = extract_docx(file_path)
-
+    
     elif extension == ".pptx":
 
         text = extract_pptx(file_path)
 
-    elif extension == ".txt":
+    elif extension in (
+        ".txt",
+        ".py",
+        ".java",
+        ".js",
+        ".ts",
+        ".tsx",
+        ".cpp",
+        ".c",
+        ".cs",
+        ".go",
+        ".rs",
+        ".php",
+        ".html",
+        ".css",
+        ".json",
+        ".xml",
+        ".yaml",
+        ".yml",
+        ".sql",
+        ".sh"
+    ):
 
          text = extract_txt(file_path)
 

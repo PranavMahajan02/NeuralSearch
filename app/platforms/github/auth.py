@@ -1,7 +1,7 @@
 import os
 
 
-TOKEN_FILE = "***REDACTED***"
+TOKEN_FILE = "credentials/github_token.txt"
 
 
 def save_token(token):

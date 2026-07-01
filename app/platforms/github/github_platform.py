@@ -1,5 +1,7 @@
 import os
-
+from app.services.index_manager import (
+    remove_deleted_github_files
+)
 from app.platforms.base_platform import BasePlatform
 from app.services.upload_service import process_uploaded_file
 
@@ -11,25 +13,68 @@ from app.platforms.github.github_service import (
 
 
 SUPPORTED_EXTENSIONS = (
+
+    # Documents
     ".pdf",
     ".docx",
     ".pptx",
+    ".txt",
     ".csv",
+
+    # Images
     ".jpg",
     ".jpeg",
     ".png",
     ".webp",
     ".avif",
+
+    # Audio
     ".mp3",
     ".wav",
     ".m4a",
     ".aac",
     ".flac",
+
+    # Video
     ".mp4",
     ".avi",
     ".mov",
-    ".mkv"
+    ".mkv",
+
+    # Source Code
+    ".py",
+    ".java",
+    ".js",
+    ".ts",
+    ".tsx",
+    ".cpp",
+    ".c",
+    ".cs",
+    ".go",
+    ".rs",
+    ".php",
+    ".html",
+    ".css",
+    ".json",
+    ".xml",
+    ".yaml",
+    ".yml",
+    ".sql",
+    ".sh"
 )
+
+
+SKIP_FOLDERS = {
+    "temp",
+    "temp_frames",
+    ".git",
+    "__pycache__",
+    "venv",
+    "node_modules",
+    ".idx",
+    "build",
+    "dist"
+}
 
 
 class GitHubPlatform(BasePlatform):
@@ -61,31 +106,45 @@ class GitHubPlatform(BasePlatform):
                 if file["download_url"] is None:
                     continue
 
+                github_path = file["path"]
+
+                path_parts = github_path.split("/")
+
+                if any(
+                    folder in SKIP_FOLDERS
+                    for folder in path_parts
+                ):
+                    continue
+
                 extension = os.path.splitext(
-                    file["name"]
+                    github_path
                 )[1].lower()
 
                 if extension not in SUPPORTED_EXTENSIONS:
                     continue
 
-                print(f"Downloading: {file['path']}")
+                print(f"Downloading: {github_path}")
 
-                path = download_file(file)
+                local_path = download_file(file)
 
-                if path is None:
+                if local_path is None:
                     continue
 
                 process_uploaded_file(
-                    path,
+                    local_path,
                     platform="github",
-                    file_id=file["path"],
+                    file_id=github_path,
                     file_sha=file["sha"],
                     owner=owner,
                     repo=repo_name
                 )
 
-                if os.path.exists(path):
-                    os.remove(path)
+                if os.path.exists(local_path):
+                    os.remove(local_path)
+
+        print("\nChecking for deleted GitHub files...")
+
+        remove_deleted_github_files()
 
         print("\nGitHub indexing completed.")
 
@@ -93,7 +152,7 @@ class GitHubPlatform(BasePlatform):
         self,
         query
     ):
-
+    
         from app.services.document_service import search_document
         from app.services.image_service import search_image
         from app.services.audio_service import search_audio_file
@@ -129,7 +188,68 @@ class GitHubPlatform(BasePlatform):
             )
         )
 
-        return results    
+    # Global sorting
+        results.sort(
+            key=lambda x: x["score", 0],
+            reverse=True
+        )
+     
+        # Remove duplicate files (keep highest score)
+        unique_results = []
+        seen = set()
+
+        for result in results:
+
+            key = (
+                result.get("platform"),
+                result.get("file_id")
+                or result.get("path")
+            )
+
+            if key in seen:
+                continue
+
+            seen.add(key)
+            unique_results.append(result)
+
+        return unique_results
+
+    def open(
+        self,
+        path,    
+        file_id=None
+    ):
+
+        from app.platforms.github.github_service import (
+            get_github_file_url
+        )
+
+        from app.services.index_manager import load_index
+
+        data = load_index(path)
+
+        for item in data:
+
+            if (
+                item.get("platform") == "github"
+                and item.get("file_id") == file_id
+            ):
+
+                url = get_github_file_url(
+                    item["owner"],
+                    item["repo"],
+                    item["file_id"]
+                )    
+
+                return {
+                    "status": "success",
+                    "url": url
+                }
+
+        return {
+            "status": "error",
+            "message": "GitHub file not found."
+        }
 
     def upload(
         self,

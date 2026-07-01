@@ -56,7 +56,12 @@ def index_local_storage():
             "message": "Local platform not registered."
         }
 
-    local.index()
+    from threading import Thread
+
+    Thread(
+        target=local.index,
+        daemon=True
+    ).start()    
 
     return {
         "status": "success",

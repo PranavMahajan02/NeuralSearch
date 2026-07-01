@@ -6,7 +6,27 @@ DOCUMENTS = (
     ".docx",
     ".pptx",
     ".txt",
-    ".csv"
+    ".csv",
+
+    ".py",
+    ".java",
+    ".js",
+    ".ts",
+    ".tsx",
+    ".cpp",
+    ".c",
+    ".cs",
+    ".go",
+    ".rs",
+    ".php",
+    ".html",
+    ".css",
+    ".json",
+    ".xml",
+    ".yaml",
+    ".yml",
+    ".sql",
+    ".sh"
 )
 
 IMAGES = (
@@ -224,6 +244,59 @@ def remove_deleted_files():
 
         with open(index_file, "wb") as f:
             pickle.dump(new_data, f)
+
+def remove_deleted_github_files():
+
+    import pickle
+
+    from app.platforms.github.github_service import (
+        get_all_repository_paths
+    )
+
+    github_files = get_all_repository_paths()
+
+    index_files = [
+        "index.pkl",
+        "image_index.pkl",
+        "audio_index.pkl",
+        "video_index.pkl"
+    ]
+
+    for index_file in index_files:
+
+        if not os.path.exists(index_file):
+            continue
+
+        with open(index_file, "rb") as f:
+            data = pickle.load(f)
+
+        new_data = []
+
+        for item in data:
+
+            if item.get("platform") != "github":
+                new_data.append(item)
+                continue
+
+            repo = item.get("repo")
+            file_id = item.get("file_id")
+
+            if (repo, file_id) in github_files:
+
+                new_data.append(item)
+
+            else:
+
+                print(
+                    f"Deleted from GitHub: {repo}/{file_id}"
+                )
+
+        with open(index_file, "wb") as f:
+
+            pickle.dump(
+                new_data,
+                f
+            )
 
 
     

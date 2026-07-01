@@ -1,0 +1,38 @@
+[
+    {
+        "id": 1,
+        "name": "Pranav",
+        "email": "pranav@gmail.com",
+        "password": "$2b$12$LUHxjySZWXZACp3/X5lff.Ku5l6RcqMbQPNlFd3nW5NlW52CgcTHm"
+    },
+    {
+        "id": 2,
+        "name": "Pranav",
+        "email": "pkmahajan@gmail.com",
+        "password": "$2b$12$VrVH6p9DfmLINhv4DiQcLuYNaPES6fOTldUkVg0QLmYIyM.3daySO"
+    },
+    {
+        "id": 3,
+        "name": "Pranav Mahajan",
+        "email": "pkmahajan2020@gmail.com",
+        "password": "$2b$12$KiB25JpJ1.Kos3YzCUouOuUdvQa72OY6lZK/Lg6kN3ZKJQl6YfTBS"
+    },
+    {
+        "id": 4,
+        "name": "Pranav",
+        "email": "abc@gmail.com",
+        "password": "$2b$12$ApG9rMnSU.zTmJt4REWo8uzNhCYkI7gN/oBP6j3IStWvwDq4GeuSG"
+    },
+    {
+        "id": 5,
+        "name": "PM",
+        "email": "abcd@gmail.com",
+        "password": "$2b$12$wi4ks89gG2C4wkVptbZSbOTGWkYr6g/eBbGewJJT7F3q1doHAgzy6"
+    },
+    {
+        "id": 6,
+        "name": "Abhinav",
+        "email": "abhinav@gmail.com",
+        "password": "$2b$12$K0KlndVNDV5SQhn3nO4B3O9Ipx/SzDCSS4QlEoiAtwLiwpecC/TEu"
+    }
+]
