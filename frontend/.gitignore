@@ -13,3 +13,4 @@ token.json
 client_secret.json
 google_photos_token.json
 github_oauth.json
+!.env.example

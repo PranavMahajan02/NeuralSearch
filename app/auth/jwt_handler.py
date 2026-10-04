@@ -3,11 +3,14 @@ from datetime import datetime, timedelta
 from jose import jwt, JWTError
 
 
-SECRET_KEY = "your-secret-key-change-this"
+from app.core.config import settings
 
-ALGORITHM = "HS256"
 
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+SECRET_KEY = settings.JWT_SECRET_KEY
+
+ALGORITHM = settings.JWT_ALGORITHM
+
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 
 def create_access_token(data: dict):
