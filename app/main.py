@@ -11,7 +11,6 @@ from app.routes.scheduler import router as scheduler_router
 from app.routes.dashboard import router as dashboard_router
 from fastapi.middleware.cors import CORSMiddleware
 from app.cache.search_cache import initialize_search_cache
-from app.database.db import Base, engine
 from app.routes.login_state import router as login_state_router
 from app.routes.index_status import router as index_status_router
 from app.routes.local_picker import router as local_picker_router
@@ -25,7 +24,6 @@ app = FastAPI(
     description="Unified Semantic Search Backend",
     version="1.0.0"
 )
-Base.metadata.create_all(bind=engine)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
