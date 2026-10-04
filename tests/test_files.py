@@ -334,3 +334,36 @@ def test_unique_constraint_on_user_folder(db, user, folder):
         db.commit()
 
     db.rollback()
+
+
+def test_legacy_root_folder_rows_grant_nothing(client, user, db, local_root):
+    """A drive/filesystem root stored before validation existed must not make
+    every file on the disk downloadable."""
+
+    from app.database.models import LocalStorageFolder
+
+    anchor = Path(local_root.anchor)
+    db.add(LocalStorageFolder(user_id=user["id"], folder_path=str(anchor)))
+    db.commit()
+
+    loose = local_root / "loose-root-test.txt"
+    loose.write_text("x")
+
+    for path in (loose, Path(__file__)):
+        response = client.get("/files/local", params={"path": str(path)}, headers=user["headers"])
+        assert response.status_code == 404
+
+
+def test_legacy_folder_outside_allowed_roots_grants_nothing(client, user, db, tmp_path):
+
+    from app.database.models import LocalStorageFolder
+
+    outside = tmp_path / "legacy-outside"
+    outside.mkdir()
+    (outside / "f.txt").write_text("x")
+
+    db.add(LocalStorageFolder(user_id=user["id"], folder_path=str(outside)))
+    db.commit()
+
+    response = client.get("/files/local", params={"path": str(outside / "f.txt")}, headers=user["headers"])
+    assert response.status_code == 404

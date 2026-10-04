@@ -12,6 +12,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.local_folders import is_allowed_folder
 from app.core.paths import UnsafePathError, is_within, resolve_in_any, resolve_safe
 from app.database.local_storage_service import get_local_folders
 from app.database.platform_connection_service import is_platform_connected
@@ -35,21 +36,23 @@ def user_upload_dir(user_id, create: bool = False) -> Path:
 def user_local_bases(db: Session, user_id) -> List[Path]:
     """Resolved directories this user may read from: registered folders + uploads."""
 
-    candidates = [
-        Path(folder.folder_path)
-        for folder in get_local_folders(db, user_id)
-    ]
-    candidates.append(user_upload_dir(user_id))
-
     bases = []
 
-    for candidate in candidates:
+    for folder in get_local_folders(db, user_id):
         try:
-            resolved = candidate.resolve(strict=True)
+            resolved = Path(folder.folder_path).resolve(strict=True)
         except OSError:
             continue
-        if resolved.is_dir():
+        # Re-check stored rows: legacy rows (e.g. "C:/") predate validation.
+        if resolved.is_dir() and is_allowed_folder(resolved):
             bases.append(resolved)
+
+    try:
+        uploads = user_upload_dir(user_id).resolve(strict=True)
+        if uploads.is_dir():
+            bases.append(uploads)
+    except OSError:
+        pass
 
     return bases
 

@@ -32,18 +32,35 @@ def validate_local_folder(raw: str) -> str:
     if not path.is_dir():
         raise AppError(400, "Path is not a folder.")
 
-    if path == Path(path.anchor) or path.parent == path:
+    if is_root(path):
         raise AppError(400, "A drive or filesystem root cannot be indexed.")
 
-    allowed = []
-
-    for root in settings.allowed_local_roots_list:
-        try:
-            allowed.append(Path(root).resolve(strict=True))
-        except OSError:
-            continue
-
-    if not any(is_within(path, root) for root in allowed):
+    if not is_allowed_folder(path):
         raise AppError(400, "Folder is outside the allowed locations.")
 
     return str(path)
+
+
+def allowed_roots() -> list:
+
+    roots = []
+
+    for root in settings.allowed_local_roots_list:
+        try:
+            roots.append(Path(root).resolve(strict=True))
+        except OSError:
+            continue
+
+    return roots
+
+
+def is_root(path: Path) -> bool:
+
+    return path == Path(path.anchor) or path.parent == path
+
+
+def is_allowed_folder(path: Path) -> bool:
+    """`path` must already be resolved. Also applied to rows stored before
+    validation existed, so a legacy "C:/" row grants nothing."""
+
+    return not is_root(path) and any(is_within(path, root) for root in allowed_roots())
