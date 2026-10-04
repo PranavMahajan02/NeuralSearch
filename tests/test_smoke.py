@@ -56,3 +56,46 @@ def test_development_generates_jwt_secret_when_missing(monkeypatch):
         settings = Settings(_env_file=None)
 
     assert len(settings.JWT_SECRET_KEY) >= 32
+
+
+def test_production_requires_jwt_secret(monkeypatch):
+
+    monkeypatch.setenv("ENV", "production")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@db:5432/x")
+    monkeypatch.delenv("JWT_SECRET_KEY", raising=False)
+
+    with pytest.raises(ValueError, match="JWT_SECRET_KEY"):
+        Settings(_env_file=None)
+
+
+def test_production_requires_token_encryption_key(monkeypatch):
+
+    monkeypatch.setenv("ENV", "production")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@db:5432/x")
+    monkeypatch.setenv("JWT_SECRET_KEY", "x" * 40)
+    monkeypatch.delenv("TOKEN_ENCRYPTION_KEY", raising=False)
+
+    with pytest.raises(ValueError, match="TOKEN_ENCRYPTION_KEY"):
+        Settings(_env_file=None)
+
+
+def test_invalid_token_encryption_key_is_rejected(monkeypatch):
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@db:5432/x")
+    monkeypatch.setenv("JWT_SECRET_KEY", "x" * 40)
+    monkeypatch.setenv("TOKEN_ENCRYPTION_KEY", "not-a-fernet-key")
+
+    with pytest.raises(ValueError, match="not a valid Fernet key"):
+        Settings(_env_file=None)
+
+
+def test_production_config_errors_do_not_echo_secrets(monkeypatch):
+
+    monkeypatch.setenv("ENV", "production")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:supersecretpw@db:5432/x")
+    monkeypatch.setenv("JWT_SECRET_KEY", "short")
+
+    with pytest.raises(ValueError) as error:
+        Settings(_env_file=None)
+
+    assert "supersecretpw" not in str(error.value)
