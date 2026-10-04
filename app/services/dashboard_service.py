@@ -1,6 +1,6 @@
 import os
 import pickle
-from app.scheduler.status import get_status
+from app.scheduler.status import get_status_for_user
 from app.database.db import SessionLocal
 from app.database.local_storage_service import get_local_folders
 from app.database.platform_connection_service import (
@@ -52,7 +52,7 @@ def get_dashboard_stats(user_id):
         + video
     )
 
-    scheduler = get_status()
+    scheduler = get_status_for_user(user_id)
 
     db = SessionLocal()
 
