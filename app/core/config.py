@@ -3,13 +3,24 @@
 import secrets
 import warnings
 from functools import lru_cache
+from pathlib import Path
 from typing import List, Literal, Optional
 
+from cryptography.fernet import Fernet
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 MIN_JWT_SECRET_LENGTH = 32
+
+
+def _split_csv(value: str) -> List[str]:
+
+    return [
+        item.strip()
+        for item in value.split(",")
+        if item.strip()
+    ]
 
 
 class Settings(BaseSettings):
@@ -33,8 +44,14 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    # Fernet key for OAuth tokens stored in the DB.
+    TOKEN_ENCRYPTION_KEY: Optional[str] = None
+
+    # Rate limit for /auth/login and /auth/register (slowapi syntax).
+    AUTH_RATE_LIMIT: str = "5/minute"
+
     # HTTP
-    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:5173"
+    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
     BACKEND_PUBLIC_URL: str = "http://127.0.0.1:8000"
     FRONTEND_URL: str = "http://localhost:3000"
 
@@ -45,15 +62,59 @@ class Settings(BaseSettings):
     # Filesystem
     DATA_DIR: str = "data"
     TEMP_DIR: str = "temp"
+    MAX_UPLOAD_MB: int = 100
+
+    # Comma list of directories under which local folders may be registered.
+    # Empty = the home directory of the user running the backend.
+    ALLOWED_LOCAL_ROOTS: str = ""
 
     @property
     def cors_origins_list(self) -> List[str]:
 
-        return [
-            origin.strip()
-            for origin in self.CORS_ORIGINS.split(",")
-            if origin.strip()
-        ]
+        return _split_csv(self.CORS_ORIGINS)
+
+    @property
+    def allowed_local_roots_list(self) -> List[str]:
+
+        return _split_csv(self.ALLOWED_LOCAL_ROOTS) or [str(Path.home())]
+
+    @property
+    def max_upload_bytes(self) -> int:
+
+        return self.MAX_UPLOAD_MB * 1024 * 1024
+
+    @property
+    def is_production(self) -> bool:
+
+        return self.ENV == "production"
+
+    @model_validator(mode="after")
+    def check_token_encryption_key(self):
+
+        key = self.TOKEN_ENCRYPTION_KEY
+
+        if key:
+            try:
+                Fernet(key.encode())
+            except (ValueError, TypeError):
+                raise ValueError(
+                    "TOKEN_ENCRYPTION_KEY is not a valid Fernet key."
+                ) from None
+            return self
+
+        if self.is_production:
+            raise ValueError(
+                "TOKEN_ENCRYPTION_KEY must be set in production."
+            )
+
+        self.TOKEN_ENCRYPTION_KEY = Fernet.generate_key().decode()
+        warnings.warn(
+            "TOKEN_ENCRYPTION_KEY is not set: using a random development key. "
+            "Stored OAuth tokens will be unreadable after a restart.",
+            stacklevel=2
+        )
+
+        return self
 
     @model_validator(mode="after")
     def check_jwt_secret(self):

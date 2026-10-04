@@ -1,193 +1,44 @@
-import API_BASE_URL from "./api";
+import { apiJson } from "./http";
 
-function getAuthHeaders() {
-
-    const token = localStorage.getItem("access_token");
-
-    return {
-
-        "Content-Type": "application/json",
-
-        Authorization: `Bearer ${token}`
-
-    };
-
-}
+type FoldersResponse = { status?: string; folders: string[] };
 
 export async function getFolders() {
-
-    const response = await fetch(
-
-        `${API_BASE_URL}/platforms/local/folders`,
-
-        {
-
-            headers: getAuthHeaders()
-
-        }
-
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-
-        throw new Error(
-
-            data.message || "Unable to load folders."
-
-        );
-
-    }
-
-    return data;
-
+  return apiJson<FoldersResponse>("/platforms/local/folders", { errorMessage: "Unable to load folders." });
 }
-
 
 export async function addFolder(folder: string) {
-
-    const response = await fetch(
-
-        `${API_BASE_URL}/platforms/local/folders`,
-
-        {
-
-            method: "POST",
-
-            headers: getAuthHeaders(),
-
-            body: JSON.stringify({
-
-                folder
-
-            })
-
-        }
-
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-
-        throw new Error(
-
-            data.message || "Unable to add folder."
-
-        );
-
-    }
-
-    return data;
-
+  return apiJson<FoldersResponse>("/platforms/local/folders", {
+    method: "POST",
+    json: { folder },
+    errorMessage: "Unable to add folder.",
+  });
 }
-
 
 export async function removeFolder(folder: string) {
-
-    const response = await fetch(
-
-        `${API_BASE_URL}/platforms/local/folders`,
-
-        {
-
-            method: "DELETE",
-
-            headers: getAuthHeaders(),
-
-            body: JSON.stringify({
-
-                folder
-
-            })
-
-        }
-
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-
-        throw new Error(
-
-            data.message || "Unable to remove folder."
-
-        );
-
-    }
-
-    return data;
-
+  return apiJson<FoldersResponse>("/platforms/local/folders", {
+    method: "DELETE",
+    json: { folder },
+    errorMessage: "Unable to remove folder.",
+  });
 }
 
-
+/** Indexes the registered local folders through the regular /index/ endpoint. */
 export async function indexLocalStorage() {
-
-    const response = await fetch(
-
-        `${API_BASE_URL}/platforms/local/index`,
-
-        {
-
-            method: "POST",
-
-            headers: getAuthHeaders()
-
-        }
-
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-
-        throw new Error(
-
-            data.message || "Indexing failed."
-
-        );
-
-    }
-
-    return data;
-
+  return apiJson("/index/", {
+    method: "POST",
+    json: { priority_platform: "local", platforms: ["local"] },
+    errorMessage: "Indexing failed.",
+  });
 }
+
+/**
+ * Opens a native folder dialog on the machine running the backend.
+ * Development only: in production the endpoint does not exist and the
+ * folder path must be typed in.
+ */
 export async function pickFolder() {
-
-    const token = localStorage.getItem("access_token");
-
-    const response = await fetch(
-
-        `${API_BASE_URL}/platforms/local/pick-folder`,
-
-        {
-
-            method: "POST",
-
-            headers: {
-
-                Authorization: `Bearer ${token}`
-
-            }
-
-        }
-
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-
-        throw new Error(
-
-            data.message || "Unable to open native picker."
-
-        );
-
-    }
-
-    return data;
-
+  return apiJson<{ folder: string }>("/platforms/local/pick-folder", {
+    method: "POST",
+    errorMessage: "The folder picker is not available. Please type the folder path.",
+  });
 }

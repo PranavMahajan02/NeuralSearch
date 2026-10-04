@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database.db import SessionLocal
@@ -11,6 +12,16 @@ from app.auth.password import (
 from app.auth.jwt_handler import create_access_token
 
 
+def _find_by_email(db: Session, email: str):
+
+    # Emails are stored lower-case from now on; older rows may not be.
+    return (
+        db.query(User)
+        .filter(func.lower(User.email) == email.lower())
+        .first()
+    )
+
+
 def register_user(
     name,
     email,
@@ -21,13 +32,7 @@ def register_user(
 
     try:
 
-        existing = (
-            db.query(User)
-            .filter(User.email == email)
-            .first()
-        )
-
-        if existing:
+        if _find_by_email(db, email):
             raise ValueError(
                 "Email already registered."
             )
@@ -45,11 +50,9 @@ def register_user(
         db.refresh(user)
 
         return {
-
             "id": user.id,
             "name": user.full_name,
             "email": user.email
-
         }
 
     finally:
@@ -66,45 +69,37 @@ def login_user(
 
     try:
 
-        user = (
-            db.query(User)
-            .filter(User.email == email)
-            .first()
-        )
+        user = _find_by_email(db, email)
 
-        if user is None:
-
-            raise ValueError(
-                "Invalid email or password."
-            )
-
-        if not verify_password(
+        if user is None or not user.password_hash or not verify_password(
             password,
             user.password_hash
         ):
-
             raise ValueError(
                 "Invalid email or password."
             )
 
         token = create_access_token(
-
-            {
-
-                "user_id": str(user.id),
-                "email": user.email
-
-            }
-
+            user_id=str(user.id),
+            token_version=user.token_version
         )
 
         return {
-
             "access_token": token,
             "token_type": "bearer"
-
         }
 
     finally:
 
         db.close()
+
+
+def revoke_user_tokens(db: Session, user_id) -> None:
+    """Invalidate every token issued to this user so far."""
+
+    db.query(User).filter(User.id == user_id).update(
+        {User.token_version: User.token_version + 1},
+        synchronize_session=False
+    )
+
+    db.commit()

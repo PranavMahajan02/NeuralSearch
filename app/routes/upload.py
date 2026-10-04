@@ -1,41 +1,51 @@
 from fastapi import APIRouter
-from fastapi import UploadFile
-from fastapi import File
 from fastapi import BackgroundTasks
+from fastapi import Depends
+from fastapi import File
+from fastapi import Request
+from fastapi import UploadFile
 
-from app.services.upload_service import save_uploaded_file
+from app.auth.auth_dependency import get_current_user
+from app.core.config import settings
+from app.core.errors import AppError
 from app.services.upload_service import process_uploaded_file
+from app.services.upload_service import save_uploaded_file
 
-router = APIRouter()
+
+router = APIRouter(
+    prefix="/upload",
+    tags=["Upload"]
+)
+
+
+# Multipart framing overhead allowed on top of MAX_UPLOAD_MB.
+MULTIPART_OVERHEAD = 64 * 1024
 
 
 @router.post("/")
 def upload_file(
+    request: Request,
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    current_user=Depends(get_current_user)
 ):
 
-    result = save_uploaded_file(file)
+    declared = request.headers.get("content-length")
 
-    if result["status"] == "duplicate":
+    if declared and declared.isdigit() and int(declared) > settings.max_upload_bytes + MULTIPART_OVERHEAD:
+        raise AppError(413, f"File exceeds the {settings.MAX_UPLOAD_MB} MB limit.")
 
-        return {
-            "status": "duplicate",
-            "filename": file.filename,
-            "message": "File already exists.",
-            "path": result["path"]
-        }
+    result = save_uploaded_file(file, current_user["id"])
 
     background_tasks.add_task(
-    process_uploaded_file,
-    result["path"]
+        process_uploaded_file,
+        result["path"]
     )
 
     return {
         "status": "uploaded",
-        "filename": file.filename,
-        "message": "Uploaded Successfully",
-        "path": result["path"]
+        "filename": result["filename"],
+        "message": "Uploaded Successfully"
     }
 
 
