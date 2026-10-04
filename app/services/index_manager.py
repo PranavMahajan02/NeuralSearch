@@ -1,57 +1,18 @@
 import os
 import pickle
-
-DOCUMENTS = (
-    ".pdf",
-    ".docx",
-    ".pptx",
-    ".txt",
-    ".csv",
-
-    ".py",
-    ".java",
-    ".js",
-    ".ts",
-    ".tsx",
-    ".cpp",
-    ".c",
-    ".cs",
-    ".go",
-    ".rs",
-    ".php",
-    ".html",
-    ".css",
-    ".json",
-    ".xml",
-    ".yaml",
-    ".yml",
-    ".sql",
-    ".sh"
+from app.cache.search_cache import (
+    reload_document_cache,
+    reload_image_cache,
+    reload_audio_cache,
+    reload_video_cache,
 )
 
-IMAGES = (
-    ".jpg",
-    ".jpeg",
-    ".png",
-    ".webp",
-    ".avif"
+from app.config.file_types import (
+    DOCUMENTS,
+    IMAGES,
+    AUDIOS,
+    VIDEOS
 )
-
-AUDIOS = (
-    ".mp3",
-    ".wav",
-    ".m4a",
-    ".aac",
-    ".flac"
-)
-
-VIDEOS = (
-    ".mp4",
-    ".avi",
-    ".mov",
-    ".mkv"
-)
-
 
 def get_index_file(file_path):
 
@@ -101,6 +62,18 @@ def save_index(file_path, data):
     with open(index_file, "wb") as f:
         pickle.dump(data, f)
 
+    if index_file == "index.pkl":
+        reload_document_cache()
+
+    elif index_file == "image_index.pkl":
+        reload_image_cache()
+
+    elif index_file == "audio_index.pkl":
+        reload_audio_cache()
+
+    elif index_file == "video_index.pkl":
+        reload_video_cache()
+
     print("Saved successfully")
 
 def is_file_indexed(
@@ -137,7 +110,7 @@ def is_file_modified(
 
     data = load_index(file_path)
 
-    if platform == "github":
+    if platform in ("github", "google_drive"):
 
         current_sha = file_sha
 
@@ -160,7 +133,7 @@ def is_file_modified(
             if item.get("path") != file_path:
                 continue
 
-        if platform == "github":
+        if platform in ("github", "google_drive"):
 
             indexed_sha = item.get("sha")
 
@@ -298,9 +271,5 @@ def remove_deleted_github_files():
                 f
             )
 
-
-    
-
-    
 
     

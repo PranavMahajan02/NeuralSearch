@@ -337,46 +337,6 @@ export default function PageLogin({ onLoginSuccess, theme, onToggleTheme }: Page
               transition={{ duration: 0.2 }}
               className="space-y-3.5"
             >
-              <button
-                id="btn_google_sign_in"
-                onClick={onLoginSuccess}
-                className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all duration-200 shadow-xs cursor-pointer active:scale-98"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.9h6.6c-.28 1.5-.1.82-1.35 1.66v2.76h2.2c1.28-1.18 2.3-2.92 2.3-5.25z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.87-3c-1.08.72-2.45 1.16-4.06 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.18C3.26 22.31 7.37 24 12 24z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.27 14.29a7.18 7.18 0 0 1 0-4.58V6.53H1.29a11.94 11.94 0 0 0 0 10.94l3.98-3.18z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.26 1.69 1.29 5.35l3.98 3.18c.95-2.85 3.6-4.96 6.73-4.96z"
-                  />
-                </svg>
-                Continue with Google
-              </button>
-
-              <button
-                id="btn_github_sign_in"
-                onClick={onLoginSuccess}
-                className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-slate-900 dark:bg-slate-950 dark:hover:bg-slate-900 border border-transparent dark:border-slate-800 hover:bg-slate-800 rounded-xl text-sm font-medium text-white transition-all duration-200 shadow-xs cursor-pointer active:scale-98"
-              >
-                <Github className="w-4 h-4 text-white" />
-                Continue with GitHub
-              </button>
-
-              <div className="relative flex py-2 items-center">
-                <div className="flex-grow border-t border-slate-100 dark:border-slate-850"></div>
-                <span className="flex-shrink mx-4 text-slate-400 dark:text-slate-500 font-mono text-[10px] tracking-widest font-medium uppercase">or</span>
-                <div className="flex-grow border-t border-slate-100 dark:border-slate-850"></div>
-              </div>
 
               <button
                 id="btn_email_sign_in"

@@ -12,6 +12,13 @@ from clip_extract import get_image_embedding
 from chunk import chunk_text
 from embeddings import get_embeddings
 
+from app.vectorstore.insert import insert_vectors
+from app.vectorstore.delete import delete_vectors
+from app.vectorstore.config import (
+    VIDEO_COLLECTION,
+    VIDEO_FRAME_COLLECTION,
+)
+
 
 def index_video(
     file_path,
@@ -26,6 +33,18 @@ def index_video(
 
     filename = os.path.basename(file_path)
 
+    # ------------------------------------
+    # Delete old vectors from Qdrant
+    # ------------------------------------
+
+    delete_vectors(
+        collection_name=VIDEO_COLLECTION,
+        platform=platform,
+        file_id=file_id,
+        path=file_path,
+        repo=repo,
+    )
+
     transcript = extract_video_text(file_path)
 
     print("Extracting frames...")
@@ -38,14 +57,41 @@ def index_video(
     print(f"Frames Extracted: {len(frames)}")
 
     clip_embeddings = []
+    new_frames = []
 
-    for frame in frames:
+    for i, frame in enumerate(frames):
 
         try:
 
             embedding = get_image_embedding(frame)
 
+            embedding = (
+                embedding.tolist()
+                if hasattr(embedding, "tolist")
+                else embedding
+            )
+
             clip_embeddings.append(embedding)
+
+            new_frames.append(
+                {
+                    "file": filename,
+                    "path": file_path,
+                    "platform": platform,
+                    "file_id": file_id,
+                    "owner": owner,
+                    "repo": repo,
+                    "sha": file_sha,
+                    "last_modified": (
+                        file_sha
+                        if platform == "google_drive"
+                        else os.path.getmtime(file_path)
+                    ),
+                    "frame_number": i,
+                    "chunk": f"Frame {i}",
+                    "embedding": embedding,
+                }
+            )
 
         except Exception as e:
 
@@ -77,31 +123,53 @@ def index_video(
 
     all_video = load_index(file_path)
 
-    for chunk, embedding in zip(
-        chunks,
-        embeddings
-    ):
+    new_videos = []
 
-        all_video.append(
-            {
-                "file": filename,
-                "path": file_path,
-                "platform": platform,
-                "file_id": file_id,
-                "owner": owner,
-                "repo": repo,
-                "sha": file_sha,
-                "last_modified": os.path.getmtime(file_path),
-                "transcript": transcript,
-                "chunk": chunk,
-                "embedding": embedding,
-                "clip_embeddings": clip_embeddings
-            }
-        )
+    for chunk, embedding in zip(chunks, embeddings):
+
+        video = {
+            "file": filename,
+            "path": file_path,
+            "platform": platform,
+            "file_id": file_id,
+            "owner": owner,
+            "repo": repo,
+            "sha": file_sha,
+            "last_modified": (
+                file_sha
+                if platform == "google_drive"
+                else os.path.getmtime(file_path)
+            ),
+            "transcript": transcript,
+            "chunk": chunk,
+            "embedding": (
+                embedding.tolist()
+                if hasattr(embedding, "tolist")
+                else embedding
+            ),
+            "clip_embeddings": clip_embeddings
+        }
+
+        all_video.append(video)
+        new_videos.append(video)
 
     save_index(
         file_path,
         all_video
+    )
+
+    # ------------------------------------
+    # Store vectors in Qdrant
+    # ------------------------------------
+     
+    insert_vectors(
+        new_videos,
+        VIDEO_COLLECTION
+    )
+
+    insert_vectors(
+        new_frames,
+        VIDEO_FRAME_COLLECTION
     )
 
     print("Video indexing completed.")

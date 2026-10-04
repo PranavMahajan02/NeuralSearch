@@ -140,11 +140,43 @@ export async function getProfile() {
 }
 
 
-export function logout() {
+export async function logout() {
 
-    localStorage.removeItem(
-        TOKEN_KEY
-    );
+    const token = localStorage.getItem(TOKEN_KEY);
+
+    if (token) {
+
+        try {
+
+            await fetch(
+
+                `${API_BASE_URL}/auth/logout`,
+
+                {
+
+                    method: "POST",
+
+                    headers: {
+
+                        Authorization: `Bearer ${token}`
+
+                    }
+
+                }
+
+            );
+
+        }
+
+        catch (e) {
+
+            console.error(e);
+
+        }
+
+    }
+
+    localStorage.removeItem(TOKEN_KEY);
 
 }
 

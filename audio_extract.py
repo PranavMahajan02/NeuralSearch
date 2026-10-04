@@ -1,15 +1,4 @@
-from faster_whisper import WhisperModel
-
-print("Loading Whisper model... (This may take some time on first run)")
-
-# Load the model only once
-model = WhisperModel(
-    "base",
-    device="cuda",
-    compute_type="float16"
-)
-
-print("Whisper model loaded successfully!")
+from app.ai.model_manager import model_manager
 
 
 def extract_audio_text(audio_path):
@@ -22,6 +11,8 @@ def extract_audio_text(audio_path):
     Returns:
         str: Transcript
     """
+
+    model = model_manager.whisper_model
 
     print(f"\nReading audio file: {audio_path}")
 

@@ -1,9 +1,15 @@
-from fastapi import Depends, HTTPException
+from fastapi import Depends
+from fastapi import HTTPException
+
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.security import HTTPBearer
 
+from sqlalchemy.orm import Session
+
 from app.auth.jwt_handler import verify_token
-from app.auth.auth_service import get_user_by_email
+
+from app.database.db import get_db
+from app.database.models import User
 
 
 security = HTTPBearer()
@@ -11,9 +17,9 @@ security = HTTPBearer()
 
 def get_current_user(
 
-    credentials: HTTPAuthorizationCredentials = Depends(
-        security
-    )
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+
+    db: Session = Depends(get_db)
 
 ):
 
@@ -33,7 +39,15 @@ def get_current_user(
 
     email = payload.get("email")
 
-    user = get_user_by_email(email)
+    user = (
+
+        db.query(User)
+
+        .filter(User.email == email)
+
+        .first()
+
+    )
 
     if user is None:
 
@@ -45,4 +59,12 @@ def get_current_user(
 
         )
 
-    return user
+    return {
+
+        "id": str(user.id),
+
+        "name": user.full_name,
+
+        "email": user.email
+
+    }

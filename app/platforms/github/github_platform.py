@@ -1,9 +1,20 @@
 import os
+import time
 from app.services.index_manager import (
     remove_deleted_github_files
 )
 from app.platforms.base_platform import BasePlatform
 from app.services.upload_service import process_uploaded_file
+from app.database.db import SessionLocal
+from app.database.indexing_job_service import (
+    set_total_files,
+    increment_indexed_files,
+    update_current_file
+)
+from app.scheduler.cancel import (
+    is_cancelled,
+    clear_cancel
+)
 
 from app.platforms.github.github_service import (
     list_repositories,
@@ -11,58 +22,19 @@ from app.platforms.github.github_service import (
     download_file
 )
 
-
-SUPPORTED_EXTENSIONS = (
-
-    # Documents
-    ".pdf",
-    ".docx",
-    ".pptx",
-    ".txt",
-    ".csv",
-
-    # Images
-    ".jpg",
-    ".jpeg",
-    ".png",
-    ".webp",
-    ".avif",
-
-    # Audio
-    ".mp3",
-    ".wav",
-    ".m4a",
-    ".aac",
-    ".flac",
-
-    # Video
-    ".mp4",
-    ".avi",
-    ".mov",
-    ".mkv",
-
-    # Source Code
-    ".py",
-    ".java",
-    ".js",
-    ".ts",
-    ".tsx",
-    ".cpp",
-    ".c",
-    ".cs",
-    ".go",
-    ".rs",
-    ".php",
-    ".html",
-    ".css",
-    ".json",
-    ".xml",
-    ".yaml",
-    ".yml",
-    ".sql",
-    ".sh"
+from app.config.file_types import (
+    DOCUMENTS,
+    IMAGES,
+    AUDIOS,
+    VIDEOS
 )
 
+SUPPORTED_EXTENSIONS = (
+    DOCUMENTS
+    + IMAGES
+    + AUDIOS
+    + VIDEOS
+)
 
 SKIP_FOLDERS = {
     "temp",
@@ -79,80 +51,172 @@ SKIP_FOLDERS = {
 
 class GitHubPlatform(BasePlatform):
 
-    def index(self):
+    def index(
+        self,
+        user_id
+    ):
 
         print("Fetching repositories...")
 
-        repos = list_repositories()
+        db = SessionLocal()
 
-        print(f"Found {len(repos)} repositories.")
+        try:
 
-        for repo in repos:
-
-            owner = repo["owner"]["login"]
-            repo_name = repo["name"]
-
-            print(f"\nRepository: {repo_name}")
-
-            files = get_all_files(
-                owner,
-                repo_name
+            repos = list_repositories(
+                db,
+                user_id
             )
 
-            print(f"Found {len(files)} files.")
+            print(f"Found {len(repos)} repositories.")
 
-            for file in files:
+            total_files = 0
 
-                if file["download_url"] is None:
-                    continue
+            for repo in repos:
 
-                github_path = file["path"]
+                owner = repo["owner"]["login"]
+                repo_name = repo["name"]
 
-                path_parts = github_path.split("/")
-
-                if any(
-                    folder in SKIP_FOLDERS
-                    for folder in path_parts
-                ):
-                    continue
-
-                extension = os.path.splitext(
-                    github_path
-                )[1].lower()
-
-                if extension not in SUPPORTED_EXTENSIONS:
-                    continue
-
-                print(f"Downloading: {github_path}")
-
-                local_path = download_file(file)
-
-                if local_path is None:
-                    continue
-
-                process_uploaded_file(
-                    local_path,
-                    platform="github",
-                    file_id=github_path,
-                    file_sha=file["sha"],
-                    owner=owner,
-                    repo=repo_name
+                repo_files = get_all_files(
+                    db,
+                    user_id,
+                    owner,
+                    repo_name
                 )
 
-                if os.path.exists(local_path):
-                    os.remove(local_path)
+                for file in repo_files:
 
-        print("\nChecking for deleted GitHub files...")
+                    if file["download_url"] is None:
+                        continue
 
-        remove_deleted_github_files()
+                    github_path = file["path"]
 
-        print("\nGitHub indexing completed.")
+                    path_parts = github_path.split("/")
+
+                    if any(folder in SKIP_FOLDERS for folder in path_parts):
+                        continue
+
+                    extension = os.path.splitext(github_path)[1].lower()
+
+                    if extension not in SUPPORTED_EXTENSIONS:
+                        continue
+
+                    total_files += 1
+
+            set_total_files(
+                db,
+                user_id,
+                "github",
+                total_files
+            )
+
+            for repo in repos:
+
+                if is_cancelled(user_id):
+
+                    print("\nGitHub indexing cancelled.")
+
+                    break
+
+                owner = repo["owner"]["login"]
+                repo_name = repo["name"]
+
+                print(f"\nRepository: {repo_name}")
+
+                files = get_all_files(
+                    db,
+                    user_id,
+                    owner,
+                    repo_name
+                )
+
+                print(f"Found {len(files)} files.")
+
+                for file in files:
+
+                    if is_cancelled(user_id):
+
+                        print("\nGitHub indexing cancelled.")
+
+                        break
+
+                    if file["download_url"] is None:
+                        continue
+
+                    github_path = file["path"]
+
+                    path_parts = github_path.split("/")
+
+                    if any(
+                        folder in SKIP_FOLDERS
+                        for folder in path_parts
+                    ):
+                        continue
+
+                    extension = os.path.splitext(
+                        github_path
+                    )[1].lower()
+
+                    if extension not in SUPPORTED_EXTENSIONS:
+                        continue
+
+                    print(f"Downloading: {github_path}")
+
+                    update_current_file(
+                        db,
+                        user_id,
+                        "github",
+                        github_path
+                    )
+
+                    local_path = download_file(
+                        db,
+                        user_id,
+                        file
+                    )
+
+                    if local_path is None:
+                        continue
+
+                    process_uploaded_file(
+                        local_path,
+                        platform="github",
+                        file_id=github_path,
+                        file_sha=file["sha"],
+                        owner=owner,
+                        repo=repo_name
+                    )
+
+                    increment_indexed_files(
+                        db,
+                        user_id,
+                        "github"
+                    )
+
+                    time.sleep(0.2)
+
+                    try:
+                        if os.path.exists(local_path):
+                            os.remove(local_path)
+                    except PermissionError:
+                        print(f"Could not delete temp file: {local_path}")
+
+            # TODO:
+            # Enable after GitHub migration is complete.
+            # remove_deleted_github_files()
+
+            print("\nGitHub indexing completed.")
+
+        finally:
+
+            db.close()
+            clear_cancel(user_id)
 
     def search(
         self,
-        query
+        query,
+        search_type="all"
     ):
-    
+
         from app.services.document_service import search_document
         from app.services.image_service import search_image
         from app.services.audio_service import search_audio_file
@@ -160,41 +224,79 @@ class GitHubPlatform(BasePlatform):
 
         results = []
 
-        results.extend(
-            search_document(
-                query,
-                "github"
-            )
-        )
+        if search_type == "all":
 
-        results.extend(
-            search_image(
-                query,
-                "github"
+            results.extend(
+                search_document(
+                    query,
+                    "github"
+                )
             )
-        )
 
-        results.extend(
-            search_audio_file(
-                query,
-                "github"
+            results.extend(
+                search_image(
+                    query,
+                    "github"
+                )
             )
-        )
 
-        results.extend(
-            search_video_file(
-                query,
-                "github"
+            results.extend(
+                search_audio_file(
+                    query,
+                    "github"
+                )
             )
-        )
 
-    # Global sorting
+            results.extend(
+                search_video_file(
+                    query,
+                    "github"
+                )
+            )
+
+        elif search_type == "document":
+
+            results.extend(
+                search_document(
+                    query,
+                    "github"
+                )
+            )
+
+        elif search_type == "image":
+
+            results.extend(
+                search_image(
+                    query,
+                    "github"
+                )
+            )
+
+        elif search_type == "audio":
+
+            results.extend(
+                search_audio_file(
+                    query,
+                    "github"
+                )
+            )
+
+        elif search_type == "video":
+
+            results.extend(
+                search_video_file(
+                    query,
+                    "github"
+                )
+            )
+
+        # Global sorting
         results.sort(
-            key=lambda x: x["score", 0],
+            key=lambda x: x.get("score", 0),
             reverse=True
         )
-     
-        # Remove duplicate files (keep highest score)
+
+        # Remove duplicate files
         unique_results = []
         seen = set()
 

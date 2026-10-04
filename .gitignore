@@ -31,3 +31,12 @@ token.json
 client_secret.json
 google_photos_token.json
 github_oauth.json
+
+# Temporary indexing/output
+temp/
+temp_frames/
+log.txt
+
+# Optional temp files
+*.tmp
+*.temp

@@ -83,7 +83,7 @@ export default function PageChooseFirst({ platforms, onStartIndexing, onBack, th
         <h2 id="choose_first_title" className="font-display text-3xl sm:text-4xl font-bold text-slate-800 dark:text-white tracking-tight">
           Choose a Platform to Start Searching
         </h2>
-        
+
         <div className="mt-4 p-4 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 rounded-xl max-w-xl mx-auto text-center">
           <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
             ⚡ Quick Onboarding Architecture
@@ -99,35 +99,32 @@ export default function PageChooseFirst({ platforms, onStartIndexing, onBack, th
         <label className="block text-xs font-bold font-mono uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 ml-1">
           Your Connected Portals ({connectedPlatforms.length})
         </label>
-        
+
         <div className="space-y-2.5">
           {connectedPlatforms.map((platform) => {
             const isSelected = selectedId === platform.id;
             return (
               <motion.div
                 key={platform.id}
-                 whileHover={{ scale: 1.01 }}
+                whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
                 id={`choose_card_${platform.id}`}
                 onClick={() => setSelectedId(platform.id)}
-                className={`py-4 px-5 rounded-xl border flex items-center justify-between cursor-pointer transition-all duration-200 ${
-                  isSelected
-                    ? "bg-white dark:bg-slate-900 border-blue-500 dark:border-blue-500 ring-4 ring-blue-500/10 shadow-xs"
-                    : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 shadow-none"
-                }`}
+                className={`py-4 px-5 rounded-xl border flex items-center justify-between cursor-pointer transition-all duration-200 ${isSelected
+                  ? "bg-white dark:bg-slate-900 border-blue-500 dark:border-blue-500 ring-4 ring-blue-500/10 shadow-xs"
+                  : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 shadow-none"
+                  }`}
               >
                 <div className="flex items-center gap-4">
-                  <div className={`p-2.5 rounded-lg border ${
-                    isSelected 
-                      ? "bg-blue-50/80 dark:bg-blue-950/40 border-blue-100 dark:border-blue-900/50" 
-                      : "bg-slate-50 dark:bg-slate-950 border-slate-150 dark:border-slate-850"
-                  }`}>
+                  <div className={`p-2.5 rounded-lg border ${isSelected
+                    ? "bg-blue-50/80 dark:bg-blue-950/40 border-blue-100 dark:border-blue-900/50"
+                    : "bg-slate-50 dark:bg-slate-950 border-slate-150 dark:border-slate-850"
+                    }`}>
                     {renderPlatformIcon(platform.iconName, platform.color, isSelected)}
                   </div>
                   <div>
-                    <h3 className={`font-display font-semibold text-sm ${
-                      isSelected ? "text-blue-700 dark:text-blue-400" : "text-slate-800 dark:text-slate-100"
-                    }`}>
+                    <h3 className={`font-display font-semibold text-sm ${isSelected ? "text-blue-700 dark:text-blue-400" : "text-slate-800 dark:text-slate-100"
+                      }`}>
                       {platform.name}
                     </h3>
                     <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
@@ -196,11 +193,10 @@ export default function PageChooseFirst({ platforms, onStartIndexing, onBack, th
           id="btn_start_indexing_portal"
           disabled={!selectedId}
           onClick={handleStart}
-          className={`flex-1 py-3.5 px-6 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-md transition-all duration-300 cursor-pointer ${
-            selectedId
-              ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-blue-100 dark:shadow-none active:translate-y-[1px]"
-              : "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed shadow-none"
-          }`}
+          className={`flex-1 py-3.5 px-6 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-md transition-all duration-300 cursor-pointer ${selectedId
+            ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-blue-100 dark:shadow-none active:translate-y-[1px]"
+            : "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed shadow-none"
+            }`}
         >
           <span>Start Indexing</span>
           <ArrowRight className="w-4 h-4" />
