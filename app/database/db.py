@@ -1,9 +1,9 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-DATABASE_URL = (
-    "postgresql://cogniseek:cogniseek123@localhost:5432/cogniseek"
-)
+from app.core.config import settings
+
+DATABASE_URL = settings.DATABASE_URL
 
 engine = create_engine(
     DATABASE_URL,
