@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     Text,
     ForeignKey,
+    UniqueConstraint,
     text
 )
 
@@ -15,6 +16,7 @@ from sqlalchemy.sql import func
 import uuid
 
 from .db import Base
+from app.core.crypto import EncryptedText
 
 
 # Mirrors the live schema (see alembic/versions/0001_baseline.py).
@@ -45,6 +47,14 @@ class User(Base):
     full_name = Column(String(255))
 
     password_hash = Column(Text)
+
+    # Bumped on logout; tokens carrying an older "tv" claim are rejected.
+    token_version = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=text("0")
+    )
 
     created_at = Column(
         DateTime,
@@ -84,11 +94,12 @@ class PlatformConnection(Base):
 
     account_name = Column(String)
 
-    access_token = Column(Text)
+    # Encrypted at rest (Fernet) - see app/core/crypto.py.
+    access_token = Column(EncryptedText)
 
-    refresh_token = Column(Text)
+    refresh_token = Column(EncryptedText)
 
-    token_json = Column(Text)
+    token_json = Column(EncryptedText)
 
     token_type = Column(Text)
 
@@ -173,6 +184,14 @@ class IndexingJob(Base):
 class LocalStorageFolder(Base):
 
     __tablename__ = "local_storage_folders"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "folder_path",
+            name="uq_local_storage_folders_user_path"
+        ),
+    )
 
     id = Column(
         UUID(as_uuid=True),
@@ -312,3 +331,45 @@ class IndexingHistory(Base):
     status = Column(String(30))
 
     remarks = Column(Text)
+
+
+# ==========================================================
+# OAUTH STATES (single-use CSRF state for OAuth redirects)
+# ==========================================================
+
+class OAuthState(Base):
+
+    __tablename__ = "oauth_states"
+
+    state = Column(
+        String(128),
+        primary_key=True
+    )
+
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    platform = Column(
+        String(50),
+        nullable=False
+    )
+
+    expires_at = Column(
+        DateTime,
+        nullable=False
+    )
+
+    used = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false")
+    )
+
+    created_at = Column(
+        DateTime,
+        server_default=text("CURRENT_TIMESTAMP")
+    )
