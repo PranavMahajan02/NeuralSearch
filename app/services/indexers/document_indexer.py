@@ -1,33 +1,25 @@
 import os
 
-print("1")
 
 from app.services.index_manager import (
     load_index,
     save_index
 )
 
-print("2")
 
 from extract import extract_text
-print("3")
 
 from docx_extract import extract_docx
-print("4")
 
 from pptx_extract import extract_pptx
-print("5")
 
 from txt_extract import extract_txt
-print("6")
 
 from app.services.indexers.csv_extract import extract_csv
 
 from chunk import chunk_text
-print("7")
 
 from embeddings import get_embeddings
-print("8")
 from app.vectorstore.insert import insert_vectors
 from app.vectorstore.delete import delete_vectors
 from app.vectorstore.config import TEXT_COLLECTION

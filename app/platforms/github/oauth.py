@@ -7,9 +7,11 @@ from app.database.platform_connection_service import (
     get_platform_connection
 )
 
-GITHUB_CONFIG = "credentials/github_oauth.json"
+from app.core.config import settings
 
-REDIRECT_URI = "http://127.0.0.1:8000/platforms/github/callback"
+GITHUB_CONFIG = settings.GITHUB_OAUTH_CONFIG_PATH
+
+REDIRECT_URI = f"{settings.BACKEND_PUBLIC_URL}/platforms/github/callback"
 
 
 def load_config():

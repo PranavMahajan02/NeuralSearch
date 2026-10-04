@@ -4,7 +4,9 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive.readonly"
 ]
 
-CLIENT_SECRET = "credentials/client_secret.json"
+from app.core.config import settings
+
+CLIENT_SECRET = settings.GOOGLE_CLIENT_SECRET_PATH
 
 
 def authenticate():
