@@ -1158,20 +1158,17 @@ export default function PageDashboard({
 
                                   try {
 
-                                    const response = await openFile(
+                                    // Opens Drive/GitHub in a new tab, or downloads a local file.
+                                    await openFile(
                                       file.platform,
                                       file.path,
                                       file.file_id
                                     );
 
-                                    if (response.url) {
-                                      window.open(response.url, "_blank");
-                                    }
-
                                   } catch (err) {
 
                                     console.error(err);
-                                    alert("Unable to open file.");
+                                    alert((err as Error)?.message || "Unable to open file.");
 
                                   }
 
@@ -1518,20 +1515,17 @@ export default function PageDashboard({
 
                       try {
 
-                        const response = await openFile(
+                        // Opens Drive/GitHub in a new tab, or downloads a local file.
+                        await openFile(
                           activeModalFile.platform,
                           activeModalFile.path,
                           activeModalFile.file_id
                         );
 
-                        if (response.url) {
-                          window.open(response.url, "_blank");
-                        }
-
                       } catch (err) {
 
                         console.error(err);
-                        alert("Unable to open file.");
+                        alert((err as Error)?.message || "Unable to open file.");
 
                       }
 

@@ -1,62 +1,13 @@
-import API_BASE_URL from "./api";
+import { apiJson } from "./http";
 
-export async function startIndexing(
-    priorityPlatform: string,
-    platforms: string[]
-) {
-
-    const token = localStorage.getItem("access_token");
-
-    const response = await fetch(
-        `${API_BASE_URL}/index/`,
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                priority_platform: priorityPlatform,
-                platforms
-            })
-        }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-        throw new Error(
-            data.detail || data.message || "Unable to start indexing."
-        );
-    }
-
-    return data;
+export async function startIndexing(priorityPlatform: string, platforms: string[]) {
+  return apiJson("/index/", {
+    method: "POST",
+    json: { priority_platform: priorityPlatform, platforms },
+    errorMessage: "Unable to start indexing.",
+  });
 }
 
-// ===============================
-// ADD THIS FUNCTION
-// ===============================
-
 export async function getIndexJobs() {
-
-    const token = localStorage.getItem("access_token");
-
-    const response = await fetch(
-        `${API_BASE_URL}/index/jobs`,
-        {
-            headers: {
-                "Authorization": `Bearer ${token}`
-            }
-        }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-        throw new Error(
-            data.detail || data.message || "Unable to fetch indexing jobs."
-        );
-    }
-
-    return data;
+  return apiJson<any[]>("/index/jobs", { errorMessage: "Unable to fetch indexing jobs." });
 }

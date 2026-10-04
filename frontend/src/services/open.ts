@@ -1,30 +1,36 @@
-import API_BASE_URL from "./api";
+import { apiBlob, apiJson } from "./http";
 
-export async function openFile(
-    platform: string,
-    path?: string,
-    file_id?: string
-) {
-    const response = await fetch(
-        `${API_BASE_URL}/open/`,
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                platform,
-                path,
-                file_id
-            })
-        }
-    );
+type OpenTarget =
+  | { type: "url"; url: string }
+  | { type: "download"; url: string; filename?: string };
 
-    const data = await response.json();
+/**
+ * Open a search result in the browser. Nothing is opened on the server:
+ * Drive / GitHub open in a new tab, local files are downloaded with auth.
+ * Throws an Error carrying the backend's message on failure.
+ */
+export async function openFile(platform: string, path?: string, file_id?: string) {
+  const target = await apiJson<OpenTarget>("/open/", {
+    method: "POST",
+    json: { platform, path, file_id },
+    errorMessage: "Unable to open file.",
+  });
 
-    if (!response.ok) {
-        throw new Error(data.message || "Unable to open file.");
-    }
+  if (target.type === "url") {
+    window.open(target.url, "_blank", "noopener");
+    return target;
+  }
 
-    return data;
+  const { blob, filename } = await apiBlob(target.url, { errorMessage: "Unable to download file." });
+
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename || target.filename || "download";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
+
+  return target;
 }
