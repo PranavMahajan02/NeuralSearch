@@ -118,19 +118,19 @@ export default function PageConnection({
 
     try {
 
-      const result = await indexLocalStorage();
-
-      console.log(result);
-
+      // Both paths use POST /index/ with platforms: ["local"]
+      // (the old /platforms/local/index endpoint never existed).
       if (onStartIndexing) {
         await onStartIndexing("local_storage");
+      } else {
+        await indexLocalStorage();
       }
 
     } catch (error) {
 
       console.error("INDEX ERROR:", error);
 
-      alert("Local Storage indexing failed.");
+      alert((error as Error)?.message || "Local Storage indexing failed.");
 
     }
 
