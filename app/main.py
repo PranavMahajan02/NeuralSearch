@@ -17,6 +17,8 @@ from app.routes.index_status import router as index_status_router
 from app.routes.local_picker import router as local_picker_router
 from app.routes import platforms
 from app.ai.model_manager import model_manager
+from app.core.config import settings
+import os
 
 app = FastAPI(
     title="CogniSeek API",
@@ -26,10 +28,7 @@ app = FastAPI(
 Base.metadata.create_all(bind=engine)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -61,6 +60,12 @@ app.include_router(platforms.router)
 def startup_event():
 
     initialize_search_cache()
+
+    if os.getenv("COGNISEEK_SKIP_MODEL_PRELOAD") == "1":
+
+        print("Skipping AI model preload (COGNISEEK_SKIP_MODEL_PRELOAD=1).")
+
+        return
 
     print("Loading AI models...")
 
