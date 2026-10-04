@@ -1,6 +1,12 @@
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
+from fastapi import Request
+from sqlalchemy.orm import Session
+
+from app.core.config import settings
+from app.core.rate_limit import limiter
+from app.database.db import get_db
 from app.scheduler.cancel import cancel_job
 
 from app.models.auth_models import (
@@ -12,7 +18,8 @@ from app.models.auth_models import (
 
 from app.auth.auth_service import (
     register_user,
-    login_user
+    login_user,
+    revoke_user_tokens
 )
 
 from app.auth.auth_dependency import (
@@ -30,16 +37,18 @@ router = APIRouter(
     "/register",
     response_model=UserResponse
 )
+@limiter.limit(settings.AUTH_RATE_LIMIT)
 def register(
-    request: RegisterRequest
+    request: Request,
+    body: RegisterRequest
 ):
 
     try:
 
         return register_user(
-            request.name,
-            request.email,
-            request.password
+            body.name,
+            body.email,
+            body.password
         )
 
     except ValueError as e:
@@ -54,15 +63,17 @@ def register(
     "/login",
     response_model=TokenResponse
 )
+@limiter.limit(settings.AUTH_RATE_LIMIT)
 def login(
-    request: LoginRequest
+    request: Request,
+    body: LoginRequest
 ):
 
     try:
 
         return login_user(
-            request.email,
-            request.password
+            body.email,
+            body.password
         )
 
     except ValueError as e:
@@ -78,36 +89,33 @@ def login(
     response_model=UserResponse
 )
 def profile(
-
     current_user = Depends(
         get_current_user
     )
-
 ):
 
     return {
-
         "id": current_user["id"],
         "name": current_user["name"],
         "email": current_user["email"]
-
     }
+
 
 @router.post("/logout")
 def logout(
-
-    current_user=Depends(get_current_user)
-
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
 
     cancel_job(
-
         current_user["id"]
+    )
 
+    revoke_user_tokens(
+        db,
+        current_user["id"]
     )
 
     return {
-
         "status": "success"
-
     }
