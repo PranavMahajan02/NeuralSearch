@@ -5,16 +5,22 @@ from sqlalchemy import (
     Integer,
     DateTime,
     Text,
-    ForeignKey
+    ForeignKey,
+    UniqueConstraint,
+    text
 )
 
 from sqlalchemy.dialects.postgresql import UUID
-
 from sqlalchemy.sql import func
 
 import uuid
 
 from .db import Base
+from app.core.crypto import EncryptedText
+
+
+# Mirrors the live schema (see alembic/versions/0001_baseline.py).
+# Python-side defaults are kept so ORM inserts behave as before.
 
 
 # ==========================================================
@@ -28,27 +34,36 @@ class User(Base):
     id = Column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()")
     )
 
     email = Column(
-        String,
+        String(255),
         unique=True,
         nullable=False
     )
 
-    full_name = Column(String)
+    full_name = Column(String(255))
 
     password_hash = Column(Text)
 
+    # Bumped on logout; tokens carrying an older "tv" claim are rejected.
+    token_version = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=text("0")
+    )
+
     created_at = Column(
         DateTime,
-        server_default=func.now()
+        server_default=text("CURRENT_TIMESTAMP")
     )
 
     last_login = Column(
         DateTime,
-        server_default=func.now(),
+        server_default=text("CURRENT_TIMESTAMP"),
         onupdate=func.now()
     )
 
@@ -79,11 +94,12 @@ class PlatformConnection(Base):
 
     account_name = Column(String)
 
-    access_token = Column(Text)
+    # Encrypted at rest (Fernet) - see app/core/crypto.py.
+    access_token = Column(EncryptedText)
 
-    refresh_token = Column(Text)
+    refresh_token = Column(EncryptedText)
 
-    token_json = Column(Text)
+    token_json = Column(EncryptedText)
 
     token_type = Column(Text)
 
@@ -109,35 +125,43 @@ class IndexingJob(Base):
     id = Column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()")
     )
 
     user_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False
     )
 
-    platform = Column(String)
+    platform = Column(
+        String(50),
+        nullable=False
+    )
 
     status = Column(
-        String,
-        default="not_started"
+        String(30),
+        default="not_started",
+        server_default=text("'not_started'::character varying")
     )
 
     total_files = Column(
         Integer,
-        default=0
+        default=0,
+        server_default=text("0")
     )
 
     indexed_files = Column(
         Integer,
-        default=0
+        default=0,
+        server_default=text("0")
     )
 
     current_file = Column(
         Text,
-        default=""
+        default="",
+        server_default=text("''::text")
     )
 
     started_at = Column(DateTime)
@@ -148,7 +172,8 @@ class IndexingJob(Base):
 
     needs_reindex = Column(
         Boolean,
-        default=False
+        default=False,
+        server_default=text("false")
     )
 
 
@@ -160,15 +185,24 @@ class LocalStorageFolder(Base):
 
     __tablename__ = "local_storage_folders"
 
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "folder_path",
+            name="uq_local_storage_folders_user_path"
+        ),
+    )
+
     id = Column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()")
     )
 
     user_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False
     )
 
@@ -179,7 +213,7 @@ class LocalStorageFolder(Base):
 
     created_at = Column(
         DateTime,
-        server_default=func.now()
+        server_default=text("CURRENT_TIMESTAMP")
     )
 
 
@@ -194,16 +228,20 @@ class IndexedFile(Base):
     id = Column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()")
     )
 
     user_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False
     )
 
-    platform = Column(String)
+    platform = Column(
+        String(50),
+        nullable=False
+    )
 
     external_file_id = Column(Text)
 
@@ -217,7 +255,7 @@ class IndexedFile(Base):
 
     indexed_at = Column(
         DateTime,
-        server_default=func.now()
+        server_default=text("CURRENT_TIMESTAMP")
     )
 
 
@@ -232,27 +270,28 @@ class SearchCache(Base):
     id = Column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()")
     )
 
     user_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False
     )
 
-    platform = Column(String)
+    platform = Column(String(50))
 
     file_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("indexed_files.id")
+        ForeignKey("indexed_files.id", ondelete="CASCADE")
     )
 
     embedding_path = Column(Text)
 
     cache_updated_at = Column(
         DateTime,
-        server_default=func.now()
+        server_default=text("CURRENT_TIMESTAMP")
     )
 
 
@@ -267,16 +306,17 @@ class IndexingHistory(Base):
     id = Column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()")
     )
 
     user_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False
     )
 
-    platform = Column(String)
+    platform = Column(String(50))
 
     started_at = Column(DateTime)
 
@@ -284,9 +324,52 @@ class IndexingHistory(Base):
 
     files_indexed = Column(
         Integer,
-        default=0
+        default=0,
+        server_default=text("0")
     )
 
-    status = Column(String)
+    status = Column(String(30))
 
     remarks = Column(Text)
+
+
+# ==========================================================
+# OAUTH STATES (single-use CSRF state for OAuth redirects)
+# ==========================================================
+
+class OAuthState(Base):
+
+    __tablename__ = "oauth_states"
+
+    state = Column(
+        String(128),
+        primary_key=True
+    )
+
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    platform = Column(
+        String(50),
+        nullable=False
+    )
+
+    expires_at = Column(
+        DateTime,
+        nullable=False
+    )
+
+    used = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false")
+    )
+
+    created_at = Column(
+        DateTime,
+        server_default=text("CURRENT_TIMESTAMP")
+    )

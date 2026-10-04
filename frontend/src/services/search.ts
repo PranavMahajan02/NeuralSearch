@@ -1,33 +1,15 @@
-import API_BASE_URL from "./api";
+import { apiJson } from "./http";
 
 export async function searchFiles(
-    query: string,
-    platform: string = "all",
-    searchType: string = "all"
+  query: string,
+  platform: string = "all",
+  searchType: string = "all"
 ) {
+  const data = await apiJson<{ results: any[] }>("/search/", {
+    method: "POST",
+    json: { query, platform, search_type: searchType },
+    errorMessage: "Search failed.",
+  });
 
-    const response = await fetch(
-        `${API_BASE_URL}/search/`,
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                query,
-                platform,
-                search_type: searchType
-            })
-        }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-        throw new Error(
-            data.message || "Search failed."
-        );
-    }
-
-    return data.results;
+  return data.results;
 }

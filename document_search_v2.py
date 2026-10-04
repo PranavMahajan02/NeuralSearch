@@ -30,38 +30,6 @@ print("Ready.\n")
 # HELPER FUNCTIONS
 # ==========================
 
-def open_file(path: str) -> None:
-    """Cross-platform file open."""
-    try:
-        if os.name == "nt":               # Windows
-            os.startfile(path)
-        elif os.uname().sysname == "Darwin":  # macOS
-            os.system(f'open "{path}"')
-        else:                                 # Linux
-            os.system(f'xdg-open "{path}"')
-    except Exception as e:
-        print(f"Could not open file: {e}")
-
-
-def prompt_open(path: str) -> None:
-    """Ask the user whether to open a file."""
-    choice = input("\nOpen file? (y/n): ").strip().lower()
-    if choice == "y":
-        open_file(path)
-
-
-def prompt_pick_and_open(unique_docs: list) -> None:
-    """Show a numbered list and let the user pick one to open."""
-    for i, doc in enumerate(unique_docs, start=1):
-        print(f"  {i}. {doc['file']}")
-
-    choice = input("\nEnter file number to open (0 to skip): ").strip()
-    if choice.isdigit():
-        idx = int(choice)
-        if 1 <= idx <= len(unique_docs):
-            open_file(unique_docs[idx - 1]["path"])
-
-
 def get_title_score(query, filename):
 
     query = query.lower()
@@ -454,45 +422,3 @@ def search_documents(
         })
 
     return results
-
-
-# ==========================
-# MAIN SEARCH LOOP (terminal)
-# ==========================
-
-if __name__ == "__main__":
-
-    while True:
-
-        query = input("\nEnter search query (or 'exit'): ").strip()
-
-        if query.lower() == "exit":
-            break
-
-        if not query:
-            continue
-
-        results = search_documents(query)
-
-        if not results:
-            print("\nNo relevant documents found.")
-            continue
-
-        print("\n===================")
-        print("Top Results")
-        print("===================\n")
-
-        top_docs = []
-
-        for result in results:
-            print(result["file"])
-            print(f" Final Score    : {result['score']:.4f}")
-            print(f" Title Score    : {result['title_score']:.4f}")
-            print(f" Content Score  : {result['content_score']:.4f}")
-            print(f" Fuzzy Score    : {result['fuzzy_score']:.4f}")
-            print(f" Semantic Score : {result['semantic_score']:.4f}")
-            print()
-
-            top_docs.append({"file": result["file"], "path": result["path"]})
-
-        prompt_pick_and_open(top_docs)

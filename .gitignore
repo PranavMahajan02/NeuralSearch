@@ -55,3 +55,6 @@ frontend/.env.*
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Local Claude Code launch config
+.claude/

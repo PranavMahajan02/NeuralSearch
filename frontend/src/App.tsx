@@ -19,6 +19,7 @@ import {
 } from "./services/googleDrive";
 import {
   connectGithub,
+  consumeGithubRedirectResult,
   disconnectGithub,
   getGithubStatus
 } from "./services/github";
@@ -84,6 +85,16 @@ export default function App() {
   >("checking");
 
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [toast, setToast] = useState<{ ok: boolean; message: string } | null>(null);
+
+  // Result of the GitHub OAuth redirect (?github=connected|error&reason=...).
+  useEffect(() => {
+    const result = consumeGithubRedirectResult();
+    if (!result) return;
+    setToast(result);
+    const timer = setTimeout(() => setToast(null), 6000);
+    return () => clearTimeout(timer);
+  }, []);
   const [platforms, setPlatforms] = useState<Platform[]>(INITIAL_PLATFORMS);
   const [indexedPlatforms, setIndexedPlatforms] = useState<string[]>([]);
   const [indexingState, setIndexingState] = useState({
@@ -211,7 +222,7 @@ export default function App() {
 
         console.error(error);
 
-        alert("Unable to connect Google Drive.");
+        alert((error as Error)?.message || "Unable to connect Google Drive.");
 
       }
 
@@ -246,20 +257,24 @@ export default function App() {
 
         } else {
 
-          await connectGithub();
+          // Redirects the browser to GitHub unless already connected;
+          // the result comes back as ?github=... (see the toast effect near the top of App).
+          const result = await connectGithub();
 
-          setPlatforms((prev) =>
-            prev.map((p) =>
-              p.id === "github"
-                ? {
-                  ...p,
-                  connected: true,
-                  status: "waiting",
-                  progress: 0
-                }
-                : p
-            )
-          );
+          if (result.connected) {
+            setPlatforms((prev) =>
+              prev.map((p) =>
+                p.id === "github"
+                  ? {
+                    ...p,
+                    connected: true,
+                    status: "waiting",
+                    progress: 0
+                  }
+                  : p
+              )
+            );
+          }
 
         }
 
@@ -267,7 +282,7 @@ export default function App() {
 
         console.error(error);
 
-        alert("Unable to connect GitHub.");
+        alert((error as Error)?.message || "Unable to connect GitHub.");
 
       }
 
@@ -712,6 +727,22 @@ export default function App() {
 
   return (
     <div className={`min-h-screen transition-colors duration-200 ${theme === "dark" ? "dark bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-800"} antialiased selection:bg-blue-100 selection:text-blue-900`}>
+      {toast && (
+        <div
+          role="status"
+          className={`fixed top-4 right-4 z-50 max-w-sm rounded-xl px-4 py-3 text-sm font-semibold shadow-lg text-white ${toast.ok ? "bg-emerald-600" : "bg-rose-600"}`}
+        >
+          {toast.message}
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            className="ml-3 opacity-80 hover:opacity-100"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
       <AnimatePresence mode="wait">
         {authStatus === "unauthenticated" && (
           <motion.div

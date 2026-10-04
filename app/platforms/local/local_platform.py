@@ -219,11 +219,11 @@ class LocalPlatform(BasePlatform):
                 "message": "File not found."
             }
 
-        os.startfile(file_path)
-
+        # Files are never opened on the server; the browser downloads them
+        # through GET /files/local (see app/services/open_service.py).
         return {
             "status": "success",
-            "message": "File opened."
+            "path": file_path
         }
 
     def upload(self, file_path):

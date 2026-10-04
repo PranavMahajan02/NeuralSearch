@@ -21,18 +21,6 @@ MIN_FINAL_SCORE = 0.05
 # HELPERS
 # ==========================
 
-def open_image(path):
-    try:
-        if os.name == "nt":
-            os.startfile(path)
-        elif sys.platform == "darwin":
-            os.system(f'open "{path}"')
-        else:
-            os.system(f'xdg-open "{path}"')
-    except Exception as e:
-        print(f"Could not open image: {e}")
-
-
 def get_filename_score(query, filename):
     query = query.lower()
 
@@ -146,49 +134,3 @@ def search_images(
 
     # Fix 9: use TOP_K constant
     return results[:TOP_K]
-
-
-# ==========================
-# MAIN SEARCH LOOP (terminal)
-# ==========================
-
-if __name__ == "__main__":
-
-    while True:
-        query = input("\nImage Query (exit): ").strip()
-
-        if query.lower() == "exit":
-            break
-
-        results = search_images(query)
-
-        if not results:
-            print("\nNo relevant images found.")
-            continue
-
-        print("\nTop Image Results:\n")
-
-        top_images = []
-
-        for result in results:
-            top_images.append({
-                "file": result["file"],
-                "path": result["path"],
-            })
-
-            print(result["file"])
-            print(f"  Image Score : {result['score']:.4f}")
-            print(f"  File Score  : {result['filename_score']:.4f}")   # Fix 7
-            print(f"  OCR Score   : {result['ocr_score']:.4f}")
-            print(f"  CLIP Score  : {result['clip_score']:.4f}")
-            print()
-
-        for i, img in enumerate(top_images, start=1):
-            print(f"  {i}. {img['file']}")
-
-        choice = input("\nEnter image number to open (0 to skip): ").strip()
-
-        if choice.isdigit():
-            idx = int(choice)
-            if 1 <= idx <= len(top_images):
-                open_image(top_images[idx - 1]["path"])
