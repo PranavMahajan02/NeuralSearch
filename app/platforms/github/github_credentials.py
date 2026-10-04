@@ -58,7 +58,7 @@ def load_github_access_token(
 
     )
 
-    if connection is None:
+    if connection is None or not connection.connected:
 
         return None
 
