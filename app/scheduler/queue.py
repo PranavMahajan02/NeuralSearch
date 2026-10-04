@@ -1,6 +1,7 @@
 from app.scheduler.status import (
     set_queue,
     set_priority,
+    set_owner,
     reset_status
 )
 
@@ -19,6 +20,8 @@ def create_queue(
     global completed_platforms
 
     reset_status()
+
+    set_owner(user_id)
 
     completed_platforms = []
 
