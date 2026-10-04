@@ -1,58 +1,14 @@
-import json
-import os
+from sqlalchemy.orm import Session
+
+from app.database.db import SessionLocal
+from app.database.models import User
 
 from app.auth.password import (
     hash_password,
     verify_password
 )
 
-from app.auth.jwt_handler import (
-    create_access_token
-)
-
-
-USERS_FILE = "database/users.json"
-
-
-def load_users():
-
-    if not os.path.exists(USERS_FILE):
-
-        return []
-
-    with open(
-        USERS_FILE,
-        "r"
-    ) as f:
-
-        return json.load(f)
-
-
-def save_users(users):
-
-    with open(
-        USERS_FILE,
-        "w"
-    ) as f:
-
-        json.dump(
-            users,
-            f,
-            indent=4
-        )
-
-
-def get_user_by_email(email):
-
-    users = load_users()
-
-    for user in users:
-
-        if user["email"].lower() == email.lower():
-
-            return user
-
-    return None
+from app.auth.jwt_handler import create_access_token
 
 
 def register_user(
@@ -61,45 +17,44 @@ def register_user(
     password
 ):
 
-    users = load_users()
+    db: Session = SessionLocal()
 
-    if get_user_by_email(email):
+    try:
 
-        raise ValueError(
-            "Email already registered."
+        existing = (
+            db.query(User)
+            .filter(User.email == email)
+            .first()
         )
 
-    if users:
+        if existing:
+            raise ValueError(
+                "Email already registered."
+            )
 
-        next_id = max(
-            user["id"]
-            for user in users
-        ) + 1
+        user = User(
+            email=email,
+            full_name=name,
+            password_hash=hash_password(password)
+        )
 
-    else:
+        db.add(user)
 
-        next_id = 1
+        db.commit()
 
-    new_user = {
+        db.refresh(user)
 
-        "id": next_id,
-        "name": name,
-        "email": email,
-        "password": hash_password(password)
+        return {
 
-    }
+            "id": user.id,
+            "name": user.full_name,
+            "email": user.email
 
-    users.append(new_user)
+        }
 
-    save_users(users)
+    finally:
 
-    return {
-
-        "id": new_user["id"],
-        "name": new_user["name"],
-        "email": new_user["email"]
-
-    }
+        db.close()
 
 
 def login_user(
@@ -107,35 +62,49 @@ def login_user(
     password
 ):
 
-    user = get_user_by_email(email)
+    db: Session = SessionLocal()
 
-    if user is None:
+    try:
 
-        raise ValueError(
-            "Invalid email or password."
+        user = (
+            db.query(User)
+            .filter(User.email == email)
+            .first()
         )
 
-    if not verify_password(
-        password,
-        user["password"]
-    ):
+        if user is None:
 
-        raise ValueError(
-            "Invalid email or password."
+            raise ValueError(
+                "Invalid email or password."
+            )
+
+        if not verify_password(
+            password,
+            user.password_hash
+        ):
+
+            raise ValueError(
+                "Invalid email or password."
+            )
+
+        token = create_access_token(
+
+            {
+
+                "user_id": str(user.id),
+                "email": user.email
+
+            }
+
         )
 
-    token = create_access_token(
+        return {
 
-        {
-            "user_id": user["id"],
-            "email": user["email"]
+            "access_token": token,
+            "token_type": "bearer"
+
         }
 
-    )
+    finally:
 
-    return {
-
-        "access_token": token,
-        "token_type": "bearer"
-
-    }
+        db.close()

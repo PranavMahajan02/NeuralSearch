@@ -2,6 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Platform, PlatformId, IndexLog, DashboardStats } from "../types";
 import { MOCK_FILES } from "../data/mockFiles";
+import { getDashboardStats } from "../services/dashboard";
+import {
+  startScheduler,
+  getSchedulerStatus
+} from "../services/scheduler";
 import {
   Database,
   CheckCircle2,
@@ -33,6 +38,7 @@ interface PageIndexingCenterProps {
   onToggleTheme?: () => void;
   streamFeed: IndexLog[];
   priorityPlatformId?: PlatformId | null;
+  indexJobs: any[];
 }
 
 export default function PageIndexingCenter({
@@ -47,10 +53,32 @@ export default function PageIndexingCenter({
   theme = "light",
   onToggleTheme,
   streamFeed,
-  priorityPlatformId
+  priorityPlatformId,
+  indexJobs
 }: PageIndexingCenterProps) {
-  const activePlatform = platforms.find((p) => p.connected && (p.status === "indexing" || p.status === "paused"));
-  const activePlatformId = activePlatform ? activePlatform.id : null;
+  const activePlatform = platforms.find(
+    (p) =>
+      p.connected &&
+      (p.status === "indexing" || p.status === "paused")
+  );
+
+  const activePlatformId = activePlatform
+    ? activePlatform.id
+    : null;
+
+  const activeJob = indexJobs.find((job: any) => {
+
+    const backendPlatform =
+      activePlatform?.id === "local_storage"
+        ? "local"
+        : activePlatform?.id;
+
+    return (
+      job.platform === backendPlatform &&
+      job.status === "indexing"
+    );
+
+  });
 
   const handlePause = () => {
     if (!activePlatformId) return;
@@ -105,7 +133,7 @@ export default function PageIndexingCenter({
 
   return (
     <div id="index_center_wrapper" className={`w-full ${isOnboarding ? "min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-between py-12 px-4 sm:px-6 md:px-8 transition-colors duration-200 relative" : "p-1 md:p-4"}`}>
-      
+
       {/* Absolute top-right Theme Switcher */}
       {isOnboarding && (
         <div className="absolute top-4 right-4 z-50">
@@ -127,7 +155,7 @@ export default function PageIndexingCenter({
             <RefreshCw className="w-3 h-3 animate-spin" />
             Step 4 of 4 • Primary Sync Active
           </div>
-          
+
           <h2 id="index_center_title" className="font-display text-3xl sm:text-4xl font-bold text-slate-800 dark:text-white tracking-tight">
             Building Instant Search Index
           </h2>
@@ -139,10 +167,10 @@ export default function PageIndexingCenter({
 
       {/* Main Grid View */}
       <div className={`w-full ${isOnboarding ? "max-w-4xl mx-auto mt-10" : "mt-2"} grid grid-cols-1 md:grid-cols-3 gap-6`}>
-        
+
         {/* Left Side: Main Status Panel & Streaming Activity Feed */}
         <div className="md:col-span-2 space-y-6">
-          
+
           {/* Main Ticking Indexer Progress Card */}
           <div id="main_indexing_card" className="bg-white border border-slate-200 shadow-xs rounded-2xl p-6">
             <div className="flex justify-between items-center mb-4">
@@ -150,13 +178,12 @@ export default function PageIndexingCenter({
                 <Layers className="w-5 h-5 text-blue-600" />
                 Current Processing Platform
               </h3>
-              
+
               {currentActivePlatform ? (
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase font-mono ${
-                  currentActivePlatform.status === "paused"
-                    ? "bg-amber-50 text-amber-700 border border-amber-100"
-                    : "bg-blue-50 text-blue-700 border border-blue-100 animate-pulse"
-                }`}>
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase font-mono ${currentActivePlatform.status === "paused"
+                  ? "bg-amber-50 text-amber-700 border border-amber-100"
+                  : "bg-blue-50 text-blue-700 border border-blue-100 animate-pulse"
+                  }`}>
                   {currentActivePlatform.status}
                 </span>
               ) : (
@@ -180,7 +207,15 @@ export default function PageIndexingCenter({
                   </div>
                   <div className="text-right">
                     <span className="font-display font-bold text-2xl text-blue-600 font-mono">
-                      {currentActivePlatform.progress}%
+                      {
+                        indexJobs.find(j =>
+
+                          (j.platform === "local" && currentActivePlatform.id === "local_storage") ||
+
+                          j.platform === currentActivePlatform.id
+
+                        )?.progress ?? currentActivePlatform.progress
+                      }%
                     </span>
                   </div>
                 </div>
@@ -189,11 +224,53 @@ export default function PageIndexingCenter({
                 <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
                   <motion.div
                     className="h-full bg-blue-600 rounded-full"
-                    style={{ width: `${currentActivePlatform.progress}%` }}
+                    style={{
+                      width: `${indexJobs.find(j =>
+
+                        (j.platform === "local" && currentActivePlatform.id === "local_storage") ||
+
+                        j.platform === currentActivePlatform.id
+
+                      )?.progress ?? currentActivePlatform.progress
+                        }%`
+                    }}
                     transition={{ duration: 0.8, ease: "easeOut" }}
                   />
                 </div>
+                {(() => {
 
+                  const job = indexJobs.find(j =>
+
+                    (j.platform === "local" &&
+                      currentActivePlatform.id === "local_storage") ||
+
+                    j.platform === currentActivePlatform.id
+
+                  );
+
+                  if (!job) return null;
+
+                  return (
+
+                    <div className="mt-4 space-y-1">
+
+                      <p className="text-sm font-medium text-slate-700">
+
+                        {job.indexed_files} / {job.total_files} files indexed
+
+                      </p>
+
+                      <p className="text-xs text-slate-500 truncate">
+
+                        Current File: {job.current_file || "Preparing..."}
+
+                      </p>
+
+                    </div>
+
+                  );
+
+                })()}
 
               </div>
             ) : (
@@ -206,127 +283,64 @@ export default function PageIndexingCenter({
               </div>
             )}
           </div>
-
-          {/* Streaming Live Logs Feed */}
-          <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-6">
-            <h3 className="font-display font-bold text-slate-800 text-base mb-4 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-blue-550 text-blue-500" />
-              Live File Parsing Stream
-            </h3>
-
-            <div id="log_stream_container" className="space-y-2 max-h-60 overflow-y-auto pr-1">
-              <AnimatePresence initial={false}>
-                {streamFeed.length > 0 ? (
-                  streamFeed.map((log) => {
-                    return (
-                      <motion.div
-                        key={log.id}
-                        initial={{ opacity: 0, x: -15, y: -5 }}
-                        animate={{ opacity: 1, x: 0, y: 0 }}
-                        exit={{ opacity: 0 }}
-                        className="flex items-center justify-between p-3 bg-slate-50/50 hover:bg-slate-50 border border-slate-100 rounded-xl transition-all"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="p-2 bg-white rounded-lg border border-slate-100 shadow-2xs">
-                            {log.type === "image" ? (
-                              <Image className="w-4 h-4 text-emerald-500" />
-                            ) : log.type === "video" ? (
-                              <FileCode className="w-4 h-4 text-purple-500" />
-                            ) : log.type === "audio" ? (
-                              <Clock className="w-4 h-4 text-orange-500" />
-                            ) : (
-                              <FileText className="w-4 h-4 text-blue-500" />
-                            )}
-                          </div>
-                          
-                          <div className="min-w-0">
-                            <span id={`log_file_name_${log.id}`} className="block text-xs font-semibold text-slate-800 truncate">
-                              {log.fileName}
-                            </span>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[10px] font-mono text-slate-400 capitalize bg-slate-100 px-1.5 py-0.2 rounded-sm font-medium">
-                                {log.type}
-                              </span>
-                              <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                                via {platforms.find((p) => p.id === log.platform)?.name}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[10px] font-mono text-slate-400">
-                            {log.timestamp}
-                          </span>
-                          <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
-                        </div>
-                      </motion.div>
-                    );
-                  })
-                ) : (
-                  <div className="py-10 text-center text-xs text-slate-400">
-                    Waiting for pipeline file parser logs to cascade...
-                  </div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
         </div>
 
         {/* Right Side: Platform Status, Queue, Controls, Stats */}
         <div className="space-y-6">
-          
+
           {/* Static Stats Panel (Indexing center specific counts) */}
-          <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-lg border border-slate-800">
-            <h3 className="text-white text-xs font-bold uppercase tracking-widest font-mono mb-4 text-slate-400">
-              CogniSeek Indexing Stats
-            </h3>
-            
-            <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-              <div className="border-b border-slate-800 pb-3">
-                <span className="text-[10px] text-slate-400 block font-normal">Connected Portals</span>
-                <span className="font-display font-semibold text-xl text-white mt-1 block">
-                  {stats.connectedPlatforms} / 4
-                </span>
-              </div>
-              <div className="border-b border-slate-800 pb-3">
-                <span className="text-[10px] text-slate-400 block font-normal">Indexed Files</span>
-                <span className="font-display font-semibold text-xl text-white mt-1 block">
-                  {stats.indexedFiles}
-                </span>
-              </div>
-              <div className="border-b border-slate-800 pb-3">
-                <span className="text-[10px] text-slate-400 block font-normal">Images Cataloged</span>
-                <span className="font-display font-semibold text-xl text-emerald-400 mt-1 block">
-                  {stats.indexedImages}
-                </span>
-              </div>
-              <div className="border-b border-slate-800 pb-3">
-                <span className="text-[10px] text-slate-400 block font-normal">Audio Files</span>
-                <span className="font-display font-semibold text-xl text-amber-400 mt-1 block">
-                  {stats.indexedAudio}
-                </span>
-              </div>
-              <div className="border-b border-slate-800 pb-3">
-                <span className="text-[10px] text-slate-400 block font-normal">Videos Cataloged</span>
-                <span className="font-display font-semibold text-xl text-purple-400 mt-1 block">
-                  {stats.indexedVideos}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 block font-normal">Active Sync Portals</span>
-                <span className="font-display font-semibold text-sm text-blue-400 mt-1 block uppercase">
-                  {stats.platformsReady} Platforms Ready
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 block font-normal">Last Indexed Sync</span>
-                <span className="font-display font-semibold text-xs text-slate-350 mt-1 block font-mono">
-                  {stats.lastSyncTime || "Waiting..."}
-                </span>
+          {!isOnboarding && (
+            <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-lg border border-slate-800">
+              <h3 className="text-white text-xs font-bold uppercase tracking-widest font-mono mb-4 text-slate-400">
+                CogniSeek Indexing Stats
+              </h3>
+
+              <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+                <div className="border-b border-slate-800 pb-3">
+                  <span className="text-[10px] text-slate-400 block font-normal">Connected Portals</span>
+                  <span className="font-display font-semibold text-xl text-white mt-1 block">
+                    {stats.connectedPlatforms} / 4
+                  </span>
+                </div>
+                <div className="border-b border-slate-800 pb-3">
+                  <span className="text-[10px] text-slate-400 block font-normal">Indexed Files</span>
+                  <span className="font-display font-semibold text-xl text-white mt-1 block">
+                    {stats.indexedFiles}
+                  </span>
+                </div>
+                <div className="border-b border-slate-800 pb-3">
+                  <span className="text-[10px] text-slate-400 block font-normal">Images Cataloged</span>
+                  <span className="font-display font-semibold text-xl text-emerald-400 mt-1 block">
+                    {stats.indexedImages}
+                  </span>
+                </div>
+                <div className="border-b border-slate-800 pb-3">
+                  <span className="text-[10px] text-slate-400 block font-normal">Audio Files</span>
+                  <span className="font-display font-semibold text-xl text-amber-400 mt-1 block">
+                    {stats.indexedAudio}
+                  </span>
+                </div>
+                <div className="border-b border-slate-800 pb-3">
+                  <span className="text-[10px] text-slate-400 block font-normal">Videos Cataloged</span>
+                  <span className="font-display font-semibold text-xl text-purple-400 mt-1 block">
+                    {stats.indexedVideos}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-normal">Active Sync Portals</span>
+                  <span className="font-display font-semibold text-sm text-blue-400 mt-1 block uppercase">
+                    {stats.platformsReady} Platforms Ready
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-normal">Last Indexed Sync</span>
+                  <span className="font-display font-semibold text-xs text-slate-350 mt-1 block font-mono">
+                    {stats.lastSyncTime || "Waiting..."}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Platform Status List (Waiting / Completed queues) */}
           <div className="bg-white border border-slate-200 shadow-xs rounded-2xl p-6">
@@ -340,11 +354,10 @@ export default function PageIndexingCenter({
                 return (
                   <div
                     key={p.id}
-                    className={`flex items-center justify-between p-2.5 rounded-xl border ${
-                      isActive
-                        ? "bg-blue-50/50 border-blue-200"
-                        : "bg-slate-50 border-slate-100"
-                    }`}
+                    className={`flex items-center justify-between p-2.5 rounded-xl border ${isActive
+                      ? "bg-blue-50/50 border-blue-200"
+                      : "bg-slate-50 border-slate-100"
+                      }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       {renderPlatformLogo(p.iconName, p.color, "w-4.5 h-4.5")}
@@ -408,7 +421,7 @@ export default function PageIndexingCenter({
                   Priority platform indexed successfully. You can start searching now while the remaining platforms continue indexing in the background.
                 </p>
               </motion.div>
-              
+
               <button
                 id="btn_enter_saas_dashboard"
                 onClick={onEnterDashboard}

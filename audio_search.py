@@ -1,14 +1,11 @@
-import os
-import pickle
 import re
 
-from sentence_transformers import (
-    SentenceTransformer
+from app.ai.model_manager import model_manager
+
+from app.vectorstore.audio_search import (
+    search_audio_vectors,
 )
 
-from sklearn.metrics.pairwise import (
-    cosine_similarity
-)
 
 # ==========================
 # CONFIG
@@ -16,18 +13,6 @@ from sklearn.metrics.pairwise import (
 
 TOP_K = 5
 MIN_SCORE = 0.15
-
-INDEX_FILE = "audio_index.pkl"
-
-
-def load_index():
-
-    if not os.path.exists(INDEX_FILE):
-        return []
-
-    with open(INDEX_FILE, "rb") as f:
-        return pickle.load(f)
-
 
 # ==========================
 # LOAD MODEL
@@ -37,9 +22,7 @@ print(
     "Loading semantic model..."
 )
 
-model = SentenceTransformer(
-    "all-MiniLM-L6-v2"
-)
+model = model_manager.semantic_model
 
 print("Ready.\n")
 
@@ -145,16 +128,18 @@ def search_audio(
     if not query:
         return []
 
-    all_audio = load_index()
-
-    print(f"Loaded {len(all_audio)} audio chunks.")
+    query = query.strip().lower()
 
     # ----------------------
     # Query Embedding
     # ----------------------
 
-    query_embedding = model.encode(
-        [query]
+    query_embedding = model.encode(query).tolist()
+
+    audios = search_audio_vectors(
+        query_embedding,
+        limit=100,
+        platform=platform,
     )
 
     # ----------------------
@@ -163,29 +148,29 @@ def search_audio(
 
     results = []
 
-    for audio in all_audio:
+    for point in audios:
+
+        audio = point.payload
+
         if (
             platform != "all"
             and audio.get("platform", "local") != platform
         ):
             continue
 
-        semantic_score = cosine_similarity(
-            query_embedding,
-            [audio["embedding"]]
-        )[0][0]
+        semantic_score = float(point.score)
 
         filename_score = (
             get_filename_score(
                 query,
-                audio["file"]
+                audio.get("file", "")
             )
         )
 
         content_score = (
             get_content_score(
                 query,
-                audio["transcript"]
+                audio.get("chunk", "")
             )
         )
 
@@ -233,7 +218,7 @@ def search_audio(
         if final_score < MIN_SCORE:
             continue
 
-        filename = audio["file"]
+        filename = audio.get("file", "")
 
         if filename in seen_files:
             continue
@@ -275,14 +260,14 @@ def search_audio(
 
         output.append({
             "type": "audio",
-            "file": audio["file"],
+            "file": audio.get("file", ""),
             "score": final_score,
             "path": audio["path"],
             "platform": audio.get("platform", "local"),
             "filename_score": filename_score,
             "content_score": content_score,
             "semantic_score": semantic_score,
-            "preview": audio["chunk"][:300],
+            "preview": audio.get("chunk", "")[:300],
             "file_id": audio.get("file_id"),
         })
 
@@ -352,7 +337,7 @@ if __name__ == "__main__":
             )
 
             print(
-                "\nTranscript Preview:"
+                "\nChunk Preview::"
             )
 
             print(

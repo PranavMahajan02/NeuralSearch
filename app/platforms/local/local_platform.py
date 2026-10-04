@@ -1,7 +1,15 @@
 import os
 
 from app.platforms.base_platform import BasePlatform
-from app.config.local_config import load_local_folders
+from app.scheduler.cancel import is_cancelled, clear_cancel
+from app.database.db import SessionLocal
+from app.database.local_storage_service import get_local_folders
+from app.database.indexing_job_service import (
+    set_total_files,
+    increment_indexed_files,
+    update_current_file
+)
+
 
 
 class LocalPlatform(BasePlatform):
@@ -13,9 +21,44 @@ class LocalPlatform(BasePlatform):
 
         self.folders = folders
 
-    def index(self):
+    def index(
+        self,
+        user_id
+    ):
 
-        self.folders = load_local_folders()
+        db = SessionLocal()
+
+        try:
+
+            self.folders = [
+
+                folder.folder_path
+
+                for folder in get_local_folders(
+
+                    db,
+
+                    user_id
+
+                )
+
+            ]
+
+            # ==========================
+            # DEBUG
+            # ==========================
+
+            print("\n==============================")
+            print("LOCAL STORAGE DEBUG")
+            print("==============================")
+            print("User ID:", user_id)
+            print("Folders loaded from DB:")
+            print(self.folders)
+            print("==============================\n")
+
+        finally:
+
+            db.close()
 
         from app.services.upload_service import process_uploaded_file
         from app.services.index_manager import remove_deleted_files
@@ -26,18 +69,67 @@ class LocalPlatform(BasePlatform):
 
         print(f"\nFound {len(files)} files.\n")
 
-        for file_path in files:
+        db = SessionLocal()
 
-            print(f"Indexing: {file_path}")
+        try:
 
-            process_uploaded_file(
-                file_path,
-                platform="local"
+            set_total_files(
+                db,
+                user_id,
+                "local",
+                len(files)
             )
+
+            for file_path in files:
+
+                if is_cancelled(user_id):
+
+                    print("\nLocal indexing cancelled.")
+
+                    break
+
+                try:
+
+                    print(f"Indexing: {file_path}")
+
+                    # Update currently processing file
+                    update_current_file(
+                        db,
+                        user_id,
+                        "local",
+                        os.path.basename(file_path)
+                    )
+
+                    process_uploaded_file(
+                        file_path,
+                        platform="local"
+                    )
+
+                    increment_indexed_files(
+                        db,
+                        user_id,
+                        "local"
+                    )
+
+                except Exception as e:
+
+                    print(
+                        f"Failed to index {file_path}: {e}"
+                    )
+
+        finally:
+
+            db.close()
+
+            clear_cancel(user_id)
 
         print("\nLocal indexing completed.")
 
-    def search(self, query):
+    def search(
+        self,
+        query,
+        search_type="all"
+    ):
 
         from app.services.document_service import search_document
         from app.services.image_service import search_image
@@ -46,33 +138,71 @@ class LocalPlatform(BasePlatform):
 
         results = []
 
-        results.extend(
-            search_document(
-                query,
-                "local"
-            )
-        )
+        if search_type == "all":
 
-        results.extend(
-            search_image(
-                query,
-                "local"
+            results.extend(
+                search_document(
+                    query,
+                    "local"
+                )
             )
-        )
 
-        results.extend(
-            search_audio_file(
-                query,
-                "local"
+            results.extend(
+                search_image(
+                    query,
+                    "local"
+                )
             )
-        )
 
-        results.extend(
-            search_video_file(
-                query,
-                "local"
+            results.extend(
+                search_audio_file(
+                    query,
+                    "local"
+                )
             )
-        )
+
+            results.extend(
+                search_video_file(
+                    query,
+                    "local"
+                )
+            )
+
+        elif search_type == "document":
+
+            results.extend(
+                search_document(
+                    query,
+                    "local"
+                )
+            )
+
+        elif search_type == "image":
+
+            results.extend(
+                search_image(
+                    query,
+                    "local"
+                )
+            )
+
+        elif search_type == "audio":
+
+            results.extend(
+                search_audio_file(
+                    query,
+                    "local"
+                )
+            )
+
+        elif search_type == "video":
+
+            results.extend(
+                search_video_file(
+                    query,
+                    "local"
+                )
+            )
 
         return results
 
@@ -97,26 +227,45 @@ class LocalPlatform(BasePlatform):
         }
 
     def upload(self, file_path):
+
         print(f"Uploading: {file_path}")
 
     def delete(self, file_name):
+
         print(f"Deleting: {file_name}")
 
     def list_files(self):
 
         files = []
 
+        print("\n========== SCANNING FOLDERS ==========")
+
         for folder in self.folders:
 
-            if not os.path.exists(folder):
+            print("\nFolder:")
+            print(folder)
+
+            exists = os.path.exists(folder)
+
+            print("Exists:", exists)
+
+            if not exists:
                 continue
 
             for root, _, filenames in os.walk(folder):
 
+                print(f"Scanning: {root}")
+                print(f"Files in folder: {len(filenames)}")
+
                 for file in filenames:
 
-                    files.append(
-                        os.path.join(root, file)
-                    )
+                    full_path = os.path.join(root, file)
+
+                    print(f"Checking: {full_path}")
+                    print("Exists:", os.path.exists(full_path))
+
+                    files.append(full_path)
+
+        print("======================================\n")
 
         return files

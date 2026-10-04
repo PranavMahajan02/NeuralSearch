@@ -5,7 +5,8 @@ import { indexLocalStorage } from "../services/localStorage";
 import {
   getFolders,
   addFolder,
-  removeFolder
+  removeFolder,
+  pickFolder
 } from "../services/localStorage";
 import {
   HardDrive,
@@ -19,12 +20,8 @@ import {
   Moon,
   Folder,
   Plus,
-  Trash2,
   X,
   Play,
-  Monitor,
-  Download,
-  Video,
   FolderPlus
 } from "lucide-react";
 
@@ -47,7 +44,6 @@ export default function PageConnection({
   theme,
   onToggleTheme
 }: PageConnectionProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [customPath, setCustomPath] = useState("");
   useEffect(() => {
 
@@ -127,7 +123,7 @@ export default function PageConnection({
       console.log(result);
 
       if (onStartIndexing) {
-        onStartIndexing("local_storage");
+        await onStartIndexing("local_storage");
       }
 
     } catch (error) {
@@ -140,39 +136,38 @@ export default function PageConnection({
 
   };
 
-  const handleTriggerFolderPicker = () => {
-    fileInputRef.current?.click();
-  };
+  const handleTriggerFolderPicker = async () => {
 
-  const handleFolderSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    try {
 
-    const folders = new Set<string>();
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const relativePath = file.webkitRelativePath || file.name;
-      const parts = relativePath.split("/");
-      if (parts.length > 0 && parts[0]) {
-        folders.add(parts[0]);
+      const data = await pickFolder();
+
+      if (!data.folder) {
+        return;
       }
-    }
 
-    if (folders.size > 0) {
-      onUpdatePlatforms((prev) =>
-        prev.map((p) => {
-          if (p.id === "local_storage") {
-            const existing = p.selectedFolders || [];
-            const updated = Array.from(new Set([...existing, ...Array.from(folders)]));
-            return { ...p, selectedFolders: updated };
-          }
-          return p;
-        })
+      const result = await addFolder(data.folder);
+
+      onUpdatePlatforms(prev =>
+        prev.map(p =>
+          p.id === "local_storage"
+            ? {
+              ...p,
+              selectedFolders: result.folders,
+              connected: result.folders.length > 0
+            }
+            : p
+        )
       );
+
+    } catch (error) {
+
+      console.error(error);
+
+      alert("Unable to open native folder picker.");
+
     }
 
-    // Reset input value to allow re-selecting
-    e.target.value = "";
   };
 
   const handleAddCustomFolder = async (e?: React.FormEvent) => {
@@ -235,32 +230,6 @@ export default function PageConnection({
 
   };
 
-  const handleAddPresetFolder = async (folder: string) => {
-
-    try {
-
-      const data = await addFolder(folder);
-
-      onUpdatePlatforms(prev =>
-        prev.map(p =>
-          p.id === "local_storage"
-            ? {
-              ...p,
-              selectedFolders: data.folders
-            }
-            : p
-        )
-      );
-
-    } catch (error) {
-
-      console.error(error);
-
-      alert("Unable to add folder.");
-
-    }
-
-  };
 
   const renderPlatformIcon = (iconName: string, color: string) => {
     const sizeClasses = "w-6 h-6 " + color;
@@ -285,17 +254,6 @@ export default function PageConnection({
   return (
     <div id="connection_page_wrapper" className="w-full min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-between py-12 px-4 sm:px-6 md:px-8 transition-colors duration-200 relative">
       {/* Hidden input for folder picking */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFolderSelection}
-        {...({
-          webkitdirectory: "",
-          directory: "",
-          multiple: true
-        } as any)}
-        className="hidden"
-      />
 
       {/* Absolute top-right Theme Switcher */}
       <div className="absolute top-4 right-4 z-50">
@@ -415,32 +373,6 @@ export default function PageConnection({
                             </button>
                           </div>
                         </form>
-
-                        {/* Quick Presets row */}
-                        <div>
-                          <span className="block text-[9px] font-semibold font-mono text-slate-400 uppercase tracking-wider mb-1.5">
-                            Quick Presets:
-                          </span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {["Desktop", "Documents", "D:\\Research Paper", "Downloads\\Projects"].map((preset) => {
-                              const isAdded = selectedFolders.includes(preset);
-                              return (
-                                <button
-                                  key={preset}
-                                  type="button"
-                                  disabled={isAdded}
-                                  onClick={() => handleAddPresetFolder(preset)}
-                                  className={`text-[10px] px-2 py-1 rounded-md border transition-all ${isAdded
-                                    ? "bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed"
-                                    : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-350 dark:hover:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 cursor-pointer"
-                                    }`}
-                                >
-                                  + {preset}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
                       </div>
 
                       {/* Main Action Bar */}
@@ -568,20 +500,47 @@ export default function PageConnection({
                   </div>
 
                   <div>
+
                     <h3 className="font-display font-bold text-slate-800 dark:text-white text-base mt-2">
                       {platform.name}
                     </h3>
 
-                    <button
-                      id={`btn_connect_${platform.id}`}
-                      onClick={() => onToggleConnect(platform.id)}
-                      className={`mt-3 w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer text-center ${platform.connected
-                        ? "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 active:scale-97"
-                        : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-xs active:scale-97"
-                        }`}
-                    >
-                      {platform.connected ? "Disconnect" : "Connect"}
-                    </button>
+                    {
+                      platform.id === "google_photos" && (
+
+                        <p className="mt-1 text-[11px] text-slate-400">
+                          Available in a future update
+                        </p>
+
+                      )
+                    }
+
+                    {
+                      platform.id === "google_photos" ? (
+
+                        <button
+                          disabled
+                          className="mt-3 w-full py-2 px-3 rounded-lg text-xs font-semibold bg-gray-300 dark:bg-slate-700 text-gray-600 dark:text-slate-400 cursor-not-allowed"
+                        >
+                          Coming Soon
+                        </button>
+
+                      ) : (
+
+                        <button
+                          id={`btn_connect_${platform.id}`}
+                          onClick={() => onToggleConnect(platform.id)}
+                          className={`mt-3 w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer text-center ${platform.connected
+                            ? "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 active:scale-97"
+                            : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-xs active:scale-97"
+                            }`}
+                        >
+                          {platform.connected ? "Disconnect" : "Connect"}
+                        </button>
+
+                      )
+                    }
+
                   </div>
                 </>
               )}

@@ -1,18 +1,13 @@
 import pickle
 import numpy as np
-
+from app.ai.model_manager import model_manager
 from transformers import CLIPProcessor, CLIPModel
 
 
 print("Loading CLIP...")
 
-model = CLIPModel.from_pretrained(
-    "openai/clip-vit-base-patch32"
-)
-
-processor = CLIPProcessor.from_pretrained(
-    "openai/clip-vit-base-patch32"
-)
+model = model_manager.clip_model
+processor = model_manager.clip_processor
 
 print("CLIP Loaded")
 

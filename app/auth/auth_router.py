@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
+from app.scheduler.cancel import cancel_job
 
 from app.models.auth_models import (
     RegisterRequest,
@@ -89,5 +90,24 @@ def profile(
         "id": current_user["id"],
         "name": current_user["name"],
         "email": current_user["email"]
+
+    }
+
+@router.post("/logout")
+def logout(
+
+    current_user=Depends(get_current_user)
+
+):
+
+    cancel_job(
+
+        current_user["id"]
+
+    )
+
+    return {
+
+        "status": "success"
 
     }

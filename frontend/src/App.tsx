@@ -7,6 +7,11 @@ import PageConnection from "./components/PageConnection";
 import PageChooseFirst from "./components/PageChooseFirst";
 import PageIndexingCenter from "./components/PageIndexingCenter";
 import PageDashboard from "./components/PageDashboard";
+import { startIndexing } from "./services/index";
+import { getDashboardStats } from "./services/dashboard";
+import { getLoginState } from "./services/loginState";
+import { getIndexJobs } from "./services/indexStatus";
+import { getFolders } from "./services/localStorage";
 import {
   connectGoogleDrive,
   disconnectGoogleDrive,
@@ -45,7 +50,7 @@ const INITIAL_PLATFORMS: Platform[] = [
   },
   {
     id: "github",
-    name: "GitHub Repositories",
+    name: "GitHub",
     connected: false,
     indexed: false,
     status: "idle",
@@ -81,10 +86,22 @@ export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [platforms, setPlatforms] = useState<Platform[]>(INITIAL_PLATFORMS);
   const [indexedPlatforms, setIndexedPlatforms] = useState<string[]>([]);
+  const [indexingState, setIndexingState] = useState({
+
+    active: false,
+
+    platform: "",
+
+    progress: 0,
+
+    status: "idle"
+
+  });
 
   // Priority platform, stream log feed and counts ref
   const [priorityPlatformId, setPriorityPlatformId] = useState<PlatformId | null>(null);
   const [streamFeed, setStreamFeed] = useState<IndexLog[]>([]);
+  const [indexJobs, setIndexJobs] = useState<any[]>([]);
   const indexedFileCountsRef = useRef<Record<PlatformId, number>>({
     google_drive: 0,
     google_photos: 0,
@@ -92,146 +109,7 @@ export default function App() {
     local_storage: 0
   });
 
-  // Central sequential indexing engine
-  useEffect(() => {
-    // Find if there is any platform currently indexing
-    const activePlatform = platforms.find((p) => p.connected && p.status === "indexing");
-    if (!activePlatform) return;
 
-    const platformId = activePlatform.id;
-
-    // Filter potential files to index from MOCK_FILES
-    let platformMockFiles = MOCK_FILES.filter((f) => f.platform === platformId);
-    if (platformId === "local_storage") {
-      const selected = activePlatform.selectedFolders || [];
-      platformMockFiles = platformMockFiles.filter((f) => {
-        if (!f.folder) return false;
-        if (selected.length === 0) return false;
-        return selected.some((sel) => {
-          const normSel = sel.toLowerCase();
-          const normFolder = f.folder!.toLowerCase();
-          if (normSel.includes("desktop") && normFolder === "desktop") return true;
-          if (normSel.includes("document") && normFolder === "documents") return true;
-          if (normSel.includes("download") && normFolder === "downloads") return true;
-          if (normSel.includes("picture") && normFolder === "pictures") return true;
-          if (normSel.includes("video") && normFolder === "videos") return true;
-          if (normFolder === "custom folder" && !["desktop", "documents", "downloads", "pictures", "videos"].some(k => normSel.includes(k))) return true;
-          return normSel.includes(normFolder) || normFolder.includes(normSel);
-        });
-      });
-    }
-
-    const interval = setInterval(() => {
-      // Re-read current platform status from the state to handle pause correctly
-      setPlatforms((prevPlatforms) => {
-        const currentP = prevPlatforms.find((p) => p.id === platformId);
-        if (!currentP || currentP.status === "paused") {
-          return prevPlatforms;
-        }
-
-        const nextProgress = Math.min(100, currentP.progress + Math.floor(Math.random() * 8) + 4);
-        const filesIndexCount = indexedFileCountsRef.current[platformId];
-
-        // Should we feed a log item?
-        if (platformMockFiles.length > 0 && nextProgress > (filesIndexCount / platformMockFiles.length) * 100) {
-          const fileToFeed = platformMockFiles[filesIndexCount];
-          if (fileToFeed) {
-            const newLogItem: IndexLog = {
-              id: `${platformId}_log_${Date.now()}_${filesIndexCount}`,
-              fileName: fileToFeed.name,
-              platform: platformId,
-              status: "processing",
-              timestamp: new Date().toLocaleTimeString(),
-              type: fileToFeed.type
-            };
-
-            setStreamFeed((prevFeed) => [newLogItem, ...prevFeed.slice(0, 15)]);
-            indexedFileCountsRef.current[platformId] += 1;
-
-            // Increment detailed stats
-            setStats((prevStats) => {
-              const updated = { ...prevStats };
-              updated.indexedFiles += 1;
-              if (fileToFeed.type === "image") {
-                updated.indexedImages += 1;
-              } else if (fileToFeed.type === "audio") {
-                updated.indexedAudio += 1;
-              } else if (fileToFeed.type === "video") {
-                updated.indexedVideos += 1;
-              }
-              updated.storageUsageGbs = Math.round((updated.storageUsageGbs + 0.1) * 10) / 10;
-              return updated;
-            });
-          }
-        }
-
-        // Check if finished
-        if (nextProgress >= 100) {
-          clearInterval(interval);
-
-          // Add to indexed list
-          setIndexedPlatforms((prevIndexed) => {
-            if (!prevIndexed.includes(platformId)) {
-              const nextIndexed = [...prevIndexed, platformId];
-
-              // Increment platformsReady, lastSyncTime
-              setStats((prevStats) => ({
-                ...prevStats,
-                platformsReady: nextIndexed.length,
-                lastSyncTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-              }));
-
-              return nextIndexed;
-            }
-            return prevIndexed;
-          });
-
-          // Move the next waiting platform (if any) to indexing
-          setTimeout(() => {
-            setPlatforms((latestPlatforms) => {
-              const updated = latestPlatforms.map((p) => {
-                if (p.id === platformId) {
-                  return { ...p, status: "indexed" as const, progress: 100, indexed: true };
-                }
-                return p;
-              });
-
-              const nextQueued = updated.find((p) => p.connected && p.status === "waiting");
-              if (nextQueued) {
-                return updated.map((p) => {
-                  if (p.id === nextQueued.id) {
-                    return { ...p, status: "indexing" as const, progress: 2 };
-                  }
-                  return p;
-                });
-              }
-              return updated;
-            });
-          }, 1000);
-
-          return prevPlatforms.map((p) => {
-            if (p.id === platformId) {
-              return { ...p, status: "indexed" as const, progress: 100, indexed: true };
-            }
-            return p;
-          });
-        }
-
-        // Just update progress
-        return prevPlatforms.map((p) => {
-          if (p.id === platformId) {
-            return { ...p, progress: nextProgress };
-          }
-          return p;
-        });
-      });
-
-    }, 1500);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [platforms]);
 
   // Theme state: "light" or "dark"
   const [theme, setTheme] = useState<"light" | "dark">(() => {
@@ -420,38 +298,74 @@ export default function App() {
 
   };
 
-  const handleStartIndexing = (priorityId: PlatformId) => {
+  const handleStartIndexing = async (
+    priorityId: PlatformId,
+    fromDashboard = false
+  ) => {
+
     setPriorityPlatformId(priorityId);
-    // Flag priority resource as active indexing, set others connected as queued waiting
-    setPlatforms((prev) =>
-      prev.map((p) => {
-        if (p.id === priorityId) {
-          return { ...p, status: "indexing", progress: 2 };
-        } else if (p.connected && p.status === "idle") {
-          return { ...p, status: "waiting" };
-        }
-        return p;
-      })
-    );
-    setCurrentPage("indexing_first");
+
+    const connectedPlatforms = fromDashboard
+      ? [
+        priorityId === "local_storage"
+          ? "local"
+          : priorityId
+      ]
+      : platforms
+        .filter((p) => p.connected)
+        .map((p) => {
+          if (p.id === "local_storage") return "local";
+          return p.id;
+        });
+
+    const backendPriority =
+      priorityId === "local_storage"
+        ? "local"
+        : priorityId;
+
+    try {
+
+      await startIndexing(
+        backendPriority,
+        connectedPlatforms
+      );
+
+      if (!fromDashboard) {
+
+        setCurrentPage("indexing_first");
+
+      }
+
+    } catch (e) {
+
+      console.error(e);
+
+      alert("Unable to start indexing.");
+
+    }
+
   };
 
-  const handleLogout = () => {
-    authLogout();
+
+  const handleLogout = async () => {
+
+    await authLogout();
+
     setUser(null);
     setAuthStatus("unauthenticated");
 
-    // Reset to defaults
     setPlatforms(INITIAL_PLATFORMS);
     setIndexedPlatforms([]);
     setPriorityPlatformId(null);
     setStreamFeed([]);
+
     indexedFileCountsRef.current = {
       google_drive: 0,
       google_photos: 0,
       github: 0,
       local_storage: 0
     };
+
     setStats({
       connectedPlatforms: 0,
       indexedFiles: 0,
@@ -463,7 +377,9 @@ export default function App() {
       totalSearches: 0,
       storageUsageGbs: 0.0,
     });
+
     setCurrentPage("login");
+
   };
 
   const checkAuthentication = async () => {
@@ -475,8 +391,22 @@ export default function App() {
     try {
       const profile = await getProfile();
       setUser(profile);
+
       setAuthStatus("authenticated");
-      setCurrentPage("connection");
+
+      const state = await getLoginState();
+
+      if (state.has_indexed) {
+
+        setCurrentPage("dashboard");
+
+      }
+
+      else {
+
+        setCurrentPage("connection");
+
+      }
     } catch (error) {
       authLogout();
       setUser(null);
@@ -486,6 +416,139 @@ export default function App() {
   useEffect(() => {
     checkAuthentication();
   }, []);
+
+  useEffect(() => {
+
+    if (
+      currentPage !== "indexing_first" &&
+      currentPage !== "dashboard"
+    ) {
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      try {
+
+        const jobs = await getIndexJobs();
+        setIndexJobs(jobs);
+
+        setPlatforms(prev =>
+          prev.map(platform => {
+
+            const backendName =
+              platform.id === "local_storage"
+                ? "local"
+                : platform.id;
+
+            const job = jobs.find(
+              (j: any) => j.platform === backendName
+            );
+
+            if (!job) {
+              return platform;
+            }
+
+            if (job.status === "indexing") {
+
+              setIndexingState({
+
+                active: true,
+
+                platform: backendName,
+
+                progress: job.progress,
+
+                status: "indexing"
+
+              });
+
+              return {
+
+                ...platform,
+
+                status: "indexing",
+
+                progress: job.progress
+
+              };
+
+            }
+
+            if (job.status === "completed") {
+              setIndexingState({
+
+                active: false,
+
+                platform: backendName,
+
+                progress: job.progress,
+
+                status: "completed"
+
+              });
+
+              return {
+                ...platform,
+                status: "indexed",
+                progress: job.progress,
+                indexed: true
+              };
+
+            }
+
+            return platform;
+
+          })
+        );
+
+        const completed = jobs
+          .filter((j: any) => j.status === "completed");
+
+        // NEW
+        setIndexedPlatforms(
+          completed.map((j: any) =>
+            j.platform === "local"
+              ? "local_storage"
+              : j.platform
+          )
+        );
+
+        if (
+          completed.length > 0 &&
+          completed[0].platform ===
+          (priorityPlatformId === "local_storage"
+            ? "local"
+            : priorityPlatformId)
+        ) {
+
+          const dashboard = await getDashboardStats();
+
+          setStats(prev => ({
+            ...prev,
+            indexedFiles: dashboard.total_files,
+            indexedImages: dashboard.images,
+            indexedAudio: dashboard.audio,
+            indexedVideos: dashboard.video,
+            connectedPlatforms: dashboard.connected_platforms,
+            platformsReady: dashboard.ready_platforms
+          }));
+
+          setCurrentPage("dashboard");
+
+
+        }
+
+      } catch (err) {
+
+        console.error("Polling failed:", err);
+
+      }
+
+    }, 1000);
+
+    return () => clearInterval(interval);
+
+  }, [currentPage, priorityPlatformId]);
 
   useEffect(() => {
 
@@ -541,6 +604,89 @@ export default function App() {
 
       }
 
+      // Restore Local Storage
+
+      try {
+
+        const folders = await getFolders();
+
+        setPlatforms(prev =>
+          prev.map(p =>
+            p.id === "local_storage"
+              ? {
+                ...p,
+                connected: folders.folders.length > 0,
+                status:
+                  folders.folders.length > 0
+                    ? "waiting"
+                    : "idle",
+                selectedFolders: folders.folders
+              }
+              : p
+          )
+        );
+
+      } catch (error) {
+
+        console.error(error);
+
+      }
+
+      try {
+
+        const dashboard = await getDashboardStats();
+
+        setStats(prev => ({
+          ...prev,
+          connectedPlatforms: dashboard.connected_platforms,
+          indexedFiles: dashboard.total_files,
+          indexedImages: dashboard.images,
+          indexedAudio: dashboard.audio,
+          indexedVideos: dashboard.video,
+          platformsReady: dashboard.ready_platforms
+        }));
+
+      } catch (error) {
+
+        console.error(error);
+
+      }
+
+      try {
+
+        const jobs = await getIndexJobs();
+
+        setIndexJobs(jobs);
+
+        const ready: string[] = [];
+
+        jobs.forEach((job: any) => {
+
+          if (job.status === "completed") {
+
+            if (job.platform === "local") {
+
+              ready.push("local_storage");
+
+            } else {
+
+              ready.push(job.platform);
+
+            }
+
+          }
+
+        });
+
+        setIndexedPlatforms(ready);
+
+      } catch (err) {
+
+        console.error("Polling failed:", err);
+
+
+      }
+
     }
 
     restoreConnections();
@@ -577,10 +723,27 @@ export default function App() {
           >
             <PageLogin
               onLoginSuccess={async () => {
+
                 const profile = await getProfile();
+
                 setUser(profile);
+
                 setAuthStatus("authenticated");
-                setCurrentPage("connection");
+
+                const state = await getLoginState();
+
+                if (state.has_indexed) {
+
+                  setCurrentPage("dashboard");
+
+                }
+
+                else {
+
+                  setCurrentPage("connection");
+
+                }
+
               }}
               theme={theme}
               onToggleTheme={toggleTheme}
@@ -647,6 +810,7 @@ export default function App() {
               onToggleTheme={toggleTheme}
               streamFeed={streamFeed}
               priorityPlatformId={priorityPlatformId}
+              indexJobs={indexJobs}
             />
           </motion.div>
         )}
@@ -667,6 +831,9 @@ export default function App() {
               stats={stats}
               onUpdateStats={setStats}
               onLogout={handleLogout}
+              onStartIndexing={handleStartIndexing}
+              onTogglePlatformConnect={handleTogglePlatformConnect}
+              indexingState={indexingState}
               theme={theme}
               onToggleTheme={toggleTheme}
               streamFeed={streamFeed}

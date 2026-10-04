@@ -1,8 +1,22 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Platform, PlatformId, MockFile, DashboardStats, SearchType, IndexLog } from "../types";
-import { searchFiles, MOCK_FILES } from "../data/mockFiles";
+import { MOCK_FILES } from "../data/mockFiles";
+import { searchFiles as apiSearchFiles } from "../services/search";
 import PageIndexingCenter from "./PageIndexingCenter";
+import { openFile } from "../services/open";
+import { getIndexJobs } from "../services/index";
+import {
+  getDashboardStats,
+  getDashboardPlatforms
+} from "../services/dashboard";
+
+import {
+  getFolders,
+  pickFolder,
+  addFolder,
+  removeFolder
+} from "../services/localStorage";
 import {
   Search,
   LayoutDashboard,
@@ -42,6 +56,7 @@ import {
   X,
   Play
 } from "lucide-react";
+import { getProfile } from "../services/auth";
 
 interface PageDashboardProps {
   platforms: Platform[];
@@ -51,6 +66,28 @@ interface PageDashboardProps {
   stats: DashboardStats;
   onUpdateStats: React.Dispatch<React.SetStateAction<DashboardStats>>;
   onLogout: () => void;
+
+  onStartIndexing: (
+    priorityId: PlatformId,
+    fromDashboard?: boolean
+  ) => Promise<void>;
+
+  onTogglePlatformConnect: (
+    id: string
+  ) => Promise<void>;
+
+  indexingState: {
+
+    active: boolean;
+
+    platform: string;
+
+    progress: number;
+
+    status: string;
+
+  };
+
   theme: "light" | "dark";
   onToggleTheme: () => void;
   streamFeed: IndexLog[];
@@ -64,9 +101,13 @@ export default function PageDashboard({
   stats,
   onUpdateStats,
   onLogout,
+  onStartIndexing,
+  onTogglePlatformConnect,
   theme,
   onToggleTheme,
-  streamFeed
+  streamFeed,
+  indexingState
+
 }: PageDashboardProps) {
   // Sidebar states
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -76,7 +117,66 @@ export default function PageDashboard({
   const [query, setQuery] = useState("");
   const [searchType, setSearchType] = useState<SearchType>("all");
   const [platformFilter, setPlatformFilter] = useState<string>("all");
+  const [hasSearched, setHasSearched] = useState(false);
+  const [backendResults, setBackendResults] = useState<MockFile[]>([]);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
+  const [searching, setSearching] = useState(false);
+  const [dashboardPlatforms, setDashboardPlatforms] = useState<any>(null);
+  const [indexJobs, setIndexJobs] = useState<any[]>([]);
+  const refreshLocalFolders = async () => {
+    try {
 
+      const data = await getFolders();
+
+      onUpdatePlatforms(prev =>
+        prev.map(p =>
+          p.id === "local_storage"
+            ? {
+              ...p,
+              connected: data.folders.length > 0,
+              selectedFolders: data.folders
+            }
+            : p
+        )
+      );
+
+    } catch (err) {
+      console.error(err);
+    }
+  };
+  const isPlatformConnected = (id: string) => {
+
+    switch (id) {
+
+      case "google_drive":
+        return dashboardPlatforms?.google_drive?.connected;
+
+      case "github":
+        return dashboardPlatforms?.github?.connected;
+
+      case "local_storage":
+        return dashboardPlatforms?.local?.connected;
+
+      default:
+        return false;
+
+    }
+
+  };
+  const isPlatformIndexing = (id: string) => {
+
+    const backendName =
+      id === "local_storage"
+        ? "local"
+        : id;
+
+    return (
+      indexingState.active &&
+      indexingState.platform === backendName
+    );
+
+  };
   // Dropdown UI states for custom fully-rounded selective menus
   const [searchTypeOpen, setSearchTypeOpen] = useState(false);
   const [platformOpen, setPlatformOpen] = useState(false);
@@ -96,6 +196,93 @@ export default function PageDashboard({
 
   // Active modal file for search result inspection
   const [activeModalFile, setActiveModalFile] = useState<MockFile | null>(null);
+
+  async function loadDashboard() {
+
+    try {
+
+      const data = await getDashboardStats();
+
+      setDashboardData(data);
+
+      const platforms = await getDashboardPlatforms();
+
+      setDashboardPlatforms(platforms);
+
+      console.log("Dashboard Platforms:", platforms);
+
+      onUpdateStats(prev => ({
+
+        ...prev,
+
+        indexedFiles: data.total_files,
+
+        indexedImages: data.images,
+
+        indexedAudio: data.audio,
+
+        indexedVideos: data.video,
+
+        connectedPlatforms: data.connected_platforms,
+
+        platformsReady: data.ready_platforms
+
+      }));
+
+    } catch (err) {
+
+      console.error(err);
+
+    }
+
+  };
+
+  useEffect(() => {
+
+    loadDashboard();
+    refreshLocalFolders();
+
+    const loadUser = async () => {
+
+      try {
+
+        const profile = await getProfile();
+
+        setUser(profile);
+
+      } catch (err) {
+
+        console.error(err);
+
+      }
+
+    };
+
+    loadUser();
+
+    const loadJobs = async () => {
+
+      try {
+
+        const jobs = await getIndexJobs();
+
+        setIndexJobs(jobs);
+
+      } catch (err) {
+
+        console.error(err);
+
+      }
+
+    };
+
+    loadJobs();
+
+    const timer = setInterval(loadJobs, 1000);
+
+    return () => clearInterval(timer);
+
+  }, []);
 
   // Platform icon visual mapping
   const renderPlatformLogo = (iconName: string, color: string, sizeClasses = "w-4 h-4") => {
@@ -128,41 +315,139 @@ export default function PageDashboard({
 
   // Perform search matching
   const localStoragePlatform = platforms.find((p) => p.id === "local_storage");
-  const matchingResults = searchFiles(
-    query,
-    searchType,
-    platformFilter,
-    indexedPlatforms
-  ).filter((f) => {
-    if (f.platform === "local_storage") {
+  console.log("Indexed:", indexedPlatforms);
+  console.log("Backend:", backendResults);
+  console.log("backendResults state:", backendResults);
+  console.log("backendResults length:", backendResults.length);
+  const filteredResults = backendResults.filter((f) => {
+
+    console.log(
+      "Platform:",
+      f.platform,
+      "Indexed?",
+      indexedPlatforms.includes(f.platform)
+    );
+
+    if (searchType !== "all" && f.type !== searchType)
+      return false;
+
+    if (platformFilter !== "all" && f.platform !== platformFilter)
+      return false;
+
+    const platformKey =
+      f.platform === "local"
+        ? "local_storage"
+        : f.platform;
+
+    if (!indexedPlatforms.includes(platformKey))
+      return false;
+
+    if (
+      f.platform === "local" ||
+      f.platform === "local_storage"
+    ) {
+
       const selected = localStoragePlatform?.selectedFolders || [];
-      if (selected.length === 0) return false;
-      return f.folder ? selected.some((sel) => {
-        const normSel = sel.toLowerCase();
-        const normFolder = f.folder!.toLowerCase();
-        if (normSel.includes("desktop") && normFolder === "desktop") return true;
-        if (normSel.includes("document") && normFolder === "documents") return true;
-        if (normSel.includes("download") && normFolder === "downloads") return true;
-        if (normSel.includes("picture") && normFolder === "pictures") return true;
-        if (normSel.includes("video") && normFolder === "videos") return true;
-        if (normFolder === "custom folder" && !["desktop", "documents", "downloads", "pictures", "videos"].some(k => normSel.includes(k))) return true;
-        return normSel.includes(normFolder) || normFolder.includes(normSel);
-      }) : true;
+
+      if (selected.length === 0)
+        return false;
+
+      return f.folder
+        ? selected.some((sel) => {
+
+          const normSel = sel.toLowerCase();
+          const normFolder = f.folder!.toLowerCase();
+
+          if (normSel.includes("desktop") && normFolder === "desktop")
+            return true;
+
+          if (normSel.includes("document") && normFolder === "documents")
+            return true;
+
+          if (normSel.includes("download") && normFolder === "downloads")
+            return true;
+
+          if (normSel.includes("picture") && normFolder === "pictures")
+            return true;
+
+          if (normSel.includes("video") && normFolder === "videos")
+            return true;
+
+          if (
+            normFolder === "custom folder" &&
+            !["desktop", "documents", "downloads", "pictures", "videos"].some(k =>
+              normSel.includes(k)
+            )
+          )
+            return true;
+          console.log("Checking file:", f.file);
+          console.log("Platform:", f.platform);
+          console.log("Indexed:", indexedPlatforms);
+          return (
+            normSel.includes(normFolder) ||
+            normFolder.includes(normSel)
+          );
+
+        })
+        : true;
     }
+
     return true;
   });
 
-  // Track search trigger statistics
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onUpdateStats({
-      ...stats,
-      totalSearches: stats.totalSearches + 1
-    });
+  const performSearch = async (
+    currentQuery: string,
+    currentPlatform: string,
+    currentSearchType: SearchType
+  ) => {
+
+    setSearching(true);
+
+    // Allow React to render the spinner first
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    try {
+
+      const results = await apiSearchFiles(
+        currentQuery,
+        currentPlatform,
+        currentSearchType
+      );
+      console.log("API RESULTS");
+      console.table(results);
+      console.log("API RESULTS");
+      console.log(results);
+      console.log(Array.isArray(results));
+      console.log("RESULTS:", results);
+
+      const normalized = results.map((r: any) => ({
+        ...r,
+        platform:
+          r.platform === "local"
+            ? "local_storage"
+            : r.platform
+      }));
+
+      console.log("Backend Results:", normalized);
+
+      setBackendResults(normalized);
+      console.log("Setting backend results:", normalized.length);
+
+      setHasSearched(true);
+
+    } catch (err) {
+
+      console.error(err);
+
+    } finally {
+
+      setSearching(false);
+
+    }
   };
 
   // Preset click triggers search parameter population
-  const handlePresetSearch = (text: string, type: SearchType = "all", platform = "all") => {
+  const handlePresetSearch = async (text: string, type: SearchType = "all", platform = "all") => {
     setQuery(text);
     setSearchType(type);
     setPlatformFilter(platform);
@@ -170,12 +455,19 @@ export default function PageDashboard({
       ...stats,
       totalSearches: stats.totalSearches + 1
     });
+    await performSearch(
+      text,
+      platform,
+      type
+    );
   };
 
   const clearSearch = () => {
     setQuery("");
     setSearchType("all");
     setPlatformFilter("all");
+    setHasSearched(false);
+    setBackendResults([]);
   };
 
   // Quick navigation updates
@@ -211,15 +503,37 @@ export default function PageDashboard({
   };
 
   // Highlights search queries
-  const renderHighlightedSnippet = (text: string, queryWord: string) => {
-    if (!queryWord) return text;
-    const regex = new RegExp(`(${escapeRegExp(queryWord)})`, "gi");
-    const parts = text.split(regex);
+  const renderHighlightedSnippet = (
+    text?: any,
+    queryWord?: string
+  ) => {
+
+    if (text === undefined || text === null) {
+      return "";
+    }
+    console.log("TEXT:", text);
+    console.log("QUERY:", queryWord);
+    const safeText = String(text);
+
+    if (!queryWord) {
+      return safeText;
+    }
+
+    const regex = new RegExp(
+      `(${escapeRegExp(queryWord)})`,
+      "gi"
+    );
+
+    const parts = safeText.split(regex);
+
     return (
       <>
-        {parts.map((part, i) =>
+        {parts.map((part, index) =>
           part.toLowerCase() === queryWord.toLowerCase() ? (
-            <mark key={i} className="bg-blue-100 text-blue-800 rounded px-1 font-semibold">
+            <mark
+              key={index}
+              className="bg-blue-100 text-blue-800 rounded px-1 font-semibold"
+            >
               {part}
             </mark>
           ) : (
@@ -306,15 +620,16 @@ export default function PageDashboard({
             className="w-full flex items-center gap-3 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-left transition-colors"
           >
             <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center font-bold text-blue-700 dark:text-blue-450 text-xs">
-              U
+              {user?.name?.charAt(0).toUpperCase() || "U"}
             </div>
             {!sidebarCollapsed && (
               <div className="min-w-0 flex-1">
-                <span className="block text-xs font-bold text-slate-700 dark:text-slate-300 truncate">
-                  User Account
+                <span className="block text-xs font-bold text-slate-700">
+                  {user?.name || "User Account"}
                 </span>
-                <span className="block text-[10px] text-slate-400 dark:text-slate-550 truncate">
-                  pkmahajan2020@gmail.com
+
+                <span className="block text-[10px] text-slate-400">
+                  {user?.email || ""}
                 </span>
               </div>
             )}
@@ -402,7 +717,7 @@ export default function PageDashboard({
             <div id="search_view_stage" className="space-y-6">
 
               {/* Gemini centric large spacious searching area */}
-              {!query && (
+              {!hasSearched && (
                 <div className="py-12 text-center max-w-xl mx-auto">
                   {/* Layered Orbit Lens Logo for CogniSeek */}
                   <motion.div
@@ -456,13 +771,32 @@ export default function PageDashboard({
               )}
 
               {/* Centered Integrated Search Bar Form block */}
-              <form onSubmit={handleSearchSubmit} className="max-w-3xl mx-auto relative z-10">
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+
+                  if (!query.trim()) return;
+
+                  onUpdateStats({
+                    ...stats,
+                    totalSearches: stats.totalSearches + 1
+                  });
+
+                  await performSearch(
+                    query,
+                    platformFilter,
+                    searchType
+                  );
+                }}
+                className="max-w-3xl mx-auto relative z-10"
+              >
                 <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-lg shadow-slate-100/50 dark:shadow-slate-950/40 p-1.5 flex flex-col md:flex-row items-center gap-2 transition-colors duration-200">
 
                   {/* Text Input area */}
                   <div className="flex-1 flex items-center gap-2.5 px-3 w-full">
                     <Search className="w-5 h-5 text-slate-400 dark:text-slate-500 shrink-0" />
                     <input
+                      disabled={searching}
                       type="text"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
@@ -622,8 +956,8 @@ export default function PageDashboard({
                 </div>
               </form>
 
-              {/* CONDITIONAL BRANCH A: Display Suggestions Area if search Query is blank */}
-              {!query ? (
+              {/* CONDITIONAL BRANCH A: Display Suggestions Area if search Query is blank/hasSearched is false */}
+              {!hasSearched ? (
                 <div className="max-w-3xl mx-auto space-y-6">
                   <div className="border-b border-slate-200 dark:border-slate-800 pb-2">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-550">
@@ -736,7 +1070,7 @@ export default function PageDashboard({
                 <div id="search_results_page_container" className="max-w-3xl mx-auto space-y-4 pt-2">
                   <div className="flex items-center justify-between text-slate-400 text-xs font-medium px-1">
                     <span>
-                      Discovered {matchingResults.length} matching result{matchingResults.length === 1 ? "" : "s"} inside indexed files
+                      Discovered {filteredResults.length} matching result{filteredResults.length === 1 ? "" : "s"} inside indexed files
                     </span>
                     <span>
                       Filtered to: <strong className="capitalize text-slate-600">{searchType}</strong> &middot; <strong className="capitalize text-slate-600">{platformFilter}</strong>
@@ -745,8 +1079,19 @@ export default function PageDashboard({
 
                   {/* Matching Grid log */}
                   <div className="space-y-3">
-                    {matchingResults.length > 0 ? (
-                      matchingResults.map((file) => {
+                    {searching ? (
+                      <div className="py-20 text-center">
+
+                        <RefreshCw className="w-10 h-10 mx-auto text-blue-600 animate-spin" />
+
+                        <p className="mt-4 text-slate-600 font-semibold">
+                          Searching indexed files...
+                        </p>
+
+                      </div>
+
+                    ) : filteredResults.length > 0 ? (
+                      filteredResults.map((file) => {
                         const platformObj = platforms.find((p) => p.id === file.platform);
                         return (
                           <motion.div
@@ -763,13 +1108,18 @@ export default function PageDashboard({
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-start justify-between">
                                   <h4 className="font-display font-bold text-slate-800 dark:text-slate-200 text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 break-all pr-4">
-                                    {file.name}
+                                    {file.file}
                                   </h4>
                                 </div>
 
                                 {/* Content Preview highlighting matches */}
                                 <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-normal">
-                                  {renderHighlightedSnippet(file.content, query)}
+                                  {renderHighlightedSnippet(
+                                    file.ocr_text ??
+                                    file.file ??
+                                    "",
+                                    query
+                                  )}
                                 </p>
                               </div>
                             </div>
@@ -789,7 +1139,7 @@ export default function PageDashboard({
                               <span>Last Modified: <strong className="font-mono text-slate-700 dark:text-slate-300">{file.modifiedDate}</strong></span>
                               <span>&bull;</span>
                               <span className="inline-flex items-center gap-1 bg-blue-50/85 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border border-blue-100/30 dark:border-blue-900/30 px-2 py-0.5 rounded-full font-bold">
-                                Relevance: {file.name.toLowerCase().includes(query.toLowerCase()) ? "98%" : "84%"}
+                                Relevance: {file.file.toLowerCase().includes(query.toLowerCase()) ? "98%" : "84%"}
                               </span>
                             </div>
 
@@ -804,7 +1154,28 @@ export default function PageDashboard({
                               </button>
                               <button
                                 type="button"
-                                onClick={() => setActiveModalFile(file)}
+                                onClick={async () => {
+
+                                  try {
+
+                                    const response = await openFile(
+                                      file.platform,
+                                      file.path,
+                                      file.file_id
+                                    );
+
+                                    if (response.url) {
+                                      window.open(response.url, "_blank");
+                                    }
+
+                                  } catch (err) {
+
+                                    console.error(err);
+                                    alert("Unable to open file.");
+
+                                  }
+
+                                }}
                                 className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer active:scale-97"
                               >
                                 Open File
@@ -849,40 +1220,151 @@ export default function PageDashboard({
                     return (
                       <div
                         key={p.id}
-                        className={`p-4.5 rounded-xl border flex items-center justify-between transition-all ${p.connected
+                        className={`p-4 rounded-xl border transition-all ${isPlatformConnected(p.id)
                           ? "bg-slate-50/50 border-blue-200"
                           : "bg-white border-slate-200 hover:border-slate-350"
                           }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-white rounded-lg border border-slate-100">
-                            {renderPlatformLogo(p.iconName, p.color, "w-6 h-6")}
+
+                        {/* Header */}
+                        <div className="flex items-center justify-between">
+
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-white rounded-lg border border-slate-100">
+                              {renderPlatformLogo(p.iconName, p.color, "w-6 h-6")}
+                            </div>
+
+                            <div>
+                              <span className="block text-xs font-bold text-slate-800 truncate">
+                                {p.name}
+                              </span>
+
+                              <span className="text-[10px] text-slate-400 block mt-0.5">
+                                {isPlatformIndexing(p.id)
+                                  ? "🟡 Indexing..."
+                                  : isPlatformConnected(p.id)
+                                    ? "🟢 Connected"
+                                    : "⚪ Not Connected"}
+                              </span>
+                            </div>
                           </div>
-                          <div>
-                            <span className="block text-xs font-bold text-slate-800 truncate">{p.name}</span>
-                            <span className="text-[10px] text-slate-400 block mt-0.5">
-                              {p.connected ? "🟢 Linked & Searchable" : "⚪ Off-line"}
-                            </span>
-                          </div>
+
+                          {isPlatformConnected(p.id) ? (
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+
+                              <button
+                                onClick={async () => {
+                                  await onStartIndexing(
+                                    p.id as PlatformId,
+                                    true
+                                  );
+                                }}
+                                className="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-blue-600 text-white hover:bg-blue-700 transition-all cursor-pointer"
+                              >
+                                Re-index
+                              </button>
+
+                              <button
+                                onClick={async () => {
+
+                                  await onTogglePlatformConnect(
+                                    p.id
+                                  );
+
+                                  await loadDashboard();
+
+                                }}
+                                className="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-rose-50 text-rose-600 hover:bg-rose-100 transition-all cursor-pointer"
+                              >
+                                Disconnect
+                              </button>
+
+                            </div>
+
+                          ) : (
+
+                            <button
+                              onClick={async () => {
+
+                                await onTogglePlatformConnect(
+                                  p.id
+                                );
+
+                                await loadDashboard();
+
+                              }}
+                              className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-900 text-white hover:bg-slate-800 transition-all cursor-pointer"
+                            >
+                              Connect
+                            </button>
+
+                          )}
+
                         </div>
 
-                        <button
-                          onClick={() => {
-                            const updated = platforms.map((item) => {
-                              if (item.id === p.id) {
-                                return { ...item, connected: !item.connected, status: item.connected ? ("idle" as const) : ("waiting" as const) };
-                              }
-                              return item;
-                            });
-                            onUpdatePlatforms(updated);
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${p.connected
-                            ? "bg-rose-50 text-rose-600 hover:bg-rose-100"
-                            : "bg-slate-900 text-white hover:bg-slate-805"
-                            }`}
-                        >
-                          {p.connected ? "Revoke" : "Link"}
-                        </button>
+                        {/* Local Storage Section */}
+                        {p.id === "local_storage" && (
+                          <div className="mt-4 border-t pt-4">
+
+                            <button
+                              onClick={async () => {
+
+                                const data = await pickFolder();
+
+                                if (!data.folder) return;
+
+                                await addFolder(data.folder);
+
+                                await refreshLocalFolders();
+
+                              }}
+
+                              className="mb-3 px-3 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700"
+                            >
+                              Browse Folder
+                            </button>
+
+                            {(p.selectedFolders || []).length > 0 && (
+
+                              <div className="space-y-2">
+
+                                {p.selectedFolders!.map((folder: string) => (
+
+                                  <div
+                                    key={folder}
+                                    className="flex items-center justify-between rounded-lg bg-slate-100 px-3 py-2"
+                                  >
+
+                                    <span className="text-xs truncate">
+                                      {folder}
+                                    </span>
+
+                                    <button
+                                      onClick={async () => {
+
+                                        await removeFolder(folder);
+
+                                        await refreshLocalFolders();
+
+                                      }}
+                                      className="text-red-600 hover:text-red-800 font-bold"
+                                    >
+                                      ✕
+
+                                    </button>
+
+                                  </div>
+
+                                ))}
+
+                              </div>
+
+                            )}
+
+                          </div>
+                        )}
+
                       </div>
                     );
                   })}
@@ -906,6 +1388,7 @@ export default function PageDashboard({
               theme={theme}
               onToggleTheme={onToggleTheme}
               streamFeed={streamFeed}
+              indexJobs={indexJobs}
             />
           )}
 
@@ -917,132 +1400,154 @@ export default function PageDashboard({
         {/* 5. Minimal footer */}
         <footer className="h-12 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-[#0f172a] px-6 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500 tracking-wide font-normal transition-colors duration-200">
           <span>CogniSeek Enterprise Search • Build v3.2.1-Stellar</span>
-          <span>pkmahajan2020@gmail.com</span>
+          <span>{user?.email}</span>
         </footer>
 
-      </div>
+      </div >
 
       {/* File Details / Open File Modal Overlay */}
       <AnimatePresence>
-        {activeModalFile && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col"
-            >
-              {/* Header */}
-              <div className="p-5 border-b border-slate-100 dark:border-slate-800/80 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/40">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="p-2 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-lg">
-                    {getFileIcon(activeModalFile.type)}
+        {
+          activeModalFile && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col"
+              >
+                {/* Header */}
+                <div className="p-5 border-b border-slate-100 dark:border-slate-800/80 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/40">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-2 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-lg">
+                      {getFileIcon(activeModalFile.type)}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-display font-bold text-slate-800 dark:text-slate-100 text-sm md:text-base truncate break-all pr-4">
+                        {activeModalFile.file}
+                      </h3>
+                      <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+                        {activeModalFile.platform === "local" ||
+                          activeModalFile.platform === "local_storage"
+                          ? `C:\\Users\\Account\\${activeModalFile.folder || "Documents"}\\${activeModalFile.file}`
+                          : `https://${activeModalFile.platform}.com/share/item/${activeModalFile.id}`}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="font-display font-bold text-slate-800 dark:text-slate-100 text-sm md:text-base truncate break-all pr-4">
-                      {activeModalFile.name}
-                    </h3>
-                    <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-0.5 truncate">
-                      {activeModalFile.platform === "local_storage"
-                        ? `C:\\Users\\Account\\${activeModalFile.folder || "Documents"}\\${activeModalFile.name}`
-                        : `https://${activeModalFile.platform}.com/share/item/${activeModalFile.id}`}
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveModalFile(null)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveModalFile(null)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
 
-              {/* Content Body split in two columns on desktop */}
-              <div className="p-6 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-y-auto max-h-[70vh]">
+                {/* Content Body split in two columns on desktop */}
+                <div className="p-6 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-y-auto max-h-[70vh]">
 
-                {/* Left metadata specifications panel */}
-                <div className="md:col-span-5 space-y-4">
-                  <div className="space-y-3">
-                    <h4 className="text-[10px] font-bold font-mono uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                      File Specifications
-                    </h4>
+                  {/* Left metadata specifications panel */}
+                  <div className="md:col-span-5 space-y-4">
+                    <div className="space-y-3">
+                      <h4 className="text-[10px] font-bold font-mono uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                        File Specifications
+                      </h4>
 
-                    <div className="space-y-2 text-xs">
-                      <div className="flex justify-between py-1.5 border-b border-slate-50 dark:border-slate-850">
-                        <span className="text-slate-400">Source Platform</span>
-                        <span className="font-semibold text-slate-700 dark:text-slate-300 capitalize">{activeModalFile.platform.replace("_", " ")}</span>
-                      </div>
-                      <div className="flex justify-between py-1.5 border-b border-slate-50 dark:border-slate-850">
-                        <span className="text-slate-400">Content Type</span>
-                        <span className="font-semibold text-slate-700 dark:text-slate-300 capitalize">{activeModalFile.type}</span>
-                      </div>
-                      <div className="flex justify-between py-1.5 border-b border-slate-50 dark:border-slate-850">
-                        <span className="text-slate-400">File Capacity</span>
-                        <span className="font-semibold font-mono text-slate-700 dark:text-slate-300">{activeModalFile.size}</span>
-                      </div>
-                      <div className="flex justify-between py-1.5 border-b border-slate-50 dark:border-slate-850">
-                        <span className="text-slate-400">Last Indexed</span>
-                        <span className="font-semibold font-mono text-slate-700 dark:text-slate-300">{activeModalFile.modifiedDate}</span>
-                      </div>
-                      {activeModalFile.folder && (
+                      <div className="space-y-2 text-xs">
                         <div className="flex justify-between py-1.5 border-b border-slate-50 dark:border-slate-850">
-                          <span className="text-slate-400">Local Directory</span>
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">{activeModalFile.folder}</span>
+                          <span className="text-slate-400">Source Platform</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300 capitalize">{activeModalFile.platform.replace("_", " ")}</span>
                         </div>
-                      )}
+                        <div className="flex justify-between py-1.5 border-b border-slate-50 dark:border-slate-850">
+                          <span className="text-slate-400">Content Type</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300 capitalize">{activeModalFile.type}</span>
+                        </div>
+                        <div className="flex justify-between py-1.5 border-b border-slate-50 dark:border-slate-850">
+                          <span className="text-slate-400">File Capacity</span>
+                          <span className="font-semibold font-mono text-slate-700 dark:text-slate-300">{activeModalFile.size}</span>
+                        </div>
+                        <div className="flex justify-between py-1.5 border-b border-slate-50 dark:border-slate-850">
+                          <span className="text-slate-400">Last Indexed</span>
+                          <span className="font-semibold font-mono text-slate-700 dark:text-slate-300">{activeModalFile.modifiedDate}</span>
+                        </div>
+                        {activeModalFile.folder && (
+                          <div className="flex justify-between py-1.5 border-b border-slate-50 dark:border-slate-850">
+                            <span className="text-slate-400">Local Directory</span>
+                            <span className="font-semibold text-slate-700 dark:text-slate-300">{activeModalFile.folder}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-850">
-                    <div className="flex items-start gap-2 text-[11px] text-slate-500 dark:text-slate-450 leading-relaxed">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-bold text-slate-700 dark:text-slate-200">Local OCR & Index verified</span>
-                        <p className="mt-0.5">This file is parsed, indexed, and available for dynamic localized retrieval models.</p>
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-850">
+                      <div className="flex items-start gap-2 text-[11px] text-slate-500 dark:text-slate-450 leading-relaxed">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-bold text-slate-700 dark:text-slate-200">Local OCR & Index verified</span>
+                          <p className="mt-0.5">This file is parsed, indexed, and available for dynamic localized retrieval models.</p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Right content / extracted logs panel */}
-                <div className="md:col-span-7 flex flex-col space-y-2">
-                  <span className="text-[10px] font-bold font-mono uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                    Extracted Semantic Content
-                  </span>
+                  {/* Right content / extracted logs panel */}
+                  <div className="md:col-span-7 flex flex-col space-y-2">
+                    <span className="text-[10px] font-bold font-mono uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      Extracted Semantic Content
+                    </span>
 
-                  <div className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl p-4 font-mono text-[11px] text-slate-650 dark:text-slate-300 leading-relaxed overflow-y-auto max-h-56 min-h-[11rem] whitespace-pre-wrap select-text">
-                    {activeModalFile.content}
+                    <div className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl p-4 font-mono text-[11px] text-slate-650 dark:text-slate-300 leading-relaxed overflow-y-auto max-h-56 min-h-[11rem] whitespace-pre-wrap select-text">
+                      {activeModalFile.ocr_text}
+                    </div>
                   </div>
+
                 </div>
 
-              </div>
+                {/* Actions Footer */}
+                <div className="p-4 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 flex justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setActiveModalFile(null)}
+                    className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-850 dark:hover:text-white transition-all cursor-pointer"
+                  >
+                    Close Document
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
 
-              {/* Actions Footer */}
-              <div className="p-4 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 flex justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setActiveModalFile(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-850 dark:hover:text-white transition-all cursor-pointer"
-                >
-                  Close Document
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    alert(`Simulating opening of native file: ${activeModalFile.name}`);
-                  }}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
-                >
-                  Launch App & Open
-                </button>
-              </div>
+                      try {
 
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                        const response = await openFile(
+                          activeModalFile.platform,
+                          activeModalFile.path,
+                          activeModalFile.file_id
+                        );
 
-    </div>
+                        if (response.url) {
+                          window.open(response.url, "_blank");
+                        }
+
+                      } catch (err) {
+
+                        console.error(err);
+                        alert("Unable to open file.");
+
+                      }
+
+                    }}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
+                  >
+                    Launch App & Open
+                  </button>
+                </div>
+
+              </motion.div>
+            </div>
+          )
+        }
+      </AnimatePresence >
+
+    </div >
   );
 }

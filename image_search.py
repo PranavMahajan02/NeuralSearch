@@ -1,10 +1,13 @@
-import pickle
 import re
 import os
 import sys
 from rapidfuzz import fuzz
+from clip_extract import get_text_embedding
 
-from clip_utils import clip_search
+from app.vectorstore.image_search import (  
+    search_image_vectors,
+)
+
 
 
 # ==========================
@@ -13,18 +16,6 @@ from clip_utils import clip_search
 
 TOP_K = 5
 MIN_FINAL_SCORE = 0.05
-
-INDEX_FILE = "image_index.pkl"
-
-
-def load_index():
-
-    if not os.path.exists(INDEX_FILE):
-        return []
-
-    with open(INDEX_FILE, "rb") as f:
-        return pickle.load(f)
-
 
 # ==========================
 # HELPERS
@@ -95,33 +86,24 @@ def search_images(
     if not query:
         return []
 
-    image_index = load_index()
-
-    print(f"Loaded {len(image_index)} images.")
-
-    # Improvement 2: normalise query once up front
     query = query.strip().lower()
 
-    # Fix 1 & 2: CLIP is a signal, not a gatekeeper — build a lookup instead
-    clip_results = clip_search(query)
-    clip_lookup = {
-        image.get("file", ""): float(clip_score)
-        for clip_score, image in clip_results
-        if image.get("file")
-    }
+    query_embedding = get_text_embedding(query)
+
+    images = search_image_vectors(
+        query_embedding,
+        limit=30,
+        platform=platform
+    )
 
     results = []
 
-    # Fix 1: iterate over the full index, not just CLIP's top-20
-    for image in image_index:
-        if (
-            platform != "all"
-            and image.get("platform", "local") != platform
-        ):
-            continue
+    for point in images:
+
+        image = point.payload
 
         # Fix 2: pull CLIP score from lookup (0.0 if absent)
-        clip_score = clip_lookup.get(image.get("file", ""), 0.0)
+        clip_score = float(point.score)
 
         filename_score = get_filename_score(query, image.get("file", ""))
         content_score = get_content_score(query, image.get("ocr_text", ""))

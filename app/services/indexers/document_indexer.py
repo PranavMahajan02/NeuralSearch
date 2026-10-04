@@ -28,7 +28,9 @@ print("7")
 
 from embeddings import get_embeddings
 print("8")
-
+from app.vectorstore.insert import insert_vectors
+from app.vectorstore.delete import delete_vectors
+from app.vectorstore.config import TEXT_COLLECTION
 
 def index_document(
     file_path,
@@ -42,6 +44,14 @@ def index_document(
     print(f"Indexing document: {file_path}")
 
     filename = os.path.basename(file_path)
+
+    delete_vectors(
+        collection_name=TEXT_COLLECTION,
+        platform=platform,
+        file_id=file_id,
+        path=file_path,
+        repo=repo,
+    )
 
     extension = os.path.splitext(file_path)[1].lower()
 
@@ -127,30 +137,39 @@ def index_document(
     print("Embeddings Created")
 
     all_documents = load_index(file_path)
-        
-    for chunk, embedding in zip(
-        chunks,
-        embeddings
-    ):
 
-        all_documents.append(
-            {
-                "file": filename,
-                "path": file_path,
-                "platform": platform,
-                "file_id": file_id,
-                "owner": owner,
-                "repo": repo,
-                "sha": file_sha,
-                "last_modified": os.path.getmtime(file_path),
-                "chunk": chunk,
-                "embedding": embedding
-            }
-        )
-        
+    new_documents = []
+
+    for chunk, embedding in zip(chunks, embeddings):
+
+        document = {
+            "file": filename,
+            "path": file_path,
+            "platform": platform,
+            "file_id": file_id,
+            "owner": owner,
+            "repo": repo,
+            "sha": file_sha,
+            "last_modified": (
+                file_sha
+                if platform == "google_drive"
+                else os.path.getmtime(file_path)
+            ),
+            "chunk": chunk,
+            "embedding": embedding.tolist() if hasattr(embedding, "tolist") else embedding
+        }
+
+        all_documents.append(document)
+        new_documents.append(document)
+
     save_index(
         file_path,
         all_documents
+    )
+
+    insert_vectors(
+        new_documents,
+        TEXT_COLLECTION
     )
 
     print("Document indexing completed.")

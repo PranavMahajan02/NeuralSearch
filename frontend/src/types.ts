@@ -28,13 +28,21 @@ export interface MockFile {
   name: string;
   type: FileType;
   platform: PlatformId;
+
   size: string;
   modifiedDate: string;
+
   preview: string;
-  content: string; // Background text content for search matching
+  content: string;
+
   isFavorite?: boolean;
   searchCount?: number;
-  folder?: string; // Optional folder path/category (for local storage specific folders)
+  folder?: string;
+
+  // Backend fields
+  path?: string;
+  file_id?: string;
+  score?: number;
 }
 
 export interface IndexLog {

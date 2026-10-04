@@ -1,9 +1,8 @@
 import os
 import pickle
 import time
-import torch
 
-from sentence_transformers import SentenceTransformer
+from app.ai.model_manager import model_manager
 
 from pptx_extract import extract_pptx
 from extract import extract_text
@@ -21,18 +20,9 @@ def build_index():
     # MODEL
     # ==========================
 
-    device = (
-        "cuda"
-        if torch.cuda.is_available()
-        else "cpu"
-    )
+    print("Loading embedding model...")
 
-    print(f"Using device: {device}")
-
-    model = SentenceTransformer(
-        "all-MiniLM-L6-v2",
-        device=device
-    )
+    model = model_manager.semantic_model
 
     # ==========================
     # VARIABLES

@@ -1,50 +1,23 @@
 import os
-import pickle
 import re
-import numpy as np
-
-from transformers import (
-    CLIPProcessor,
-    CLIPModel
+import torch
+from app.ai.model_manager import model_manager
+from app.vectorstore.video_search import (
+    search_video_vectors,
 )
 
-from sentence_transformers import (
-    SentenceTransformer
-)
-
-from sklearn.metrics.pairwise import (
-    cosine_similarity
+from app.vectorstore.video_frame_search import (
+    search_video_frame_vectors,
 )
 
 TOP_K = 5
 MIN_SCORE = 0.05  # Reduced from 0.10 (matches image search threshold)
 
-INDEX_FILE = "video_index.pkl"
-
-
-def load_index():
-
-    if not os.path.exists(INDEX_FILE):
-        return []
-
-    with open(INDEX_FILE, "rb") as f:
-        return pickle.load(f)
-
-
-model = SentenceTransformer(
-    "all-MiniLM-L6-v2"
-)
+model = model_manager.semantic_model
 print("Loading CLIP...")
 
-clip_model = CLIPModel.from_pretrained(
-    "openai/clip-vit-base-patch32"
-)
-
-clip_processor = (
-    CLIPProcessor.from_pretrained(
-        "openai/clip-vit-base-patch32"
-    )
-)
+clip_model = model_manager.clip_model
+clip_processor = model_manager.clip_processor
 
 print("CLIP Ready")
 
@@ -132,19 +105,6 @@ def get_content_score(
     )
 
 
-def cosine_similarity_clip(a, b):
-
-    denominator = (
-        np.linalg.norm(a)
-        * np.linalg.norm(b)
-    )
-
-    if denominator == 0:
-        return 0
-
-    return np.dot(a, b) / denominator
-
-
 # ==========================
 # SEARCH FUNCTION
 # ==========================
@@ -157,15 +117,12 @@ def search_video(
     if not query:
         return []
 
-    all_video = load_index()
+    query_embedding = model.encode(query).tolist()
 
-    print(f"Loaded {len(all_video)} video chunks.")
-
-    # Normalize query once here; helper functions can assume lowercase
-    query = query.strip().lower()
-
-    query_embedding = model.encode(
-        [query]
+    videos = search_video_vectors(
+        query_embedding,
+        limit=100,
+        platform=platform,
     )
 
     clip_inputs = clip_processor(
@@ -174,18 +131,46 @@ def search_video(
         padding=True
     )
 
-    query_clip_embedding = (
-        clip_model
-        .get_text_features(
-            **clip_inputs
-        )
-        .detach()
+    clip_inputs = {
+        k: v.to(model_manager.device)
+        for k, v in clip_inputs.items()
+    }
+
+    with torch.no_grad():
+
+        query_clip_embedding = (
+            clip_model
+            .get_text_features(
+                **clip_inputs
+            )
+            .cpu()
         .numpy()[0]
     )
 
+    frame_points = search_video_frame_vectors(
+        query_clip_embedding.tolist(),
+        limit=1000,
+        platform=platform,
+    )
+
+    clip_scores = {}
+
+    for point in frame_points:
+
+        payload = point.payload
+
+        filename = payload["file"]
+
+        clip_scores[filename] = max(
+            clip_scores.get(filename, 0),
+            float(point.score)
+        )
+
     results = []
 
-    for video in all_video:
+    for point in videos:
+
+        video = point.payload
         if (
             platform != "all"
             and video.get("platform", "local") != platform
@@ -200,27 +185,12 @@ def search_video(
         if embedding is None:
             semantic_score = 0.0
         else:
-            semantic_score = cosine_similarity(
-                query_embedding,
-                [embedding]
-            )[0][0]
+            semantic_score = float(point.score)
 
-        best_clip_score = 0
-
-        # Safe access; skip gracefully if key missing or list is empty
-        for frame_embedding in video.get("clip_embeddings", []):
-
-            clip_score = (
-                cosine_similarity_clip(
-                    query_clip_embedding,
-                    frame_embedding
-                )
-            )
-
-            best_clip_score = max(
-                best_clip_score,
-                clip_score
-            )
+        best_clip_score = clip_scores.get(
+            video["file"],
+            0.0
+        )
 
         filename_score = (
             get_filename_score(

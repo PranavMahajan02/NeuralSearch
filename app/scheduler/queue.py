@@ -6,11 +6,14 @@ from app.scheduler.status import (
 
 platform_queue = []
 
-current_platform = None
-
 completed_platforms = []
 
-def create_queue(priority, platforms):
+
+def create_queue(
+    user_id,
+    priority,
+    platforms
+):
 
     global platform_queue
     global completed_platforms
@@ -19,15 +22,36 @@ def create_queue(priority, platforms):
 
     completed_platforms = []
 
-    platform_queue = [priority]
+    platform_queue = []
 
+    # Priority first
+    platform_queue.append({
+
+        "user_id": user_id,
+
+        "platform": priority
+
+    })
+
+    # Remaining platforms
     for platform in platforms:
 
-        if platform != priority:
-            platform_queue.append(platform)
+        if platform == priority:
+            continue
+
+        platform_queue.append({
+
+            "user_id": user_id,
+
+            "platform": platform
+
+        })
 
     set_priority(priority)
-    set_queue(platform_queue)
+
+    set_queue(
+        [item["platform"] for item in platform_queue]
+    )
 
 
 def get_next_platform():
@@ -37,11 +61,13 @@ def get_next_platform():
     if len(platform_queue) == 0:
         return None
 
-    platform = platform_queue.pop(0)
+    item = platform_queue.pop(0)
 
-    set_queue(platform_queue)
+    set_queue(
+        [i["platform"] for i in platform_queue]
+    )
 
-    return platform
+    return item
 
 
 def mark_completed(platform):

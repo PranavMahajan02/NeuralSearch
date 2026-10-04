@@ -1,15 +1,26 @@
+from importlib.metadata import files
 import os
 import webbrowser
-
+from app.scheduler.cancel import is_cancelled, clear_cancel
 from app.platforms.base_platform import BasePlatform
 from app.platforms.google_drive.drive_service import (
     get_drive_service
+)
+from app.database.db import SessionLocal
+
+from app.database.indexing_job_service import (
+    set_total_files,
+    increment_indexed_files,
+    update_current_file
 )
 
 
 class GoogleDrivePlatform(BasePlatform):
 
-    def index(self):
+    def index(
+        self,
+        user_id
+    ):
 
         os.makedirs(
             "temp",
@@ -19,70 +30,132 @@ class GoogleDrivePlatform(BasePlatform):
         from app.platforms.google_drive.drive_service import download_file
         from app.services.upload_service import process_uploaded_file
 
-        files = self.list_files()
-
+        files = self.list_files(
+            user_id
+        )
         print(f"\nFound {len(files)} Google Drive files.\n")
 
-        for file in files:
+        db = SessionLocal()
 
-            name = file["name"]
-            file_id = file["id"]
-            mime = file["mimeType"]
+        try:
 
-            # Skip folders
-            if mime == "application/vnd.google-apps.folder":
-
-               print(f"Skipping folder: {name}")
-
-               continue
-
-            temp_path = os.path.join(
-                "temp",
-                name
+            set_total_files(
+                db,
+                user_id,
+                "google_drive",
+                len(files)
             )
 
-            downloaded_path = None
+            for file in files:
 
-            try:
+                if is_cancelled(user_id):
+                    print("\nGoogle Drive indexing cancelled.")
+                    break
 
-                print(f"\nDownloading: {name}")
+                name = file["name"]
+                file_id = file["id"]
+                mime = file["mimeType"]
+                modified_time = file["modifiedTime"]
 
-                downloaded_path = download_file(
-                    file_id,
-                    temp_path,
-                    mime
+                # Skip folders
+                if mime == "application/vnd.google-apps.folder":
+                    print(f"Skipping folder: {name}")
+                    continue
+
+                temp_path = os.path.join(
+                    "temp",
+                    name
                 )
 
-                print(f"Indexing: {os.path.basename(downloaded_path)}")
+                downloaded_path = None
 
-                process_uploaded_file(
-                    downloaded_path,
-                    platform="google_drive",
-                    file_id=file_id
-                )
+                try:
 
-                print(f"Finished: {name}")
+                    print(f"\nDownloading: {name}")
 
-            finally:
+                    print(f"Name: {name}")
+                    print(f"MIME: {mime}")
 
-                if (
-                    downloaded_path
-                    and os.path.exists(downloaded_path)
-                ):
-                    os.remove(downloaded_path)
+                    downloaded_path = download_file(
+                        user_id,
+                        file_id,
+                        temp_path,
+                        mime
+                    )
 
-    def list_files(self):
+                    print(f"Indexing: {os.path.basename(downloaded_path)}")
 
-        service = get_drive_service()
+                    update_current_file(
+                        db,
+                        user_id,
+                        "google_drive",
+                        name
+                    )
 
-        results = service.files().list(
-            pageSize=2,
-            fields="files(id,name,mimeType)"
-        ).execute()
+                    process_uploaded_file(
+                        downloaded_path,
+                        platform="google_drive",
+                        file_id=file_id,
+                        file_sha=modified_time
+                    )
 
-        return results.get("files", [])
+                    increment_indexed_files(
+                        db,
+                        user_id,
+                        "google_drive"
+                    )
 
-    def search(self, query):
+                    print(f"Finished: {name}")
+
+                finally:
+
+                    if (
+                        downloaded_path
+                        and os.path.exists(downloaded_path)
+                    ):
+                        os.remove(downloaded_path)
+
+        finally:
+
+            db.close()
+            clear_cancel(user_id)
+            print("\nGoogle Drive indexing completed.")
+
+    def list_files(
+        self,
+        user_id
+    ):
+
+        service = get_drive_service(
+            user_id
+        )
+
+        files = []
+        page_token = None
+
+        while True:
+
+            response = service.files().list(
+                q="trashed=false",
+                pageSize=1000,
+                pageToken=page_token,
+                fields="nextPageToken, files(id,name,mimeType,modifiedTime)"
+            ).execute()
+
+            files.extend(response.get("files", []))
+
+            page_token = response.get("nextPageToken")
+
+            if page_token is None:
+                break
+
+        return files
+
+    def search(
+        self,
+        query,
+        search_type="all"
+    ):
 
         print(f"Searching Google Drive: {query}")
 
@@ -93,36 +166,74 @@ class GoogleDrivePlatform(BasePlatform):
 
         results = []
 
-        results.extend(
-            search_document(
-                query,
-                "google_drive"
-            )
-        )
+        if search_type == "all":
 
-        results.extend(
-            search_image(
-                query,
-                "google_drive"
+            results.extend(
+                search_document(
+                    query,
+                    "google_drive"
+                )
             )
-        )
 
-        results.extend(
-            search_audio_file(
-                query,
-                "google_drive"
+            results.extend(
+                search_image(
+                    query,
+                    "google_drive"
+                )
             )
-        )
 
-        results.extend(
-            search_video_file(
-                query,
-                "google_drive"
+            results.extend(
+                search_audio_file(
+                    query,
+                    "google_drive"
+                )
             )
-        )
+
+            results.extend(
+                search_video_file(
+                    query,
+                    "google_drive"
+                )
+            )
+
+        elif search_type == "document":
+
+            results.extend(
+                search_document(
+                    query,
+                    "google_drive"
+                )
+            )
+
+        elif search_type == "image":
+
+            results.extend(
+                search_image(
+                    query,
+                    "google_drive"
+                )
+            )
+
+        elif search_type == "audio":
+
+            results.extend(
+                search_audio_file(
+                    query,
+                    "google_drive"
+                )
+            )
+
+        elif search_type == "video":
+
+            results.extend(
+                search_video_file(
+                    query,
+                    "google_drive"
+                )
+            )
 
         return results
-
+        
     def open(
         self,
         file_path,
@@ -138,11 +249,9 @@ class GoogleDrivePlatform(BasePlatform):
 
         url = f"https://drive.google.com/file/d/{file_id}/view"
 
-        webbrowser.open(url)
-
         return {
             "status": "success",
-            "message": "Google Drive file opened."
+            "url": url
         }
 
     def upload(self, file_path):

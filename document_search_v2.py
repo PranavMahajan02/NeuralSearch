@@ -1,10 +1,13 @@
-import pickle
-import os
 import re
-
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
+import os
+import time
+import app.cache.search_cache as search_cache
+from app.ai.model_manager import model_manager
+from app.vectorstore.search import search_vectors
+from embeddings import get_embeddings
 from rapidfuzz import fuzz, process
+from app.vectorstore.config import TEXT_COLLECTION
+
 
 # ==========================
 # CONFIGURATION
@@ -13,32 +16,13 @@ from rapidfuzz import fuzz, process
 FUZZY_WORD_THRESHOLD = 85   # Min similarity score for a word match (0-100)
 MIN_WORD_LENGTH      = 4    # Ignore words shorter than this (reduces noise)
 SEMANTIC_THRESHOLD   = 0.35 # Min cosine similarity for semantic search
-INDEX_FILE           = "index.pkl"
-
-def load_index():
-
-    with open(INDEX_FILE, "rb") as f:
-        all_documents = pickle.load(f)
-
-    content_lookup = {}
-
-    for doc in all_documents:
-
-        filename = doc["file"]
-
-        if filename not in content_lookup:
-            content_lookup[filename] = ""
-
-        content_lookup[filename] += " " + doc["chunk"]
-
-    return all_documents, content_lookup
 
 # ==========================
 # LOAD MODEL & INDEX
 # ==========================
 
 print("Loading semantic model...")
-model = SentenceTransformer("all-MiniLM-L6-v2")
+model = model_manager.semantic_model
 print("Ready.\n")
 
 
@@ -156,19 +140,28 @@ def get_content_score(query, content):
 # Fix 1: all_documents is now an explicit parameter instead of a global
 def get_file_fuzzy_score(
     filename,
-    query_words,
-    all_documents
+    query_words
 ):
+
     best_score = 0
 
-    # Fix 2: loop variable unchanged — uses the parameter, not a global
-    for doc in all_documents:
-        if doc["file"] != filename:
-            continue
+    chunks = search_cache.DOCUMENT_FILE_CHUNKS.get(
+        filename,
+        []
+    )
 
-        fuzzy_score = fuzzy_match_doc(doc, query_words)
-        best_score = max(best_score, fuzzy_score)
-        
+    for doc in chunks:
+
+        fuzzy_score = fuzzy_match_doc(
+            doc,
+            query_words
+        )
+
+        best_score = max(
+            best_score,
+            fuzzy_score
+        )
+
     return best_score / 100
 
 
@@ -236,10 +229,13 @@ def search_documents(
 
     if not query:
         return []
-    all_documents, content_lookup = load_index()
 
-    print(f"Loaded {len(all_documents)} chunks.")
+    all_documents = []
 
+    print(f"Loaded {len(all_documents)} chunks from cache.")
+
+    content_lookup = search_cache.DOCUMENT_CONTENT_LOOKUP
+    
     query_words = [
         w for w in query.lower().split()
         if len(w) >= MIN_WORD_LENGTH
@@ -249,26 +245,44 @@ def search_documents(
     # Semantic Scores
     # ----------------------------------
 
-    query_embedding = model.encode([query])
-    
-    semantic_scores = cosine_similarity(
+    t = time.perf_counter()
+
+    t = time.perf_counter()
+
+    query_embedding = get_embeddings([query])[0]
+
+    print(
+        f"Document Embedding: {time.perf_counter() - t:.3f} sec"
+    )
+
+    t = time.perf_counter()
+
+    qdrant_results = search_vectors(
         query_embedding,
-        [doc["embedding"] for doc in all_documents]
-    )[0]
+        TEXT_COLLECTION,
+        limit=500,
+        platform=platform
+    )
+
+    print(
+        f"Qdrant Search: {time.perf_counter()-t:.3f} sec"
+    )
 
     # Best semantic score per file
     semantic_lookup = {}
 
-    for doc, score in zip(all_documents, semantic_scores):
-        filename = doc["file"]
+    for hit in qdrant_results:
 
-        if filename not in semantic_lookup:
-            semantic_lookup[filename] = float(score)
-        else:
-            semantic_lookup[filename] = max(
-                semantic_lookup[filename],
-                float(score)
-            )
+        payload = hit.payload
+
+        filename = payload["file"]
+
+        score = float(hit.score)
+
+        semantic_lookup[filename] = max(
+            semantic_lookup.get(filename, 0),
+            score
+        )
 
     # ----------------------------------
     # Final Ranking
@@ -277,7 +291,33 @@ def search_documents(
     final_results = {}
     unique_files = {}
 
-    for doc in all_documents:
+    fuzzy_cache = {}
+
+    for filename in search_cache.DOCUMENT_FILE_CHUNKS.keys():
+
+        fuzzy_cache[filename] = get_file_fuzzy_score(
+            filename,
+            query_words
+        )
+
+    content_cache = {}
+
+    for filename, content in content_lookup.items():
+
+        content_cache[filename] = get_content_score(
+            query,
+            content
+        )
+
+    title_time = 0
+    content_time = 0
+    fuzzy_time = 0
+
+    loop_start = time.perf_counter()
+
+    for hit in qdrant_results:
+
+        doc = hit.payload
         
         if (
             platform != "all"
@@ -287,27 +327,51 @@ def search_documents(
 
         filename = doc["file"]
 
-        if filename in unique_files:
+        unique_key = (
+            doc.get("platform"),
+            doc.get("file_id") or doc.get("path") or filename
+        )
+
+        if unique_key in unique_files:
             continue
 
-        unique_files[filename] = doc
+        unique_files[unique_key] = doc
 
         # ----------------------
         # Scores
         # ----------------------
-        title_score = get_title_score(query, filename)
-        
-        content_score = get_content_score(
+        search_name = filename
+
+        if doc.get("platform") == "github":
+            search_name = doc.get("file_id", filename)
+
+        t = time.perf_counter()
+
+        title_score = get_title_score(
             query,
-            content_lookup.get(filename, "")
+            search_name
         )
 
-        # Fix 3: pass all_documents through to the helper
-        fuzzy_score = get_file_fuzzy_score(
+        title_time += time.perf_counter() - t
+        
+        t = time.perf_counter()
+
+        content_score = content_cache.get(
             filename,
-            query_words,
-            all_documents
+            0
         )
+        
+        content_time += time.perf_counter() - t
+
+        # Fix 3: pass all_documents through to the helper
+        t = time.perf_counter()
+
+        fuzzy_score = fuzzy_cache.get(
+            filename,
+            0
+        )
+
+        fuzzy_time += time.perf_counter() - t
 
         semantic_score = semantic_lookup.get(filename, 0)
         
@@ -324,7 +388,7 @@ def search_documents(
             0.25 * semantic_score
         )
 
-        final_results[filename] = (
+        final_results[unique_key] = (
             final_score,
             title_score,
             content_score,
@@ -332,11 +396,24 @@ def search_documents(
             semantic_score,
             doc
         )
+    
+    print(
+        f"Document Processing: {time.perf_counter()-loop_start:.3f} sec"
+    )
+    print(f"Title Score Time   : {title_time:.3f} sec")
+    print(f"Content Score Time : {content_time:.3f} sec")
+    print(f"Fuzzy Score Time   : {fuzzy_time:.3f} sec")
+    
+    sort_start = time.perf_counter()
 
     ranked = sorted(
         final_results.items(),
         key=lambda x: x[1][0],
         reverse=True
+    )
+
+    print(
+        f"Sorting: {time.perf_counter()-sort_start:.3f} sec"
     )
 
     MIN_FINAL_SCORE = 0.30
@@ -352,7 +429,7 @@ def search_documents(
 
     results = []
 
-    for file, scores in ranked[:10]:
+    for key, scores in ranked[:10]:
         (
             final_score,
             title_score,
@@ -364,7 +441,8 @@ def search_documents(
 
         results.append({
             "type": "document",
-            "file": file,
+            "file": doc["file"],
+            "repository_path": doc.get("file_id"),
             "score": final_score,
             "path": doc["path"],
             "platform": doc.get("platform", "local"),

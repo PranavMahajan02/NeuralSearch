@@ -21,12 +21,14 @@ def health():
 def search_files(request: SearchRequest):
 
     results = search(
-    request.query,
-    request.platform
+        query=request.query,
+        platform=request.platform,
+        search_type=request.search_type
     )
 
     return {
-    "query": request.query,
-    "platform": request.platform,
-    "results": results
-}
+        "query": request.query,
+        "platform": request.platform,
+        "search_type": request.search_type,
+        "results": results
+    }
