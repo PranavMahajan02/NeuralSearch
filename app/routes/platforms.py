@@ -8,6 +8,7 @@ from app.database.db import get_db
 from app.auth.auth_dependency import get_current_user
 
 from app.models.request_models import FolderRequest
+from app.core.local_folders import normalize_folder, validate_local_folder
 
 from app.database.local_storage_service import (
     get_local_folders,
@@ -68,7 +69,7 @@ def add_folder(
 
         current_user["id"],
 
-        request.folder
+        validate_local_folder(request.folder)
 
     )
 
@@ -106,15 +107,14 @@ def delete_folder(
 
 ):
 
-    remove_local_folder(
+    # Accept the stored form or any spelling that normalizes to it.
+    for candidate in {request.folder, normalize_folder(request.folder)}:
 
-        db,
-
-        current_user["id"],
-
-        request.folder
-
-    )
+        remove_local_folder(
+            db,
+            current_user["id"],
+            candidate
+        )
 
     folders = get_local_folders(
 
