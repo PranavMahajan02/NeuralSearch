@@ -1,6 +1,5 @@
 from importlib.metadata import files
 import os
-import webbrowser
 from app.scheduler.cancel import is_cancelled, clear_cancel
 from app.platforms.base_platform import BasePlatform
 from app.platforms.google_drive.drive_service import (

@@ -1,8 +1,11 @@
+import logging
+
 from fastapi import APIRouter
 from fastapi import Depends
 
 from sqlalchemy.orm import Session
 
+from app.core.errors import AppError
 from app.database.db import get_db
 
 from app.auth.auth_dependency import get_current_user
@@ -17,6 +20,9 @@ from app.platforms.google_drive.google_drive_credentials import (
     save_google_credentials,
     disconnect_google_credentials
 )
+
+logger = logging.getLogger("cogniseek.google_drive")
+
 
 router = APIRouter(
     prefix="/platforms/google-drive",
@@ -81,17 +87,12 @@ def connect_google_drive(
 
         }
 
-    except Exception as e:
+    except Exception:
 
-        return {
+        # Details stay in the server log; the client gets a generic error.
+        logger.exception("Google Drive connect failed")
 
-            "status": "error",
-
-            "connected": False,
-
-            "message": str(e)
-
-        }
+        raise AppError(502, "Google Drive connection failed.")
 
 
 @router.get("/status")
