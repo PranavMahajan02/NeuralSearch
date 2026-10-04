@@ -40,3 +40,18 @@ log.txt
 # Optional temp files
 *.tmp
 *.temp
+# --- Phase 0 additions ---
+*.pkl
+import_log.txt
+*.pyc
+backups/
+.env
+!.env.example
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+.pytest_cache/
+.coverage
+htmlcov/
