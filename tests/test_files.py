@@ -12,17 +12,26 @@ from app.core.config import settings
 
 @pytest.fixture(autouse=True)
 def no_indexing(monkeypatch):
-    """Uploads must not trigger real indexing, and deletes must not touch pickles."""
+    """Uploads queue indexing as a background task; record it instead."""
 
     import app.routes.upload as upload_route
-    import app.services.delete_service as delete_service
 
-    indexed, pruned = [], []
+    indexed = []
 
-    monkeypatch.setattr(upload_route, "process_uploaded_file", lambda path, *a, **k: indexed.append(path))
-    monkeypatch.setattr(delete_service, "remove_from_index", lambda index, name: pruned.append((index, name)))
+    monkeypatch.setattr(
+        upload_route, "index_upload_in_background",
+        lambda user_id, path: indexed.append((user_id, path))
+    )
 
-    return indexed, pruned
+    return indexed
+
+
+def index_now(user, path):
+    """Index a local file for `user` (fake embedder, in-memory Qdrant)."""
+
+    from app.services.indexing_pipeline import index_local_file
+
+    return index_local_file(user["id"], str(path))
 
 
 def upload(client, user, name="doc.txt", content=b"hello"):
@@ -53,7 +62,7 @@ def test_upload_stores_in_user_dir_and_queues_indexing(client, user, no_indexing
 
     stored = upload_dir(user) / "notes.txt"
     assert stored.read_bytes() == b"abc"
-    assert no_indexing[0] == [str(stored)]
+    assert no_indexing == [(user["id"], str(stored))]
 
 
 def test_duplicate_names_get_numeric_suffix(client, user):
@@ -110,15 +119,34 @@ def test_upload_requires_auth(client):
 # Delete
 # ---------------------------------------------------------------------------
 
-def test_delete_own_upload(client, user, no_indexing):
+def test_delete_own_upload_removes_file_vectors_and_ledger_row(client, user):
 
-    upload(client, user, "gone.txt")
+    from app.services import index_store
+    from app.services.indexing_pipeline import local_source_id
+    from app.vectorstore.client import get_client
+    from app.vectorstore.config import collection_for_type
+    from app.vectorstore.query import user_filter
+
+    upload(client, user, "gone.txt", b"some searchable words")
+    stored = upload_dir(user) / "gone.txt"
+    assert index_now(user, stored) == "indexed"
+    source_id = local_source_id(str(stored))
+
+    def points():
+        return get_client().count(
+            collection_for_type("document"),
+            count_filter=user_filter(user["id"], "local", source_id=source_id),
+            exact=True
+        ).count
+
+    assert points() == 1
 
     response = client.delete("/delete/gone.txt", headers=user["headers"])
 
     assert response.status_code == 200
-    assert not (upload_dir(user) / "gone.txt").exists()
-    assert ("index.pkl", "gone.txt") in no_indexing[1]
+    assert not stored.exists()
+    assert points() == 0
+    assert index_store.get_source(user["id"], "local", source_id) is None
 
 
 def test_delete_other_users_file_is_404(client, make_user):
@@ -180,6 +208,12 @@ def test_files_local_serves_files_in_registered_folders(client, user, folder):
 
     register_folder(client, user, folder)
 
+    # Registered but not indexed yet: not served.
+    not_indexed = client.get("/files/local", params={"path": str(folder / "report.txt")}, headers=user["headers"])
+    assert not_indexed.status_code == 404
+
+    index_now(user, folder / "report.txt")
+
     response = client.get("/files/local", params={"path": str(folder / "report.txt")}, headers=user["headers"])
 
     assert response.status_code == 200
@@ -190,6 +224,7 @@ def test_files_local_serves_files_in_registered_folders(client, user, folder):
 def test_files_local_serves_own_uploads(client, user):
 
     upload(client, user, "up.txt", b"uploaded")
+    index_now(user, upload_dir(user) / "up.txt")
 
     response = client.get("/files/local", params={"path": str(upload_dir(user) / "up.txt")}, headers=user["headers"])
 
@@ -202,6 +237,8 @@ def test_files_local_outside_users_folders_is_404(client, make_user, folder, loc
     owner, other = make_user(), make_user()
     register_folder(client, owner, folder)
     upload(client, owner, "owner.txt")
+    index_now(owner, folder / "report.txt")
+    index_now(owner, upload_dir(owner) / "owner.txt")
 
     outside = local_root / "loose.txt"
     outside.write_text("not registered")
@@ -221,6 +258,7 @@ def test_files_local_outside_users_folders_is_404(client, make_user, folder, loc
 def test_open_local_returns_download_url(client, user, folder):
 
     register_folder(client, user, folder)
+    index_now(user, folder / "report.txt")
 
     response = client.post(
         "/open/",
@@ -259,11 +297,20 @@ def test_open_errors_use_http_status_codes(client, user, local_root):
     assert drive_not_connected.status_code == 404
 
 
-def test_open_drive_returns_url_when_connected(client, user, db):
+def test_open_drive_returns_url_for_an_indexed_drive_file(client, make_user):
 
-    from app.database.platform_connection_service import save_platform_connection
+    from app.services import index_store
+    from app.services.index_store import FileMeta, IndexPoint
 
-    save_platform_connection(db, user["id"], "google_drive", access_token="t", token_json="{}")
+    user, other = make_user(), make_user()
+
+    meta = FileMeta(user_id=user["id"], platform="google_drive", source_id="FILE123",
+                    file_name="notes.docx", display_path="notes.docx", file_type="document", version="t1")
+    index_store.upsert_file(meta, [IndexPoint(type="document", vector=[1.0] + [0.0] * 383, chunk_index=0, chunk="x")])
+
+    # Someone else's Drive file id: 404.
+    not_mine = client.post("/open/", json={"platform": "google_drive", "file_id": "FILE123"}, headers=other["headers"])
+    assert not_mine.status_code == 404
 
     response = client.post(
         "/open/", json={"platform": "google_drive", "path": "x", "file_id": "FILE123"}, headers=user["headers"]
@@ -273,7 +320,7 @@ def test_open_drive_returns_url_when_connected(client, user, db):
     assert response.json() == {"type": "url", "url": "https://drive.google.com/file/d/FILE123/view"}
 
     missing_id = client.post("/open/", json={"platform": "google_drive", "path": "x"}, headers=user["headers"])
-    assert missing_id.status_code == 400
+    assert missing_id.status_code == 404
 
 
 # ---------------------------------------------------------------------------

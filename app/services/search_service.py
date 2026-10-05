@@ -1,73 +1,58 @@
+"""Search entry point: one user-scoped query per requested modality."""
+
+import logging
 import time
 
-from app.platforms.registry import platform_manager
+from app.search.common import dedupe
 
 
-def search(
-    query: str,
-    platform: str = "all",
-    search_type: str = "all"
-):
+logger = logging.getLogger("cogniseek.search")
 
-    start = time.perf_counter()
+PLATFORM_ALIASES = {"local_storage": "local"}
 
-    if platform == "all":
 
-        results = []
+def _searchers():
 
-        for p in platform_manager.all():
+    # Imported lazily: these modules import the embedding stack.
+    from audio_search import search_audio
+    from document_search_v2 import search_documents
+    from image_search import search_images
+    from video_search import search_video
 
-            platform_start = time.perf_counter()
+    return {
+        "document": search_documents,
+        "image": search_images,
+        "audio": search_audio,
+        "video": search_video,
+    }
 
-            platform_results = p.search(
-                query=query,
-                search_type=search_type
-            )
 
-            elapsed = time.perf_counter() - platform_start
+def search(query: str, user_id, platform: str = "all", search_type: str = "all"):
+    """Results for this user only: every Qdrant query below carries a
+    must-filter on user_id (see app/vectorstore/query.py)."""
 
-            print(
-                f"{p.__class__.__name__}: {elapsed:.2f} sec"
-            )
+    if not user_id:
+        raise ValueError("search() requires a user_id.")
 
-            results.extend(platform_results)
+    platform = PLATFORM_ALIASES.get(platform, platform)
 
-        print(
-            f"TOTAL SEARCH TIME: {time.perf_counter() - start:.2f} sec"
-        )
+    searchers = _searchers()
 
-        return results
-
-    print("\n========== SEARCH DEBUG ==========")
-    print("Requested platform:", platform)
-    print("Registered platforms:", list(platform_manager.platforms.keys()))
-
-    if platform == "local_storage":
-        platform = "local"
-
-    p = platform_manager.get(platform)
-
-    print("Resolved platform:", p)
-    print("==================================\n")
-
-    if p is None:
+    if search_type == "all":
+        selected = list(searchers.items())
+    elif search_type in searchers:
+        selected = [(search_type, searchers[search_type])]
+    else:
         return []
 
-    platform_start = time.perf_counter()
+    start = time.perf_counter()
+    results = []
 
-    results = p.search(
-        query=query,
-        search_type=search_type
-    )
+    for name, searcher in selected:
+        t = time.perf_counter()
+        results.extend(searcher(query, str(user_id), platform))
+        logger.info("search %s: %.3f s", name, time.perf_counter() - t)
 
-    elapsed = time.perf_counter() - platform_start
+    logger.info("search total: %.3f s", time.perf_counter() - start)
 
-    print(
-        f"{p.__class__.__name__}: {elapsed:.2f} sec"
-    )
-
-    print(
-        f"TOTAL SEARCH TIME: {time.perf_counter() - start:.2f} sec"
-    )
-
-    return results
+    return dedupe(results)

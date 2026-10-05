@@ -1146,7 +1146,8 @@ export default function PageDashboard({
                                     await openFile(
                                       file.platform,
                                       file.path,
-                                      file.file_id
+                                      file.file_id,
+                                      file.source_id
                                     );
 
                                   } catch (err) {
@@ -1504,7 +1505,8 @@ export default function PageDashboard({
                         await openFile(
                           activeModalFile.platform,
                           activeModalFile.path,
-                          activeModalFile.file_id
+                          activeModalFile.file_id,
+                          activeModalFile.source_id
                         );
 
                       } catch (err) {

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.database.db import get_db
+from app.services.index_store import purge_platform
 from app.auth.auth_dependency import get_current_user
 
 from app.platforms.github.oauth import (
@@ -140,6 +141,7 @@ def github_status(
 @router.post("/disconnect")
 def disconnect(
     current_user=Depends(get_current_user),
+    purge: bool = False,
     db: Session = Depends(get_db)
 ):
 
@@ -148,8 +150,12 @@ def disconnect(
         current_user["id"]
     )
 
+    # ?purge=true also removes every indexed file of this platform (this user only).
+    purged = purge_platform(current_user["id"], "github") if purge else 0
+
     return {
         "status": "success",
+        "purged_files": purged,
         "connected": False,
         "message": "GitHub disconnected successfully."
     }

@@ -1,11 +1,5 @@
 import os
 
-from app.services.indexers.index_file import index_file
-from app.services.index_manager import (
-    is_file_indexed,
-    is_file_modified,
-    remove_file_from_index
-)
 
 from pathlib import Path
 
@@ -80,74 +74,15 @@ def save_uploaded_file(file, user_id):
     }
 
 
-def process_uploaded_file(
-    file_path,
-    platform="local",
-    file_id=None,
-    file_sha=None,
-    owner=None,
-    repo=None,
-    temp_dir=None
-):
-    """Index one file if it is new or changed.
-
-    Errors propagate: the caller (a platform via JobContext) counts the file
-    as failed. They used to be printed and swallowed, so failures were
-    reported as successes.
-    """
-
-    print("Checking:", file_path)
-
-    indexed = is_file_indexed(
-        file_path,
-        platform=platform,
-        file_id=file_id
-    )
-
-    if indexed:
-
-        modified = is_file_modified(
-            file_path,
-            platform=platform,
-            file_id=file_id,
-            file_sha=file_sha
-        )
-
-        if not modified:
-
-            print("Already indexed. No changes detected.")
-            return
-
-        print("File modified. Re-indexing...")
-        
-        remove_file_from_index(
-            file_path,
-            platform=platform,
-            file_id=file_id
-        )
-
-    else:
-
-        print("New file. Indexing...")
-
-    index_file(
-        file_path,
-        platform=platform,
-        file_id=file_id,
-        file_sha=file_sha,
-        owner=owner,
-        repo=repo,
-        temp_dir=temp_dir
-    )
-
-
-def process_uploaded_file_in_background(file_path):
-    """BackgroundTasks entry point for uploads: log failures instead of
-    raising into Starlette."""
+def index_upload_in_background(user_id, file_path):
+    """BackgroundTasks entry point: index the upload for its owner and log
+    failures instead of raising into Starlette."""
 
     import logging
 
+    from app.services.indexing_pipeline import index_local_file
+
     try:
-        process_uploaded_file(file_path)
+        index_local_file(user_id, file_path)
     except Exception:
         logging.getLogger("cogniseek.upload").exception("Indexing the uploaded file failed")
