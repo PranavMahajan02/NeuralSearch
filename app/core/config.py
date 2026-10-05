@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     QDRANT_HOST: str = "localhost"
     QDRANT_PORT: int = 6333
+    # ":memory:" runs an in-process Qdrant (tests). Empty = QDRANT_HOST/PORT.
+    QDRANT_LOCATION: str = ""
+    # Collections are <prefix>_text, _image, _audio, _video, _video_frames.
+    QDRANT_COLLECTION_PREFIX: str = "cogniseek_v2"
 
     # Auth
     JWT_SECRET_KEY: Optional[str] = None
