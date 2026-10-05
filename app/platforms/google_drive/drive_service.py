@@ -77,9 +77,13 @@ def http_headers(error: Exception) -> Dict:
         return {}
 
 
+# Token-endpoint errors that only a new consent can fix.
+REAUTH_ERRORS = ("invalid_grant", "invalid_scope", "unauthorized_client")
+
+
 def is_invalid_grant(error: Exception) -> bool:
 
-    return "invalid_grant" in str(error)
+    return any(code in str(error) for code in REAUTH_ERRORS)
 
 
 def _mark_disconnected(user_id) -> None:
@@ -102,7 +106,12 @@ def load_credentials(user_id):
 
         token_json = connection.token_json
 
-    return Credentials.from_authorized_user_info(json.loads(token_json), SCOPES)
+    info = json.loads(token_json)
+
+    # Use the scopes the token was actually granted: asking for more on a
+    # refresh (e.g. a token from before openid/email were added) is rejected
+    # with invalid_scope.
+    return Credentials.from_authorized_user_info(info, info.get("scopes") or SCOPES)
 
 
 def persist_credentials(user_id, credentials) -> None:
