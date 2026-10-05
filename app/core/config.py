@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     GITHUB_OAUTH_CONFIG_PATH: str = "credentials/github_oauth.json"
     GOOGLE_CLIENT_SECRET_PATH: str = "credentials/client_secret.json"
 
+    # Models: load all of them at startup (True) or on first use (False).
+    PRELOAD_MODELS: bool = True
+    # Poppler binaries for OCR of scanned PDFs (empty = on PATH).
+    POPPLER_PATH: str = ""
+
     # Filesystem
     DATA_DIR: str = "data"
     TEMP_DIR: str = "temp"

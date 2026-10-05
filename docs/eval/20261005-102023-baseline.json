@@ -1,0 +1,702 @@
+{
+  "aggregate": {
+    "queries": 39,
+    "positive_queries": 33,
+    "negative_queries": 6,
+    "precision_at_5": 0.8576,
+    "recall_at_10": 0.8939,
+    "mrr": 0.8485,
+    "negative_false_positives": 61,
+    "negative_queries_with_results": 6,
+    "latency_p50_s": 0.3117,
+    "latency_p95_s": 0.36
+  },
+  "per_query": [
+    {
+      "query": "java",
+      "status": 200,
+      "latency_s": 0.2738,
+      "returned": 20,
+      "top5": [
+        "Coursera Object Oriented Programming in Java.pdf",
+        "ANimal kingdom java.docx",
+        "Coursera JAVA.pdf",
+        "Hall ticket.jpeg",
+        "DAILY PRACTICE.docx"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "jva notes",
+      "status": 200,
+      "latency_s": 0.2656,
+      "returned": 10,
+      "top5": [
+        "Hall ticket.jpeg",
+        "WhatsApp Image 2026-06-21 at 5.34.43 PM (2).jpeg",
+        "WhatsApp Image 2026-06-21 at 5.34.41 PM.jpeg",
+        "WhatsApp Image 2026-06-21 at 5.34.40 PM.jpeg",
+        "Data Arrangement 1 .mp4"
+      ],
+      "modality": "document",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "java!!!@#$%",
+      "status": 200,
+      "latency_s": 0.2786,
+      "returned": 17,
+      "top5": [
+        "ANimal kingdom java.docx",
+        "Coursera Object Oriented Programming in Java.pdf",
+        "Coursera JAVA.pdf",
+        "Hall ticket.jpeg",
+        "DAILY PRACTICE.docx"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "DBMS assignment",
+      "status": 200,
+      "latency_s": 0.2647,
+      "returned": 20,
+      "top5": [
+        "DBMS assignment 2.docx",
+        "DBMS ASSIGNMENT 4.docx",
+        "DBMS ASSIGNMENT 3 .docx",
+        "DBMS ASSIGNMENT 1 ER DIAGRAM.docx",
+        "SY DBMS LAB MANUAL 2025-26.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 0.8,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "hospital management system",
+      "status": 200,
+      "latency_s": 0.282,
+      "returned": 20,
+      "top5": [
+        "Hospital_Management_System_Final.pptx",
+        "Unit-I Introduction of Software Engineering_1-8-25.pdf",
+        "SY_DASHBOARD_MITSOC.csv",
+        "vidssave.com How Data Centers in Space Could Change AI 480P.mp4",
+        "Data Structures Varsha Patil.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 0.5,
+      "recall_at_10": 0.5,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "capital budgeting",
+      "status": 200,
+      "latency_s": 0.265,
+      "returned": 18,
+      "top5": [
+        "Unit 2 - Capital Budgeting.pdf",
+        "Unit 2 - Time Value of Money.pdf",
+        "Unit 2 - Financial Management - Notes.pdf",
+        "Unit 2 - Financial Management - Numerical Problems.pdf",
+        "1. Unit 1 - Basics of Economics - Updated PPT.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "time value of money",
+      "status": 200,
+      "latency_s": 0.2941,
+      "returned": 23,
+      "top5": [
+        "Unit 2 - Time Value of Money.pdf",
+        "1. Unit 1 - Basics of Economics - Updated PPT.pdf",
+        "Unit 2 - Financial Management - Notes.pdf",
+        "Unit 2 - Financial Management - Numerical Problems.pdf",
+        "Unit 2 - Capital Budgeting.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "photon detectors",
+      "status": 200,
+      "latency_s": 0.2826,
+      "returned": 14,
+      "top5": [
+        "Unit 3 Photon Detectors 23.03.2025.pptx",
+        "Unit-II Photon Sources.pdf",
+        "Unit -I Interaction of photon with Matter.pdf",
+        "hb_Quantum_Computing.pdf",
+        "vidssave.com How Data Centers in Space Could Change AI 480P.mp4"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "binary tree",
+      "status": 200,
+      "latency_s": 0.2324,
+      "returned": 20,
+      "top5": [
+        "Binary tree DSA ASS 1.docx",
+        "Binary tree DSA ASS 1.pdf",
+        "DSA_LAB_ASS1.pdf",
+        "Data Structures Varsha Patil.pdf",
+        "UNIT 1 (2).pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "fee collection 57500",
+      "status": 200,
+      "latency_s": 0.2662,
+      "returned": 17,
+      "top5": [
+        "TCS iON Fee Collection 57500.pdf",
+        "TCS iON Fee Collection 50k 2nd sem.pdf",
+        "TCS iON Fee Collection 15000.pdf",
+        "TCS iON Fee Collection.pdf",
+        "TCS iON Fee Collection 70000.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 0.5,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "academic calendar 2024-25",
+      "status": 200,
+      "latency_s": 0.2934,
+      "returned": 20,
+      "top5": [
+        "B-Tech First Year Academic Calendar AY 2024-25.pdf",
+        "WhatsApp Image 2026-06-21 at 5.34.43 PM (2).jpeg",
+        "SY & TY Mini Proejct Calendar sem-2_2025-26.pdf",
+        "WhatsApp Image 2026-06-21 at 5.34.41 PM (1).jpeg",
+        "WhatsApp Image 2026-06-21 at 5.34.40 PM.jpeg"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "quantum computing",
+      "status": 200,
+      "latency_s": 0.2802,
+      "returned": 20,
+      "top5": [
+        "hb_Quantum_Computing.pdf",
+        "AIA Structure 2023-24 SoC CSE-NEP.pdf",
+        "CC Structure 2023-24 SoC CSE-NEP.pdf",
+        "Unit -I Interaction of photon with Matter.pdf",
+        "TA-II Question Papers .pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "SQL PLSQL",
+      "status": 200,
+      "latency_s": 0.2826,
+      "returned": 14,
+      "top5": [
+        "UNIT II- SQL PLSQL 2018-19 (1).pptx",
+        "unit i – introduction of database and sql.pptx",
+        "UNIT IV.pptx",
+        "SY DBMS LAB MANUAL 2025-26.pdf",
+        "Data Arrangement 1 .mp4"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "TURING MACHINE",
+      "status": 200,
+      "latency_s": 0.3117,
+      "returned": 16,
+      "top5": [
+        "paper_23IT2006.pdf",
+        "paper_23CSE2017.pdf",
+        "hb_Quantum_Computing.pdf",
+        "vidssave.com How Data Centers in Space Could Change AI 480P.mp4",
+        "Data Structures Varsha Patil.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "how should a project report be formatted",
+      "status": 200,
+      "latency_s": 0.3583,
+      "returned": 22,
+      "top5": [
+        "Annexure 6_Project report format - guidelines_SKP.docx",
+        "TechForGood2026_Report_Template.docx",
+        "final report.docx",
+        "SY & TY Mini Proejct Calendar sem-2_2025-26.pdf",
+        "SY & TY Mini Proejct Calendar sem-1_2025-26.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "Apple financial report",
+      "status": 200,
+      "latency_s": 0.3265,
+      "returned": 16,
+      "top5": [
+        "Financial Report Apple Inc.docx",
+        "final report.docx",
+        "Unit 2 - Financial Management - Notes.pdf",
+        "Annexure 6_Project report format - guidelines_SKP.docx",
+        "WhatsApp Image 2026-06-21 at 5.34.45 PM.jpeg"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "software engineering assignment",
+      "status": 200,
+      "latency_s": 0.3189,
+      "returned": 20,
+      "top5": [
+        "Software Engineering  Project (1).pptx",
+        "Assignment No 01 SE.pdf",
+        "Unit-I Introduction of Software Engineering_1-8-25.pdf",
+        "SY_DASHBOARD_MITSOC.csv",
+        "Unit3_FINAL.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 0.5,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 0.5,
+      "first_relevant_rank": 2
+    },
+    {
+      "query": "Find my government documents",
+      "status": 200,
+      "latency_s": 0.3373,
+      "returned": 12,
+      "top5": [
+        "vidssave.com How Champions Train Their Minds to Win _ Raj shamani _ #rajshamani 480P.mp4",
+        "WhatsApp Image 2026-06-21 at 5.34.44 PM (3).jpeg",
+        "Data Arrangement 1 .mp4",
+        "Priyanka Chopra speech  with Big Subtitles  Learn English - 5 Minute speech.mp3",
+        "IMG_20241014_080529.jpg"
+      ],
+      "modality": "document",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "train model",
+      "status": 200,
+      "latency_s": 0.3293,
+      "returned": 14,
+      "top5": [
+        "SY_DASHBOARD_MITSOC.csv",
+        "backend__train_model.py",
+        "Data Structures Varsha Patil.pdf",
+        "final report.docx",
+        "vidssave.com How Champions Train Their Minds to Win _ Raj shamani _ #rajshamani 480P.mp4"
+      ],
+      "modality": "code",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 0.5,
+      "first_relevant_rank": 2
+    },
+    {
+      "query": "chrome extension manifest",
+      "status": 200,
+      "latency_s": 0.3281,
+      "returned": 14,
+      "top5": [
+        "final report.docx",
+        "extension__manifest.json",
+        "SY1110.csv",
+        "extension__popup.js",
+        "WhatsApp Image 2026-06-21 at 5.34.44 PM (3).jpeg"
+      ],
+      "modality": "code",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 0.5,
+      "first_relevant_rank": 2
+    },
+    {
+      "query": "merge datasets",
+      "status": 200,
+      "latency_s": 0.3283,
+      "returned": 14,
+      "top5": [
+        "backend__merge_datasets.py",
+        "Data Structures Varsha Patil.pdf",
+        "SY_DASHBOARD_MITSOC.csv",
+        "Data Arrangement 1 .mp4",
+        "SY DBMS LAB MANUAL 2025-26.pdf"
+      ],
+      "modality": "code",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "tiger",
+      "status": 200,
+      "latency_s": 0.302,
+      "returned": 10,
+      "top5": [
+        "tiger-looking-with-open-mouth_1150-18083.avif",
+        "vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4",
+        "image-asset.jpeg",
+        "vidssave.com How Champions Train Their Minds to Win _ Raj shamani _ #rajshamani 480P.mp4",
+        "IMG_20241014_074141.jpg"
+      ],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "hall ticket",
+      "status": 200,
+      "latency_s": 0.2992,
+      "returned": 11,
+      "top5": [
+        "Hall ticket.jpeg",
+        "Data Structures Varsha Patil.pdf",
+        "WhatsApp Image 2026-06-21 at 5.34.41 PM (1).jpeg",
+        "WhatsApp Image 2026-06-21 at 5.34.42 PM.jpeg",
+        "india_post.jpeg"
+      ],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "golden retriever dog",
+      "status": 200,
+      "latency_s": 0.3613,
+      "returned": 10,
+      "top5": [
+        "Golden_Retriever.webp",
+        "vidssave.com How Data Centers in Space Could Change AI 480P.mp4",
+        "vidssave.com 7 Minutes of The Cutest Baby Animals You've Ever Seen _ Nat Geo 720p.mp4",
+        "Data Arrangement 1 .mp4",
+        "QKOPUFKJMVV7JE2YNBCV2FILFQ.webp"
+      ],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "pizza",
+      "status": 200,
+      "latency_s": 0.3092,
+      "returned": 11,
+      "top5": [
+        "delicious-pepperoni-pizza-culinary-delight_632498-24206.avif",
+        "Unit 1.pdf",
+        "WhatsApp Image 2026-06-21 at 5.34.44 PM (3).jpeg",
+        "IKS Poster (Vruti Moradiya).jpeg",
+        "delicious-raspberry-chocolate-ice-cream-sundae_632498-24987.avif"
+      ],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "coffee",
+      "status": 200,
+      "latency_s": 0.299,
+      "returned": 11,
+      "top5": [
+        "latte-coffee_1122-2728.avif",
+        "Unit 1 Numerical Problems.pdf",
+        "IKS Poster (Vruti Moradiya).jpeg",
+        "delicious-raspberry-chocolate-ice-cream-sundae_632498-24987.avif",
+        "vidssave.com How Champions Train Their Minds to Win _ Raj shamani _ #rajshamani 480P.mp4"
+      ],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "motorcycle",
+      "status": 200,
+      "latency_s": 0.3007,
+      "returned": 10,
+      "top5": [
+        "Data Arrangement 1 .mp4",
+        "royalenfield-hunter-350-retro-factory1727790756803.webp",
+        "WhatsApp Image 2026-06-21 at 5.34.44 PM (3).jpeg",
+        "delicious-raspberry-chocolate-ice-cream-sundae_632498-24987.avif",
+        "delicious-pepperoni-pizza-culinary-delight_632498-24206.avif"
+      ],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 0.5,
+      "first_relevant_rank": 2
+    },
+    {
+      "query": "climate change speech",
+      "status": 200,
+      "latency_s": 0.3445,
+      "returned": 11,
+      "top5": [
+        "5 Minute Speech - Action on Climate Change - 10 August 2021 - Gladys Liu MP.mp3",
+        "vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4",
+        "vidssave.com How Champions Train Their Minds to Win _ Raj shamani _ #rajshamani 480P.mp4",
+        "vidssave.com How Data Centers in Space Could Change AI 480P.mp4",
+        "WhatsApp Image 2026-06-21 at 5.34.45 PM (1).jpeg"
+      ],
+      "modality": "audio",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "gender equality",
+      "status": 200,
+      "latency_s": 0.3283,
+      "returned": 14,
+      "top5": [
+        "ENGLISH SPEECH  EMMA WATSON Gender Equality (English Subtitles) - English Speeches.mp3",
+        "Annexure 6_Project report format - guidelines_SKP.docx",
+        "Yashavant P. Kanetkar ( PDFDrive ).pdf",
+        "vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4",
+        "WhatsApp Image 2026-06-21 at 5.34.45 PM (1).jpeg"
+      ],
+      "modality": "audio",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "forest bathing",
+      "status": 200,
+      "latency_s": 0.3115,
+      "returned": 10,
+      "top5": [
+        "vidssave.com Forest Bathing _ Shinrin-Yoku _ Healing in Nature _ Short Documentary 720P.mp4",
+        "ES activity 2 roll no 5,28,30.png",
+        "vidssave.com 7 Minutes of The Cutest Baby Animals You've Ever Seen _ Nat Geo 720p.mp4",
+        "IKS Poster (Vruti Moradiya).jpeg",
+        "Golden_Retriever.webp"
+      ],
+      "modality": "video",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "brain behaves differently in nature",
+      "status": 200,
+      "latency_s": 0.3763,
+      "returned": 12,
+      "top5": [
+        "vidssave.com Forest Bathing _ Shinrin-Yoku _ Healing in Nature _ Short Documentary 720P.mp4",
+        "vidssave.com How Champions Train Their Minds to Win _ Raj shamani _ #rajshamani 480P.mp4",
+        "Unit -I Interaction of photon with Matter.pdf",
+        "tiger-looking-with-open-mouth_1150-18083.avif",
+        "INDIAN MATHEMATICS AND ASTRONOMY - IKS.jpg"
+      ],
+      "modality": "video",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "cute baby animals",
+      "status": 200,
+      "latency_s": 0.3436,
+      "returned": 10,
+      "top5": [
+        "vidssave.com 7 Minutes of The Cutest Baby Animals You've Ever Seen _ Nat Geo 720p.mp4",
+        "tiger-looking-with-open-mouth_1150-18083.avif",
+        "Golden_Retriever.webp",
+        "image-asset.jpeg",
+        "delicious-raspberry-chocolate-ice-cream-sundae_632498-24987.avif"
+      ],
+      "modality": "video",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "data centers in space",
+      "status": 200,
+      "latency_s": 0.3469,
+      "returned": 14,
+      "top5": [
+        "vidssave.com How Data Centers in Space Could Change AI 480P.mp4",
+        "Data Collection and Analysis - Master of Science in Community Health and Prevention Research by Slidesgo.pptx",
+        "Data Structures Varsha Patil.pdf",
+        "vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4",
+        "SY_DASHBOARD_MITSOC.csv"
+      ],
+      "modality": "video",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "xqzv wplk qqq",
+      "status": 200,
+      "latency_s": 0.3547,
+      "returned": 10,
+      "top5": [
+        "delicious-raspberry-chocolate-ice-cream-sundae_632498-24987.avif",
+        "Data Arrangement 1 .mp4",
+        "delicious-pepperoni-pizza-culinary-delight_632498-24206.avif",
+        "WhatsApp Image 2026-06-21 at 5.38.46 PM (1).jpeg",
+        "WhatsApp Image 2026-06-21 at 5.34.44 PM (3).jpeg"
+      ],
+      "negative": true,
+      "false_positives": 10
+    },
+    {
+      "query": "submarine volcano eruption",
+      "status": 200,
+      "latency_s": 0.3265,
+      "returned": 10,
+      "top5": [
+        "WhatsApp Image 2026-06-21 at 5.34.45 PM (1).jpeg",
+        "WhatsApp Image 2026-06-21 at 5.34.44 PM (1).jpeg",
+        "WhatsApp Image 2026-06-21 at 5.34.42 PM.jpeg",
+        "WhatsApp Image 2026-06-21 at 5.34.45 PM.jpeg",
+        "WhatsApp Image 2026-06-21 at 5.34.44 PM (2).jpeg"
+      ],
+      "negative": true,
+      "false_positives": 10
+    },
+    {
+      "query": "kubernetes helm chart deployment",
+      "status": 200,
+      "latency_s": 0.36,
+      "returned": 10,
+      "top5": [
+        "WhatsApp Image 2026-06-21 at 5.34.44 PM (3).jpeg",
+        "WhatsApp Image 2025-09-08 at 09.25.33_7b647e4a.jpg",
+        "vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4",
+        "delicious-pepperoni-pizza-culinary-delight_632498-24206.avif",
+        "WhatsApp Image 2026-06-21 at 5.38.46 PM (1).jpeg"
+      ],
+      "negative": true,
+      "false_positives": 10
+    },
+    {
+      "query": "basketball tournament scores",
+      "status": 200,
+      "latency_s": 0.3291,
+      "returned": 10,
+      "top5": [
+        "WhatsApp Image 2026-06-21 at 5.38.46 PM (1).jpeg",
+        "WhatsApp Image 2026-06-21 at 5.34.44 PM (3).jpeg",
+        "vidssave.com How Champions Train Their Minds to Win _ Raj shamani _ #rajshamani 480P.mp4",
+        "mit_receipt.jpeg",
+        "WhatsApp Image 2026-06-21 at 5.34.43 PM (2).jpeg"
+      ],
+      "negative": true,
+      "false_positives": 10
+    },
+    {
+      "query": "zzzzzz",
+      "status": 200,
+      "latency_s": 0.3587,
+      "returned": 11,
+      "top5": [
+        "Yashavant P. Kanetkar ( PDFDrive ).pdf",
+        "image-asset.jpeg",
+        "tiger-looking-with-open-mouth_1150-18083.avif",
+        "delicious-pepperoni-pizza-culinary-delight_632498-24206.avif",
+        "Golden_Retriever.webp"
+      ],
+      "negative": true,
+      "false_positives": 11
+    },
+    {
+      "query": "quarterly tax return form 1040",
+      "status": 200,
+      "latency_s": 0.3405,
+      "returned": 10,
+      "top5": [
+        "WhatsApp Image 2026-06-21 at 5.34.42 PM.jpeg",
+        "WhatsApp Image 2026-06-21 at 5.34.45 PM.jpeg",
+        "WhatsApp Image 2026-06-21 at 5.34.45 PM (1).jpeg",
+        "medical bill.jpeg",
+        "photo-1473580044384-7ba9967e16a0.avif"
+      ],
+      "negative": true,
+      "false_positives": 10
+    }
+  ],
+  "label": "baseline",
+  "created_at": "2026-10-05T10:20:23"
+}

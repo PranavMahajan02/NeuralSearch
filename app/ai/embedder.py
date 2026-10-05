@@ -12,23 +12,21 @@ class ModelEmbedder:
 
     def text(self, texts: Sequence[str]) -> List[List[float]]:
 
-        from embeddings import get_embeddings
+        from app.ai.encoders import encode_texts
 
-        vectors = get_embeddings(list(texts))
-
-        return [v.tolist() if hasattr(v, "tolist") else list(v) for v in vectors]
+        return encode_texts(texts)
 
     def clip_text(self, text: str) -> List[float]:
 
-        from clip_extract import get_text_embedding
+        from app.ai.encoders import encode_clip_text
 
-        return list(get_text_embedding(text))
+        return encode_clip_text(text)
 
     def clip_image(self, path: str) -> List[float]:
 
-        from clip_extract import get_image_embedding
+        from app.ai.encoders import encode_clip_image
 
-        return list(get_image_embedding(path))
+        return encode_clip_image(path)
 
 
 backend = ModelEmbedder()
