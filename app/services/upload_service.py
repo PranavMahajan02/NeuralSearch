@@ -86,8 +86,15 @@ def process_uploaded_file(
     file_id=None,
     file_sha=None,
     owner=None,
-    repo=None
+    repo=None,
+    temp_dir=None
 ):
+    """Index one file if it is new or changed.
+
+    Errors propagate: the caller (a platform via JobContext) counts the file
+    as failed. They used to be printed and swallowed, so failures were
+    reported as successes.
+    """
 
     print("Checking:", file_path)
 
@@ -123,19 +130,24 @@ def process_uploaded_file(
 
         print("New file. Indexing...")
 
+    index_file(
+        file_path,
+        platform=platform,
+        file_id=file_id,
+        file_sha=file_sha,
+        owner=owner,
+        repo=repo,
+        temp_dir=temp_dir
+    )
+
+
+def process_uploaded_file_in_background(file_path):
+    """BackgroundTasks entry point for uploads: log failures instead of
+    raising into Starlette."""
+
+    import logging
+
     try:
-
-        index_file(
-            file_path,
-            platform=platform,
-            file_id=file_id,
-            file_sha=file_sha,
-            owner=owner,
-            repo=repo
-        )
-
-    except Exception as e:
-
-        print(f"Failed to index {file_path}")
-
-        print(e)
+        process_uploaded_file(file_path)
+    except Exception:
+        logging.getLogger("cogniseek.upload").exception("Indexing the uploaded file failed")
