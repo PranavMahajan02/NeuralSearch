@@ -18,7 +18,8 @@ from app.platforms.github.oauth import (
     create_oauth_state,
     exchange_code_for_token,
     get_authorization_url,
-    is_connected
+    is_connected,
+    revoke_grant
 )
 
 from app.platforms.github.github_credentials import (
@@ -26,9 +27,8 @@ from app.platforms.github.github_credentials import (
     disconnect_github
 )
 
-from app.platforms.github.github_service import (
-    get_user
-)
+from app.database.platform_connection_service import get_platform_connection
+from app.platforms.github.github_service import GitHubClient, get_user
 
 
 logger = logging.getLogger("cogniseek.github")
@@ -108,10 +108,18 @@ def github_callback(
         if "access_token" not in token_data:
             return _frontend_redirect(github="error", reason="token_exchange_failed")
 
+        # Store the GitHub login so the UI can show which account is connected.
+        try:
+            login = GitHubClient(token_data["access_token"]).user().get("login")
+        except Exception:
+            logger.warning("Could not read the GitHub login after connecting")
+            login = None
+
         save_github_credentials(
             db,
             user_id,
-            token_data
+            token_data,
+            account_name=login
         )
 
     except Exception:
@@ -130,11 +138,12 @@ def github_status(
     db: Session = Depends(get_db)
 ):
 
+    connection = get_platform_connection(db, current_user["id"], "github")
+    connected = connection is not None and bool(connection.connected)
+
     return {
-        "connected": is_connected(
-            db,
-            current_user["id"]
-        )
+        "connected": connected,
+        "account_name": connection.account_name if connected else None
     }
 
 
@@ -144,6 +153,15 @@ def disconnect(
     purge: bool = False,
     db: Session = Depends(get_db)
 ):
+
+    connection = get_platform_connection(db, current_user["id"], "github")
+    revoked = None
+
+    # Revoke the grant at GitHub first; disconnect locally even if that fails.
+    if connection is not None and connection.access_token:
+        revoked = revoke_grant(connection.access_token)
+        if not revoked:
+            logger.warning("GitHub revoke failed for user %s; disconnecting locally anyway", current_user["id"])
 
     disconnect_github(
         db,
@@ -155,6 +173,7 @@ def disconnect(
 
     return {
         "status": "success",
+        "revoked": revoked,
         "purged_files": purged,
         "connected": False,
         "message": "GitHub disconnected successfully."

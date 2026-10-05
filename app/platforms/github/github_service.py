@@ -1,159 +1,175 @@
-import os
+"""GitHub REST client for the connector.
+
+- every call goes through app.platforms.http (retries, rate limits, timeouts)
+- repositories: /user/repos, 100 per page, following the Link header (BUG-11)
+- files: ONE recursive git-trees call per repository (path, blob sha, size);
+  a truncated tree falls back to walking sub-trees
+- 401 anywhere: the connection is marked disconnected and the job fails with
+  "GitHub authorization expired - reconnect"
+"""
+
+import logging
+import re
+from dataclasses import dataclass
+from typing import Dict, Iterator, List, Optional, Tuple
+from urllib.parse import quote
+
 import requests
-from sqlalchemy.orm import Session
 
+from app.database.db import SessionLocal
+from app.database.platform_connection_service import disconnect_platform
+from app.platforms import http
 from app.platforms.errors import PlatformPreconditionError
-from app.platforms.github.oauth import get_access_token
-
-BASE_URL = "https://api.github.com"
 
 
-def github_get(
-    db: Session,
-    user_id,
-    url
-):
+logger = logging.getLogger("cogniseek.github")
 
-    headers = {
-        "Authorization": f"Bearer {get_access_token(db, user_id)}",
-        "Accept": "application/vnd.github+json"
-    }
+API = "https://api.github.com"
 
-    response = requests.get(
-        url,
-        headers=headers,
-        timeout=30
-    )
-
-    if response.status_code == 401:
-        raise PlatformPreconditionError("GitHub authentication failed. Please reconnect GitHub.")
-
-    if response.status_code in (403, 429) and response.headers.get("X-RateLimit-Remaining") == "0":
-        raise PlatformPreconditionError("GitHub API rate limit exceeded. Try again later.")
-
-    if response.status_code == 403:
-        # Permission problem on one resource (e.g. a single repo): not job-fatal.
-        raise RuntimeError("GitHub denied access to this resource (403).")
-
-    response.raise_for_status()
-
-    return response
+_LINK_NEXT = re.compile(r'<([^>]+)>;\s*rel="next"')
 
 
-def get_user(
-    db: Session,
-    user_id
-):
+class GitHubAuthExpired(PlatformPreconditionError):
 
-    response = github_get(
-        db,
-        user_id,
-        f"{BASE_URL}/user"
-    )
+    def __init__(self):
 
-    return response.json()
+        super().__init__("GitHub authorization expired — reconnect GitHub.")
 
 
-def list_repositories(
-    db: Session,
-    user_id
-):
-
-    response = github_get(
-        db,
-        user_id,
-        f"{BASE_URL}/user/repos"
-    )
-
-    return response.json()
+class GitHubError(RuntimeError):
+    """A non-fatal API error for one repository or file."""
 
 
-def list_repository_files(
-    db: Session,
-    user_id,
-    owner,
-    repo,
-    path=""
-):
+@dataclass
+class TreeEntry:
 
-    response = github_get(
-        db,
-        user_id,
-        f"{BASE_URL}/repos/{owner}/{repo}/contents/{path}"
-    )
-
-    return response.json()
+    path: str
+    sha: str
+    size: Optional[int]
 
 
-def get_all_files(
-    db: Session,
-    user_id,
-    owner,
-    repo,
-    path=""
-):
+class GitHubClient:
 
-    items = list_repository_files(
-        db,
-        user_id,
-        owner,
-        repo,
-        path
-    )
+    def __init__(self, token: str, user_id=None, session: Optional[requests.Session] = None):
 
-    files = []
+        self.user_id = user_id
+        self.session = session or requests.Session()
+        self.session.headers.update({
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        })
 
-    for item in items:
+    # ------------------------------------------------------------------
 
-        if item["type"] == "file":
+    def _get(self, url: str, accept: Optional[str] = None, allow: Tuple[int, ...] = ()) -> requests.Response:
 
-            files.append(item)
+        headers = {"Accept": accept} if accept else None
+        response = http.request("GET", url if url.startswith("http") else API + url, session=self.session, headers=headers)
 
-        elif item["type"] == "dir":
+        if response.status_code == 401:
+            self._mark_disconnected()
+            raise GitHubAuthExpired()
 
-            files.extend(
+        if response.status_code in allow:
+            return response
 
-                get_all_files(
-                    db,
-                    user_id,
-                    owner,
-                    repo,
-                    item["path"]
-                )
+        if response.status_code >= 400:
+            raise GitHubError(f"GitHub API {response.status_code} for {url.split('?')[0]}")
 
-            )
+        return response
 
-    return files
+    def _mark_disconnected(self) -> None:
+
+        if self.user_id is None:
+            return
+
+        with SessionLocal() as db:
+            disconnect_platform(db, self.user_id, "github")
+
+        logger.warning("GitHub token rejected (401): connection marked disconnected for user %s", self.user_id)
+
+    # ------------------------------------------------------------------
+
+    def user(self) -> Dict:
+
+        return self._get("/user").json()
+
+    def iter_repositories(self) -> Iterator[Dict]:
+        """Every repository the user can access, across all pages."""
+
+        url = f"{API}/user/repos?per_page=100&affiliation=owner,collaborator,organization_member"
+
+        while url:
+            response = self._get(url)
+            yield from response.json()
+            match = _LINK_NEXT.search(response.headers.get("Link", ""))
+            url = match.group(1) if match else None
+
+    def tree(self, owner: str, repo: str, branch: str) -> Tuple[List[TreeEntry], bool]:
+        """(file entries, complete). An empty repository (409) is ([], True)."""
+
+        base = f"/repos/{quote(owner)}/{quote(repo)}/git/trees/"
+        response = self._get(base + quote(branch, safe="") + "?recursive=1", allow=(404, 409))
+
+        if response.status_code == 409:
+            return [], True
+
+        if response.status_code == 404:
+            raise GitHubError(f"Branch '{branch}' not found in {owner}/{repo}")
+
+        data = response.json()
+
+        if not data.get("truncated"):
+            return _blobs(data.get("tree", [])), True
+
+        logger.warning("Tree of %s/%s is truncated; walking sub-trees", owner, repo)
+
+        try:
+            return self._walk(base, data["sha"], prefix=""), True
+        except GitHubAuthExpired:
+            raise
+        except Exception as error:
+            logger.warning("Sub-tree walk of %s/%s failed (%s): listing incomplete", owner, repo, error)
+            return _blobs(data.get("tree", [])), False
+
+    def _walk(self, base: str, sha: str, prefix: str) -> List[TreeEntry]:
+
+        data = self._get(base + sha).json()
+        entries: List[TreeEntry] = []
+
+        for item in data.get("tree", []):
+            path = f"{prefix}{item['path']}"
+            if item["type"] == "blob":
+                entries.append(TreeEntry(path=path, sha=item["sha"], size=item.get("size")))
+            elif item["type"] == "tree":
+                entries.extend(self._walk(base, item["sha"], prefix=f"{path}/"))
+
+        return entries
+
+    def blob(self, owner: str, repo: str, sha: str) -> bytes:
+
+        url = f"/repos/{quote(owner)}/{quote(repo)}/git/blobs/{sha}"
+
+        return self._get(url, accept="application/vnd.github.raw+json").content
 
 
-def download_file(
-    db: Session,
-    user_id,
-    file_info,
-    download_folder="temp"
-):
+def _blobs(items) -> List[TreeEntry]:
 
-    os.makedirs(download_folder, exist_ok=True)
+    return [
+        TreeEntry(path=item["path"], sha=item["sha"], size=item.get("size"))
+        for item in items
+        if item.get("type") == "blob"
+    ]
 
-    url = file_info["download_url"]
 
-    if url is None:
-        return None
+def client_for_user(db, user_id) -> GitHubClient:
 
-    response = github_get(
-        db,
-        user_id,
-        url
-    )
+    from app.platforms.github.oauth import get_access_token
 
-    safe_name = file_info["path"].replace("/", "__")
+    return GitHubClient(get_access_token(db, user_id), user_id=user_id)
 
-    file_path = os.path.join(
-        download_folder,
-        safe_name
-    )
 
-    with open(file_path, "wb") as f:
-        f.write(response.content)
+def get_user(db, user_id) -> Dict:
 
-    return file_path
+    return client_for_user(db, user_id).user()

@@ -1,19 +1,24 @@
-import json
-import secrets
-from datetime import datetime, timedelta
-from urllib.parse import urlencode
+"""GitHub OAuth app: authorization URL, code exchange, token access, revoke."""
 
-import requests
+import json
+import logging
+from urllib.parse import urlencode
 
 from sqlalchemy.orm import Session
 
-from app.database.models import OAuthState
+from app.core.config import settings
+from app.database.platform_connection_service import get_platform_connection
+from app.platforms import http
 from app.platforms.errors import PlatformPreconditionError
-from app.database.platform_connection_service import (
-    get_platform_connection
+from app.platforms.oauth_state import (  # noqa: F401  (re-exported)
+    OAUTH_STATE_TTL,
+    InvalidOAuthState,
+    create_oauth_state as _create_state,
+    consume_oauth_state as _consume_state,
 )
 
-from app.core.config import settings
+
+logger = logging.getLogger("cogniseek.github")
 
 GITHUB_CONFIG = settings.GITHUB_OAUTH_CONFIG_PATH
 
@@ -23,7 +28,6 @@ REDIRECT_URI = f"{settings.BACKEND_PUBLIC_URL}/platforms/github/callback"
 def load_config():
 
     with open(GITHUB_CONFIG, "r") as f:
-
         return json.load(f)
 
 
@@ -43,29 +47,16 @@ def exchange_code_for_token(code):
 
     config = load_config()
 
-    response = requests.post(
-
+    response = http.request(
+        "POST",
         "https://github.com/login/oauth/access_token",
-        timeout=15,
-
-        headers={
-
-            "Accept": "application/json"
-
-        },
-
+        headers={"Accept": "application/json"},
         data={
-
             "client_id": config["client_id"],
-
             "client_secret": config["client_secret"],
-
             "code": code,
-
             "redirect_uri": REDIRECT_URI
-
         }
-
     )
 
     response.raise_for_status()
@@ -73,127 +64,55 @@ def exchange_code_for_token(code):
     return response.json()
 
 
-def get_access_token(
+def get_access_token(db: Session, user_id):
 
-    db: Session,
-
-    user_id
-
-):
-
-    connection = get_platform_connection(
-
-        db,
-
-        user_id,
-
-        "github"
-
-    )
+    connection = get_platform_connection(db, user_id, "github")
 
     if connection is None or not connection.connected or not connection.access_token:
-
-        raise PlatformPreconditionError(
-
-            "GitHub is not connected."
-
-        )
+        raise PlatformPreconditionError("GitHub is not connected.")
 
     return connection.access_token
 
 
-def is_connected(
+def is_connected(db: Session, user_id):
 
-    db: Session,
+    connection = get_platform_connection(db, user_id, "github")
 
-    user_id
-
-):
-
-    connection = get_platform_connection(
-
-        db,
-
-        user_id,
-
-        "github"
-
-    )
-
-    return (
-
-        connection is not None
-
-        and
-
-        connection.connected
-
-    )
+    return connection is not None and connection.connected
 
 
-# ==========================================================
-# OAUTH STATE (CSRF protection, single use, 10 minute TTL)
-# ==========================================================
+def revoke_grant(access_token: str) -> bool:
+    """Revoke the whole OAuth grant on GitHub (DELETE /applications/{id}/grant,
+    basic auth with the app's client id/secret). Returns False on failure."""
 
-OAUTH_STATE_TTL = timedelta(minutes=10)
+    try:
+        config = load_config()
+        response = http.request(
+            "DELETE",
+            f"https://api.github.com/applications/{config['client_id']}/grant",
+            auth=(config["client_id"], config["client_secret"]),
+            headers={"Accept": "application/vnd.github+json"},
+            json={"access_token": access_token},
+            max_tries=2
+        )
+    except Exception as error:
+        logger.warning("GitHub grant revoke failed: %s", type(error).__name__)
+        return False
+
+    if response.status_code not in (204, 404):
+        logger.warning("GitHub grant revoke returned HTTP %s", response.status_code)
+        return False
+
+    return True
 
 
-class InvalidOAuthState(Exception):
-
-    def __init__(self, code: str):
-
-        super().__init__(code)
-        self.code = code
-
+# Kept with GitHub's defaults for existing callers.
 
 def create_oauth_state(db: Session, user_id, platform: str = "github") -> str:
 
-    state = secrets.token_urlsafe(32)
-
-    db.add(
-        OAuthState(
-            state=state,
-            user_id=user_id,
-            platform=platform,
-            expires_at=datetime.utcnow() + OAUTH_STATE_TTL,
-            used=False
-        )
-    )
-
-    db.commit()
-
-    return state
+    return _create_state(db, user_id, platform)
 
 
 def consume_oauth_state(db: Session, state: str, platform: str = "github"):
-    """Validate a callback state and return the user_id stored with it.
 
-    The user is taken from the DB row, never from the state string itself.
-    """
-
-    if not state:
-        raise InvalidOAuthState("missing_state")
-
-    row = (
-        db.query(OAuthState)
-        .filter(
-            OAuthState.state == state,
-            OAuthState.platform == platform
-        )
-        .with_for_update()
-        .first()
-    )
-
-    if row is None:
-        raise InvalidOAuthState("invalid_state")
-
-    if row.used:
-        raise InvalidOAuthState("state_already_used")
-
-    if row.expires_at < datetime.utcnow():
-        raise InvalidOAuthState("state_expired")
-
-    row.used = True
-    db.commit()
-
-    return row.user_id
+    return _consume_state(db, state, platform)
