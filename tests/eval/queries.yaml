@@ -82,6 +82,10 @@ queries:
     modality: document
     expected: [ADHAR.pdf]
 
+  - query: aadhaar government id           # scanned ID card (Phase 5 OCR fix)
+    modality: document
+    expected: [ADHAR.pdf]
+
   # ---------------- code (GitHub) ----------------
   - query: train model
     modality: code
