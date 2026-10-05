@@ -15,6 +15,7 @@ PUBLIC_ROUTES = {
     ("POST", "/auth/login"),
     ("GET", "/"),
     ("GET", "/platforms/github/callback"),
+    ("GET", "/platforms/google-drive/callback"),
 }
 
 # Interactive docs (development only) are not API routes.
