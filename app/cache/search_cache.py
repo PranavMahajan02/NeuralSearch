@@ -16,8 +16,9 @@ def _load_pickle(index_file):
     if not os.path.exists(index_file):
         return []
 
-    with open(index_file, "rb") as f:
-        return pickle.load(f)
+    from app.services.pickle_store import load_pickle
+
+    return load_pickle(index_file)
 
 def build_document_content_lookup():
 

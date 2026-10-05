@@ -1,5 +1,5 @@
 import os
-import pickle
+from app.services.pickle_store import dump_pickle_atomic, load_pickle
 
 
 def remove_from_index(index_file, filename):
@@ -7,8 +7,7 @@ def remove_from_index(index_file, filename):
     if not os.path.exists(index_file):
         return
 
-    with open(index_file, "rb") as f:
-        data = pickle.load(f)
+    data = load_pickle(index_file)
 
     original_count = len(data)
 
@@ -20,8 +19,7 @@ def remove_from_index(index_file, filename):
 
     removed = original_count - len(data)
 
-    with open(index_file, "wb") as f:
-        pickle.dump(data, f)
+    dump_pickle_atomic(index_file, data)
 
     print(
         f"{removed} entries removed from {index_file}"

@@ -1,5 +1,7 @@
 import os
 import pickle
+
+from app.services.pickle_store import dump_pickle_atomic, load_pickle
 from app.cache.search_cache import (
     reload_document_cache,
     reload_image_cache,
@@ -42,11 +44,7 @@ def load_index(file_path):
     if index_file is None:
         return []
 
-    if not os.path.exists(index_file):
-        return []
-
-    with open(index_file, "rb") as f:
-        return pickle.load(f)
+    return load_pickle(index_file)
 
 
 def save_index(file_path, data):
@@ -59,8 +57,7 @@ def save_index(file_path, data):
         print("Index file is None")
         return
 
-    with open(index_file, "wb") as f:
-        pickle.dump(data, f)
+    dump_pickle_atomic(index_file, data)
 
     if index_file == "index.pkl":
         reload_document_cache()
@@ -193,8 +190,7 @@ def remove_deleted_files():
         if not os.path.exists(index_file):
             continue
 
-        with open(index_file, "rb") as f:
-            data = pickle.load(f)
+        data = load_pickle(index_file)
 
         new_data = []
 
@@ -215,8 +211,7 @@ def remove_deleted_files():
             if os.path.exists(path):
                 new_data.append(item)
 
-        with open(index_file, "wb") as f:
-            pickle.dump(new_data, f)
+        dump_pickle_atomic(index_file, new_data)
 
 def remove_deleted_github_files():
 
@@ -240,8 +235,7 @@ def remove_deleted_github_files():
         if not os.path.exists(index_file):
             continue
 
-        with open(index_file, "rb") as f:
-            data = pickle.load(f)
+        data = load_pickle(index_file)
 
         new_data = []
 
@@ -264,12 +258,7 @@ def remove_deleted_github_files():
                     f"Deleted from GitHub: {repo}/{file_id}"
                 )
 
-        with open(index_file, "wb") as f:
-
-            pickle.dump(
-                new_data,
-                f
-            )
+        dump_pickle_atomic(index_file, new_data)
 
 
     

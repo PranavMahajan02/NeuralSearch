@@ -59,7 +59,8 @@ def index_file(
     file_id=None,
     file_sha=None,
     owner=None,
-    repo=None
+    repo=None,
+    temp_dir=None
 ):
 
     extension = os.path.splitext(
@@ -128,9 +129,9 @@ def index_file(
             file_id=file_id,
             file_sha=file_sha,
             owner=owner,
-            repo=repo
+            repo=repo,
+            frames_root=temp_dir
         )
 
     else:
-
-        print(f"Unsupported file type: {extension}")
+        raise ValueError(f"Unsupported file type: {extension or 'none'}")

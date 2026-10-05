@@ -1,20 +1,10 @@
 import os
-import time
-from app.services.index_manager import (
-    remove_deleted_github_files
-)
+
 from app.platforms.base_platform import BasePlatform
+from app.platforms.errors import PlatformPreconditionError
+from app.platforms.indexing import is_supported, process_files
 from app.services.upload_service import process_uploaded_file
 from app.database.db import SessionLocal
-from app.database.indexing_job_service import (
-    set_total_files,
-    increment_indexed_files,
-    update_current_file
-)
-from app.scheduler.cancel import (
-    is_cancelled,
-    clear_cancel
-)
 
 from app.platforms.github.github_service import (
     list_repositories,
@@ -22,19 +12,6 @@ from app.platforms.github.github_service import (
     download_file
 )
 
-from app.config.file_types import (
-    DOCUMENTS,
-    IMAGES,
-    AUDIOS,
-    VIDEOS
-)
-
-SUPPORTED_EXTENSIONS = (
-    DOCUMENTS
-    + IMAGES
-    + AUDIOS
-    + VIDEOS
-)
 
 SKIP_FOLDERS = {
     "temp",
@@ -49,167 +26,92 @@ SKIP_FOLDERS = {
 }
 
 
+def is_github_file_supported(file: dict) -> bool:
+
+    if file.get("download_url") is None:
+        return False
+
+    if any(part in SKIP_FOLDERS for part in file["path"].split("/")):
+        return False
+
+    return is_supported(file["path"])
+
+
 class GitHubPlatform(BasePlatform):
 
-    def index(
-        self,
-        user_id
-    ):
+    def index(self, ctx):
 
-        print("Fetching repositories...")
+        with SessionLocal() as db:
 
-        db = SessionLocal()
+            # Not connected / bad token / rate limit -> PlatformPreconditionError.
+            repos = list_repositories(db, ctx.user_id)
 
-        try:
+            supported = []
+            skipped = 0
 
-            repos = list_repositories(
-                db,
-                user_id
-            )
-
-            print(f"Found {len(repos)} repositories.")
-
-            total_files = 0
-
+            # One listing pass per repo (the old code listed every repo twice).
             for repo in repos:
 
-                owner = repo["owner"]["login"]
-                repo_name = repo["name"]
-
-                repo_files = get_all_files(
-                    db,
-                    user_id,
-                    owner,
-                    repo_name
-                )
-
-                for file in repo_files:
-
-                    if file["download_url"] is None:
-                        continue
-
-                    github_path = file["path"]
-
-                    path_parts = github_path.split("/")
-
-                    if any(folder in SKIP_FOLDERS for folder in path_parts):
-                        continue
-
-                    extension = os.path.splitext(github_path)[1].lower()
-
-                    if extension not in SUPPORTED_EXTENSIONS:
-                        continue
-
-                    total_files += 1
-
-            set_total_files(
-                db,
-                user_id,
-                "github",
-                total_files
-            )
-
-            for repo in repos:
-
-                if is_cancelled(user_id):
-
-                    print("\nGitHub indexing cancelled.")
-
+                if ctx.is_cancelled():
                     break
 
                 owner = repo["owner"]["login"]
                 repo_name = repo["name"]
 
-                print(f"\nRepository: {repo_name}")
-
-                files = get_all_files(
-                    db,
-                    user_id,
-                    owner,
-                    repo_name
-                )
-
-                print(f"Found {len(files)} files.")
+                try:
+                    files = get_all_files(db, ctx.user_id, owner, repo_name)
+                except Exception as error:
+                    # e.g. an empty repo (409) or a repo we may not read (403).
+                    if isinstance(error, PlatformPreconditionError):
+                        raise
+                    ctx.record_error(f"{owner}/{repo_name}", error)
+                    continue
 
                 for file in files:
+                    if is_github_file_supported(file):
+                        supported.append((owner, repo_name, file))
+                    else:
+                        skipped += 1
 
-                    if is_cancelled(user_id):
+            ctx.add_skipped(skipped)
+            ctx.set_total(len(supported))
 
-                        print("\nGitHub indexing cancelled.")
+            def handle(position, item):
 
-                        break
+                owner, repo_name, file = item
 
-                    if file["download_url"] is None:
-                        continue
+                local_path = download_file(
+                    db,
+                    ctx.user_id,
+                    file,
+                    download_folder=str(ctx.file_dir(position))
+                )
 
-                    github_path = file["path"]
-
-                    path_parts = github_path.split("/")
-
-                    if any(
-                        folder in SKIP_FOLDERS
-                        for folder in path_parts
-                    ):
-                        continue
-
-                    extension = os.path.splitext(
-                        github_path
-                    )[1].lower()
-
-                    if extension not in SUPPORTED_EXTENSIONS:
-                        continue
-
-                    print(f"Downloading: {github_path}")
-
-                    update_current_file(
-                        db,
-                        user_id,
-                        "github",
-                        github_path
-                    )
-
-                    local_path = download_file(
-                        db,
-                        user_id,
-                        file
-                    )
-
-                    if local_path is None:
-                        continue
-
+                try:
                     process_uploaded_file(
                         local_path,
                         platform="github",
-                        file_id=github_path,
+                        file_id=file["path"],
                         file_sha=file["sha"],
                         owner=owner,
-                        repo=repo_name
+                        repo=repo_name,
+                        temp_dir=ctx.temp_dir
                     )
-
-                    increment_indexed_files(
-                        db,
-                        user_id,
-                        "github"
-                    )
-
-                    time.sleep(0.2)
-
+                finally:
                     try:
-                        if os.path.exists(local_path):
+                        if local_path and os.path.exists(local_path):
                             os.remove(local_path)
-                    except PermissionError:
-                        print(f"Could not delete temp file: {local_path}")
+                    except OSError:
+                        pass  # the job temp dir is removed by the worker anyway
 
-            # TODO:
-            # Enable after GitHub migration is complete.
-            # remove_deleted_github_files()
+            process_files(
+                ctx,
+                supported,
+                file_ref=lambda item: f"{item[0]}/{item[1]}:{item[2]['path']}",
+                handle=handle
+            )
 
-            print("\nGitHub indexing completed.")
-
-        finally:
-
-            db.close()
-            clear_cancel(user_id)
+            # TODO(phase-5): deletion sync (remove_deleted_github_files is broken).
 
     def search(
         self,

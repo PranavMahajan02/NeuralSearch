@@ -1,4 +1,9 @@
 import os
+import shutil
+import uuid
+from pathlib import Path
+
+from app.core.config import settings
 
 from app.services.index_manager import (
     load_index,
@@ -26,7 +31,8 @@ def index_video(
     file_id=None,
     file_sha=None,
     owner=None,
-    repo=None
+    repo=None,
+    frames_root=None
 ):
 
     print(f"Indexing video: {file_path}")
@@ -47,55 +53,65 @@ def index_video(
 
     transcript = extract_video_text(file_path)
 
-    print("Extracting frames...")
+    # Per-call frame folder (the shared "temp_frames" let two videos
+    # overwrite each other's frames - BUG-18). Deleted once embedded.
+    frames_dir = Path(frames_root or settings.TEMP_DIR) / f"frames-{uuid.uuid4().hex}"
 
-    frames = extract_frames(
-        file_path,
-        "temp_frames"
-    )
+    try:
 
-    print(f"Frames Extracted: {len(frames)}")
+        print("Extracting frames...")
 
-    clip_embeddings = []
-    new_frames = []
+        frames = extract_frames(
+            file_path,
+            str(frames_dir)
+        )
 
-    for i, frame in enumerate(frames):
+        print(f"Frames Extracted: {len(frames)}")
 
-        try:
+        clip_embeddings = []
+        new_frames = []
 
-            embedding = get_image_embedding(frame)
+        for i, frame in enumerate(frames):
 
-            embedding = (
-                embedding.tolist()
-                if hasattr(embedding, "tolist")
-                else embedding
-            )
+            try:
 
-            clip_embeddings.append(embedding)
+                embedding = get_image_embedding(frame)
 
-            new_frames.append(
-                {
-                    "file": filename,
-                    "path": file_path,
-                    "platform": platform,
-                    "file_id": file_id,
-                    "owner": owner,
-                    "repo": repo,
-                    "sha": file_sha,
-                    "last_modified": (
-                        file_sha
-                        if platform == "google_drive"
-                        else os.path.getmtime(file_path)
-                    ),
-                    "frame_number": i,
-                    "chunk": f"Frame {i}",
-                    "embedding": embedding,
-                }
-            )
+                embedding = (
+                    embedding.tolist()
+                    if hasattr(embedding, "tolist")
+                    else embedding
+                )
 
-        except Exception as e:
+                clip_embeddings.append(embedding)
 
-            print(e)
+                new_frames.append(
+                    {
+                        "file": filename,
+                        "path": file_path,
+                        "platform": platform,
+                        "file_id": file_id,
+                        "owner": owner,
+                        "repo": repo,
+                        "sha": file_sha,
+                        "last_modified": (
+                            file_sha
+                            if platform == "google_drive"
+                            else os.path.getmtime(file_path)
+                        ),
+                        "frame_number": i,
+                        "chunk": f"Frame {i}",
+                        "embedding": embedding,
+                    }
+                )
+
+            except Exception as e:
+
+                print(e)
+
+    finally:
+
+        shutil.rmtree(frames_dir, ignore_errors=True)
 
     if transcript.strip():
 

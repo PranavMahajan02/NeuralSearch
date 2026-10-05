@@ -2,6 +2,7 @@ import os
 import requests
 from sqlalchemy.orm import Session
 
+from app.platforms.errors import PlatformPreconditionError
 from app.platforms.github.oauth import get_access_token
 
 BASE_URL = "https://api.github.com"
@@ -25,10 +26,14 @@ def github_get(
     )
 
     if response.status_code == 401:
-        raise RuntimeError("GitHub authentication failed.")
+        raise PlatformPreconditionError("GitHub authentication failed. Please reconnect GitHub.")
+
+    if response.status_code in (403, 429) and response.headers.get("X-RateLimit-Remaining") == "0":
+        raise PlatformPreconditionError("GitHub API rate limit exceeded. Try again later.")
 
     if response.status_code == 403:
-        raise RuntimeError("GitHub API rate limit exceeded.")
+        # Permission problem on one resource (e.g. a single repo): not job-fatal.
+        raise RuntimeError("GitHub denied access to this resource (403).")
 
     response.raise_for_status()
 

@@ -5,6 +5,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 
 from app.database.db import SessionLocal
+from app.platforms.errors import PlatformPreconditionError
 
 from app.platforms.google_drive.google_drive_credentials import (
     load_google_credentials
@@ -27,7 +28,7 @@ def get_drive_service(user_id):
 
         if creds is None:
 
-            raise Exception(
+            raise PlatformPreconditionError(
 
                 "Google Drive is not connected."
 
