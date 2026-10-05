@@ -1,84 +1,44 @@
-"""Atomic pickle store, error sanitizing, indexing-chain error propagation."""
+"""No pickles left, error sanitizing, indexing-pipeline error propagation."""
 
-import pickle
-import threading
-import time
 from pathlib import Path
 
 import pytest
 
 from app.scheduler.errors import sanitize_error
-from app.services.pickle_store import dump_pickle_atomic, load_pickle
 
 
 # ---------------------------------------------------------------------------
-# Atomic pickle writes (BUG-19 / E2)
+# The pickle indexes are gone (Phase 3)
 # ---------------------------------------------------------------------------
 
-def test_concurrent_reader_never_sees_a_partial_pickle(tmp_path):
+ROOT = Path(__file__).resolve().parent.parent
 
-    path = str(tmp_path / "index.pkl")
-
-    # Two very different payloads; a torn read would fail to unpickle or
-    # produce something that is neither.
-    small = [{"file": "a", "chunk": "x"}] * 10
-    large = [{"file": f"f{i}", "chunk": "y" * 200} for i in range(20000)]
-
-    dump_pickle_atomic(path, small)
-
-    stop = threading.Event()
-    problems = []
-    reads = [0]
-
-    def writer():
-        flip = False
-        while not stop.is_set():
-            dump_pickle_atomic(path, large if flip else small)
-            flip = not flip
-
-    def reader():
-        while not stop.is_set():
-            try:
-                data = load_pickle(path)
-            except Exception as error:   # EOFError / UnpicklingError on a torn file
-                problems.append(repr(error))
-                continue
-            if len(data) not in (len(small), len(large)):
-                problems.append(f"unexpected length {len(data)}")
-            reads[0] += 1
-
-    threads = [threading.Thread(target=writer)] + [threading.Thread(target=reader) for _ in range(3)]
-    for thread in threads:
-        thread.start()
-
-    time.sleep(1.5)
-    stop.set()
-    for thread in threads:
-        thread.join()
-
-    assert problems == []
-    assert reads[0] > 10
-    assert not Path(path + ".tmp").exists()
+PRODUCTION_MODULES = ["document_search_v2.py", "image_search.py", "audio_search.py", "video_search.py",
+                      "embeddings.py", "clip_extract.py", "extract.py", "chunk.py"]
 
 
-def test_failed_write_keeps_the_old_file(tmp_path):
+def test_no_pickle_anywhere_in_the_app():
 
-    path = str(tmp_path / "index.pkl")
-    dump_pickle_atomic(path, [1, 2, 3])
+    offenders = []
 
-    class Unpicklable:
-        def __reduce__(self):
-            raise TypeError("cannot pickle this")
+    files = list((ROOT / "app").rglob("*.py")) + [ROOT / name for name in PRODUCTION_MODULES]
 
-    with pytest.raises(TypeError):
-        dump_pickle_atomic(path, [Unpicklable()])
+    for path in files:
+        text = path.read_text(encoding="utf-8", errors="replace").lower()
+        if "pickle" in text or ".pkl" in text:
+            offenders.append(str(path.relative_to(ROOT)))
 
-    assert load_pickle(path) == [1, 2, 3]
+    assert offenders == []
 
 
-def test_load_missing_pickle_returns_empty(tmp_path):
+def test_legacy_index_modules_are_deleted():
 
-    assert load_pickle(str(tmp_path / "missing.pkl")) == []
+    import importlib
+
+    for module in ("app.cache.search_cache", "app.services.index_manager",
+                   "app.services.pickle_store", "app.services.index_delete", "clip_utils"):
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module(module)
 
 
 # ---------------------------------------------------------------------------
@@ -117,44 +77,57 @@ def test_sanitize_error_truncates_and_handles_empty_messages():
 
 
 # ---------------------------------------------------------------------------
-# Indexing chain no longer swallows errors
+# Indexing pipeline: errors propagate and are recorded
 # ---------------------------------------------------------------------------
 
-def test_process_uploaded_file_reraises(monkeypatch, tmp_path):
+def test_index_source_reraises_and_records_failed(monkeypatch, user, tmp_path):
 
-    import app.services.upload_service as upload_service
+    import app.services.indexing_pipeline as pipeline
+    from app.services import index_store
 
-    monkeypatch.setattr(upload_service, "is_file_indexed", lambda *a, **k: False)
-
-    def broken(*args, **kwargs):
+    def broken(path, temp_dir=None):
         raise RuntimeError("extractor crashed")
 
-    monkeypatch.setattr(upload_service, "index_file", broken)
+    monkeypatch.setitem(pipeline.BUILDERS, "document", broken)
+
+    file = tmp_path / "a.txt"
+    file.write_text("hello")
 
     with pytest.raises(RuntimeError, match="extractor crashed"):
-        upload_service.process_uploaded_file(str(tmp_path / "a.pdf"))
+        pipeline.index_local_file(user["id"], str(file))
+
+    row = index_store.get_source(user["id"], "local", pipeline.local_source_id(str(file)))
+    assert (row.status, row.error) == ("failed", "RuntimeError: extractor crashed")
+
+    # A failed file is retried on the next run even with the same version.
+    assert index_store.needs_index(user["id"], "local", row.source_id, row.version) is True
 
 
 def test_upload_background_task_logs_instead_of_raising(monkeypatch, caplog):
 
+    import app.services.indexing_pipeline as pipeline
     import app.services.upload_service as upload_service
 
-    def broken(path):
+    def broken(user_id, path, **kwargs):
         raise RuntimeError("extractor crashed")
 
-    monkeypatch.setattr(upload_service, "process_uploaded_file", broken)
+    monkeypatch.setattr(pipeline, "index_local_file", broken)
 
-    upload_service.process_uploaded_file_in_background("x.pdf")
+    upload_service.index_upload_in_background("user", "x.pdf")
 
     assert any("Indexing the uploaded file failed" in r.getMessage() for r in caplog.records)
 
 
-def test_index_file_rejects_unsupported_types():
+def test_unsupported_type_is_recorded_not_indexed(user, tmp_path):
 
-    from app.services.indexers.index_file import index_file
+    from app.services import index_store
+    from app.services.indexing_pipeline import index_local_file, local_source_id
 
-    with pytest.raises(ValueError, match="Unsupported file type: .exe"):
-        index_file("tool.exe")
+    file = tmp_path / "tool.exe"
+    file.write_bytes(b"MZ")
+
+    assert index_local_file(user["id"], str(file)) == "unsupported"
+    assert index_store.get_source(user["id"], "local", local_source_id(str(file))).status == "unsupported"
 
 
 def test_old_scheduler_modules_and_routes_are_gone(app):

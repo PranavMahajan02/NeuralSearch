@@ -19,19 +19,22 @@ class HttpErrorLike(Exception):
 @pytest.fixture
 def processed(monkeypatch):
 
-    import app.services.upload_service as upload_service
+    import app.services.indexing_pipeline as pipeline
     import app.platforms.github.github_platform as github_platform
 
     seen = []
 
-    def fake_process(path, platform="local", temp_dir=None, **kwargs):
-        seen.append({"path": Path(path), "platform": platform, "temp_dir": temp_dir, **kwargs})
-        assert Path(path).exists()
-        if "broken" in Path(path).name:
+    def fake_index_source(meta, local_path, temp_dir=None, force=False):
+        file_id = meta.source_id if meta.platform == "google_drive" else meta.source_id.split(":", 1)[-1]
+        seen.append({"path": Path(local_path), "platform": meta.platform, "temp_dir": temp_dir,
+                     "file_id": file_id, "repo": meta.repo, "meta": meta})
+        assert Path(local_path).exists()
+        if "broken" in Path(local_path).name:
             raise ValueError("could not extract text")
+        return "indexed"
 
-    monkeypatch.setattr(upload_service, "process_uploaded_file", fake_process)
-    monkeypatch.setattr(github_platform, "process_uploaded_file", fake_process)
+    monkeypatch.setattr(pipeline, "index_source", fake_index_source)
+    monkeypatch.setattr(github_platform, "index_source", fake_index_source)
 
     return seen
 
@@ -195,11 +198,11 @@ def test_github_counts_skips_and_isolates_repo_errors(client, user, fake_github,
 
     job = jobs_of(client, user)["github"]
 
-    # supported: src/main.py, logo.png, broken.py, app/notes.txt, guide.txt, docs/notes.txt
-    # skipped: 2x README.md (.md unsupported), node_modules/x.js, tool.exe,
-    #          submodule (no download_url)
-    assert (job["total_files"], job["skipped_files"]) == (6, 5)
-    assert (job["succeeded_files"], job["failed_files"], job["status"]) == (5, 1, "completed_with_errors")
+    # supported: 2x README.md (Phase 3 added .md), src/main.py, logo.png, broken.py,
+    #            app/notes.txt, guide.txt, docs/notes.txt
+    # skipped: node_modules/x.js, tool.exe, submodule (no download_url)
+    assert (job["total_files"], job["skipped_files"]) == (8, 3)
+    assert (job["succeeded_files"], job["failed_files"], job["status"]) == (7, 1, "completed_with_errors")
 
     # Same path in two repos is processed for each repo.
     notes = [(item["repo"], item["file_id"]) for item in processed if item["file_id"] == "notes.txt"]
