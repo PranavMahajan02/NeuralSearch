@@ -1,5 +1,6 @@
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,16 +20,63 @@ from app.routes.upload import router as upload_router
 from app.routes.delete import router as delete_router
 from app.routes.open import router as open_router
 from app.routes.files import router as files_router
-from app.routes.scheduler import router as scheduler_router
 from app.routes.dashboard import router as dashboard_router
 from app.cache.search_cache import initialize_search_cache
 from app.routes.login_state import router as login_state_router
-from app.routes.index_status import router as index_status_router
 from app.routes import platforms
 from app.ai.model_manager import model_manager
+from app.database.db import SessionLocal
+from app.scheduler.jobs import recover_interrupted_jobs
+from app.scheduler.worker import worker as indexing_worker
 
 
 logging.basicConfig(level=logging.INFO)
+
+
+logger = logging.getLogger("cogniseek")
+
+
+def preload_models():
+
+    if os.getenv("COGNISEEK_SKIP_MODEL_PRELOAD") == "1":
+        print("Skipping AI model preload (COGNISEEK_SKIP_MODEL_PRELOAD=1).")
+        return
+
+    print("Loading AI models...")
+
+    _ = model_manager.semantic_model
+    _ = model_manager.clip_model
+    _ = model_manager.clip_processor
+    _ = model_manager.whisper_model
+    _ = model_manager.ocr_model
+
+    print("AI models ready.")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+
+    initialize_search_cache()
+
+    preload_models()
+
+    # A job still "running" was cut off by the previous shutdown.
+    with SessionLocal() as db:
+        recovered = recover_interrupted_jobs(db)
+
+    if recovered:
+        logger.warning("Marked %s interrupted job(s) as failed.", recovered)
+
+    run_worker = os.getenv("COGNISEEK_DISABLE_WORKER") != "1"
+
+    if run_worker:
+        indexing_worker.start()
+
+    try:
+        yield
+    finally:
+        if run_worker:
+            indexing_worker.stop()
 
 
 # Interactive docs and the schema are development-only.
@@ -40,7 +88,8 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs" if DOCS_ENABLED else None,
     redoc_url="/redoc" if DOCS_ENABLED else None,
-    openapi_url="/openapi.json" if DOCS_ENABLED else None
+    openapi_url="/openapi.json" if DOCS_ENABLED else None,
+    lifespan=lifespan
 )
 
 app.state.limiter = limiter
@@ -64,11 +113,9 @@ app.add_middleware(
 # Register Routers
 app.include_router(search_router)
 app.include_router(index_router)
-app.include_router(index_status_router)
 app.include_router(upload_router)
 app.include_router(open_router)
 app.include_router(files_router)
-app.include_router(scheduler_router)
 app.include_router(dashboard_router)
 app.include_router(auth_router)
 app.include_router(google_drive_router)
@@ -88,28 +135,6 @@ if settings.ENV == "development":
     from app.routes.local_picker import router as local_picker_router
 
     app.include_router(local_picker_router)
-
-
-@app.on_event("startup")
-def startup_event():
-
-    initialize_search_cache()
-
-    if os.getenv("COGNISEEK_SKIP_MODEL_PRELOAD") == "1":
-
-        print("Skipping AI model preload (COGNISEEK_SKIP_MODEL_PRELOAD=1).")
-
-        return
-
-    print("Loading AI models...")
-
-    _ = model_manager.semantic_model
-    _ = model_manager.clip_model
-    _ = model_manager.clip_processor
-    _ = model_manager.whisper_model
-    _ = model_manager.ocr_model
-
-    print("AI models ready.")
 
 
 @app.get("/")
