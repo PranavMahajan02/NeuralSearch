@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.rate_limit import limiter
 from app.database.db import get_db
-from app.scheduler.cancel import cancel_job
+from app.scheduler.jobs import cancel_user_jobs
 
 from app.models.auth_models import (
     RegisterRequest,
@@ -107,7 +107,10 @@ def logout(
     db: Session = Depends(get_db)
 ):
 
-    cancel_job(
+    # Stop this user's indexing: queued jobs are cancelled, the running one
+    # stops after its current file.
+    cancel_user_jobs(
+        db,
         current_user["id"]
     )
 

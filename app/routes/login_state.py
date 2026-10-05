@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
-
 from sqlalchemy.orm import Session
 
-from app.database.db import get_db
-from app.database.models import IndexingJob
 from app.auth.auth_dependency import get_current_user
+from app.database.db import get_db
+from app.scheduler.jobs import indexed_platforms
+
 
 router = APIRouter(
     prefix="/auth",
@@ -14,39 +14,15 @@ router = APIRouter(
 
 @router.get("/login-state")
 def login_state(
-
     current_user=Depends(get_current_user),
-
     db: Session = Depends(get_db)
-
 ):
 
-    jobs = (
-
-        db.query(IndexingJob)
-
-        .filter(
-
-            IndexingJob.user_id == current_user["id"],
-
-            IndexingJob.status == "completed"
-
-        )
-
-        .all()
-
-    )
+    # A platform counts as indexed once any job finished successfully,
+    # regardless of what is queued or running now.
+    platforms = indexed_platforms(db, current_user["id"])
 
     return {
-
-        "has_indexed": len(jobs) > 0,
-
-        "platforms": [
-
-            job.platform
-
-            for job in jobs
-
-        ]
-
+        "has_indexed": len(platforms) > 0,
+        "platforms": platforms
     }
