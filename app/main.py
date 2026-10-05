@@ -37,20 +37,22 @@ logger = logging.getLogger("cogniseek")
 
 
 def preload_models():
+    """Load every model now instead of on the first request (settings.PRELOAD_MODELS)."""
 
-    if os.getenv("COGNISEEK_SKIP_MODEL_PRELOAD") == "1":
-        print("Skipping AI model preload (COGNISEEK_SKIP_MODEL_PRELOAD=1).")
+    if not settings.PRELOAD_MODELS:
+        logger.info("Model preload disabled (PRELOAD_MODELS=false): models load on first use.")
         return
 
-    print("Loading AI models...")
+    logger.info("Loading AI models...")
 
-    _ = model_manager.semantic_model
-    _ = model_manager.clip_model
-    _ = model_manager.clip_processor
-    _ = model_manager.whisper_model
-    _ = model_manager.ocr_model
+    model_manager.preload()
 
-    print("AI models ready.")
+    # Calibration prompts are embedded once, up front.
+    from app.search import calibration
+    calibration.text_neutral_matrix()
+    calibration.clip_neutral_matrix()
+
+    logger.info("AI models ready.")
 
 
 @asynccontextmanager
