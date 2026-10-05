@@ -12,6 +12,8 @@ export interface Platform {
   id: PlatformId;
   name: string;
   connected: boolean;
+  /** Connected account: Google email / GitHub login. */
+  account?: string | null;
   indexed: boolean;
   status: "idle" | "waiting" | "indexing" | "indexed" | "paused";
   progress: number; // 0 to 100
