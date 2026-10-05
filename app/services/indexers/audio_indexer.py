@@ -1,100 +1,34 @@
-import os
+"""Audio -> Whisper transcript chunks -> MiniLM vectors (collection: audio)."""
 
-from app.services.index_manager import (
-    load_index,
-    save_index
-)
+from typing import List
 
-from audio_extract import extract_audio_text
-from chunk import chunk_text
-from embeddings import get_embeddings
-from app.vectorstore.insert import insert_vectors
-from app.vectorstore.delete import delete_vectors
-from app.vectorstore.config import AUDIO_COLLECTION
+from app.ai.embedder import embed_texts
+from app.services.index_store import IndexPoint
+from app.services.indexers.document_indexer import chunk_text
 
-def index_audio(
-    file_path,
-    platform="local",
-    file_id=None,
-    file_sha=None,
-    owner=None,
-    repo=None
-):
 
-    print(f"Indexing audio: {file_path}")
+CHUNK_SIZE = 500
 
-    filename = os.path.basename(file_path)
 
-    delete_vectors(
-        collection_name=AUDIO_COLLECTION,
-        platform=platform,
-        file_id=file_id,
-        path=file_path,
-        repo=repo,
-    )
+def extract_audio_transcript(path: str) -> str:
 
-    transcript = extract_audio_text(file_path)
+    from audio_extract import extract_audio_text
+
+    return extract_audio_text(path) or ""
+
+
+def build_audio_points(path: str, temp_dir=None) -> List[IndexPoint]:
+    """Silent audio -> no points ('no_content', not re-transcribed next run)."""
+
+    transcript = extract_audio_transcript(path)
 
     if not transcript.strip():
+        return []
 
-        print("No transcript generated.")
+    chunks = chunk_text(transcript, CHUNK_SIZE)
+    vectors = embed_texts(chunks)
 
-        return
-
-    print("Creating chunks...")
-
-    chunks = chunk_text(
-        transcript,
-        chunk_size=500
-    )
-
-    print(f"Chunks Created: {len(chunks)}")
-
-    print("Generating embeddings...")
-
-    embeddings = get_embeddings(chunks)
-
-    print("Embeddings Created")
-
-    new_audio = []
-
-    all_audio = load_index(file_path)
-
-    for chunk, embedding in zip(chunks, embeddings):
-
-        audio = {
-            "file": filename,
-            "path": file_path,
-            "platform": platform,
-            "file_id": file_id,
-            "owner": owner,
-            "repo": repo,
-            "sha": file_sha,
-            "last_modified": (
-                file_sha
-                if platform == "google_drive"
-                else os.path.getmtime(file_path)
-            ),
-            "transcript": transcript,
-            "chunk": chunk,
-            "embedding": (
-                embedding.tolist()
-                if hasattr(embedding, "tolist")
-                else embedding
-            )
-        }
-
-        all_audio.append(audio)
-        new_audio.append(audio)
-
-    save_index(
-        file_path,
-        all_audio
-    )
-
-    insert_vectors(
-        new_audio,
-        AUDIO_COLLECTION
-    )
-
-    print("Audio indexing completed.")
+    return [
+        IndexPoint(type="audio", vector=vector, chunk_index=index, chunk=chunk)
+        for index, (chunk, vector) in enumerate(zip(chunks, vectors))
+    ]

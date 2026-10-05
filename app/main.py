@@ -21,7 +21,7 @@ from app.routes.delete import router as delete_router
 from app.routes.open import router as open_router
 from app.routes.files import router as files_router
 from app.routes.dashboard import router as dashboard_router
-from app.cache.search_cache import initialize_search_cache
+from app.vectorstore.schema import ensure_collections
 from app.routes.login_state import router as login_state_router
 from app.routes import platforms
 from app.ai.model_manager import model_manager
@@ -56,7 +56,12 @@ def preload_models():
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
 
-    initialize_search_cache()
+    # Qdrant is the only index: make sure the v2 collections and their
+    # payload indexes exist (idempotent).
+    created = ensure_collections()
+
+    if created:
+        logger.warning("Created Qdrant collections: %s", ", ".join(created))
 
     preload_models()
 

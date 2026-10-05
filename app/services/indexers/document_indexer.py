@@ -1,167 +1,60 @@
+"""Documents -> text chunks -> MiniLM vectors (collection: text)."""
+
 import os
+from typing import List
+
+from app.ai.embedder import embed_texts
+from app.config.file_types import TEXT_DOCUMENTS
+from app.services.index_store import IndexPoint
 
 
-from app.services.index_manager import (
-    load_index,
-    save_index
-)
+CHUNK_SIZE = 1000
 
 
-from extract import extract_text
+def extract_document_text(path: str) -> str:
 
-from docx_extract import extract_docx
-
-from pptx_extract import extract_pptx
-
-from txt_extract import extract_txt
-
-from app.services.indexers.csv_extract import extract_csv
-
-from chunk import chunk_text
-
-from embeddings import get_embeddings
-from app.vectorstore.insert import insert_vectors
-from app.vectorstore.delete import delete_vectors
-from app.vectorstore.config import TEXT_COLLECTION
-
-def index_document(
-    file_path,
-    platform="local",
-    file_id=None,
-    file_sha=None,
-    owner=None,
-    repo=None
-):
-
-    print(f"Indexing document: {file_path}")
-
-    filename = os.path.basename(file_path)
-
-    delete_vectors(
-        collection_name=TEXT_COLLECTION,
-        platform=platform,
-        file_id=file_id,
-        path=file_path,
-        repo=repo,
-    )
-
-    extension = os.path.splitext(file_path)[1].lower()
-
-    text = ""
+    extension = os.path.splitext(path)[1].lower()
 
     if extension == ".pdf":
+        from extract import extract_text
+        return extract_text(path)
 
-        text = extract_text(file_path)
+    if extension == ".docx":
+        from docx_extract import extract_docx
+        return extract_docx(path)
 
-    elif extension == ".docx":
+    if extension == ".pptx":
+        from pptx_extract import extract_pptx
+        return extract_pptx(path)
 
-        text = extract_docx(file_path)
-    
-    elif extension == ".pptx":
+    if extension == ".csv":
+        from app.services.indexers.csv_extract import extract_csv
+        return extract_csv(path)
 
-        text = extract_pptx(file_path)
+    if extension in TEXT_DOCUMENTS:   # includes .md / .markdown
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            return f.read()
 
-    elif extension in (
-        ".txt",
-        ".py",
-        ".java",
-        ".js",
-        ".ts",
-        ".tsx",
-        ".cpp",
-        ".c",
-        ".cs",
-        ".go",
-        ".rs",
-        ".php",
-        ".html",
-        ".css",
-        ".json",
-        ".xml",
-        ".yaml",
-        ".yml",
-        ".sql",
-        ".sh"
-    ):
+    raise ValueError(f"Unsupported document type: {extension or 'none'}")
 
-         text = extract_txt(file_path)
 
-    elif extension == ".csv":
+def chunk_text(text: str, size: int) -> List[str]:
 
-          text = extract_csv(file_path)
+    return [text[i:i + size] for i in range(0, len(text), size)]
 
-    elif extension in (
-        ".jpg",
-        ".jpeg",
-        ".png"
-    ):
-        from paddle_extract import extract_text as paddle_ocr
 
-        text = paddle_ocr(file_path)
+def build_document_points(path: str, temp_dir=None) -> List[IndexPoint]:
+    """No text -> no points (the ledger records 'no_content')."""
 
-    else:
-
-        print(f"Unsupported file type: {extension}")
-
-        return
+    text = extract_document_text(path) or ""
 
     if not text.strip():
+        return []
 
-        print("No text extracted.")
+    chunks = chunk_text(text, CHUNK_SIZE)
+    vectors = embed_texts(chunks)
 
-        return
-
-    print("Creating chunks...")
-
-    chunks = chunk_text(
-        text,
-        chunk_size=1000
-    )
-
-    print(f"Chunks Created: {len(chunks)}")
-
-    print("Generating embeddings...")
-
-    embeddings = get_embeddings(
-        chunks
-    )
-
-    print("Embeddings Created")
-
-    all_documents = load_index(file_path)
-
-    new_documents = []
-
-    for chunk, embedding in zip(chunks, embeddings):
-
-        document = {
-            "file": filename,
-            "path": file_path,
-            "platform": platform,
-            "file_id": file_id,
-            "owner": owner,
-            "repo": repo,
-            "sha": file_sha,
-            "last_modified": (
-                file_sha
-                if platform == "google_drive"
-                else os.path.getmtime(file_path)
-            ),
-            "chunk": chunk,
-            "embedding": embedding.tolist() if hasattr(embedding, "tolist") else embedding
-        }
-
-        all_documents.append(document)
-        new_documents.append(document)
-
-    save_index(
-        file_path,
-        all_documents
-    )
-
-    insert_vectors(
-        new_documents,
-        TEXT_COLLECTION
-    )
-
-    print("Document indexing completed.")
+    return [
+        IndexPoint(type="document", vector=vector, chunk_index=index, chunk=chunk)
+        for index, (chunk, vector) in enumerate(zip(chunks, vectors))
+    ]

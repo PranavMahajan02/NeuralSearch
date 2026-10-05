@@ -157,17 +157,3 @@ def download_file(
         f.write(response.content)
 
     return file_path
-
-
-def get_github_file_url(
-    owner,
-    repo,
-    path
-):
-
-    return (
-        f"https://github.com/"
-        f"{owner}/"
-        f"{repo}/blob/main/"
-        f"{path}"
-    )
