@@ -62,7 +62,7 @@ os.environ.update({
     "MAX_UPLOAD_MB": "1",
     "CORS_ORIGINS": "http://localhost:3000",
     "FRONTEND_URL": "http://localhost:3000",
-    "COGNISEEK_SKIP_MODEL_PRELOAD": "1",
+    "PRELOAD_MODELS": "false",
     # Tests drive the indexing worker explicitly (IndexingWorker.run_once).
     "COGNISEEK_DISABLE_WORKER": "1",
     # In-process Qdrant + a throwaway prefix: tests can never reach the real
@@ -272,9 +272,16 @@ def fake_embedder(monkeypatch):
 
     import app.ai.embedder as embedder
 
+    from app.search import calibration, query_vectors
+
     monkeypatch.setattr(embedder, "backend", FakeEmbedder())
+    query_vectors.cache_clear()
+    calibration.cache_clear()
 
     yield
+
+    query_vectors.cache_clear()
+    calibration.cache_clear()
 
 
 @pytest.fixture(scope="session", autouse=True)
