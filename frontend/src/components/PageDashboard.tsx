@@ -5,7 +5,7 @@ import { MOCK_FILES } from "../data/mockFiles";
 import { searchFiles as apiSearchFiles } from "../services/search";
 import PageIndexingCenter from "./PageIndexingCenter";
 import { openFile } from "../services/open";
-import { getIndexJobs } from "../services/index";
+import type { IndexJob } from "../services/index";
 import {
   getDashboardStats,
   getDashboardPlatforms
@@ -66,6 +66,9 @@ interface PageDashboardProps {
   stats: DashboardStats;
   onUpdateStats: React.Dispatch<React.SetStateAction<DashboardStats>>;
   onLogout: () => void;
+  /** From App's single /index/jobs poller. */
+  indexJobs: IndexJob[];
+  onJobsChanged: () => void;
 
   onStartIndexing: (
     priorityId: PlatformId,
@@ -101,6 +104,8 @@ export default function PageDashboard({
   stats,
   onUpdateStats,
   onLogout,
+  indexJobs,
+  onJobsChanged,
   onStartIndexing,
   onTogglePlatformConnect,
   theme,
@@ -123,7 +128,6 @@ export default function PageDashboard({
   const [user, setUser] = useState<any>(null);
   const [searching, setSearching] = useState(false);
   const [dashboardPlatforms, setDashboardPlatforms] = useState<any>(null);
-  const [indexJobs, setIndexJobs] = useState<any[]>([]);
   const refreshLocalFolders = async () => {
     try {
 
@@ -260,27 +264,7 @@ export default function PageDashboard({
 
     loadUser();
 
-    const loadJobs = async () => {
-
-      try {
-
-        const jobs = await getIndexJobs();
-
-        setIndexJobs(jobs);
-
-      } catch (err) {
-
-        console.error(err);
-
-      }
-
-    };
-
-    loadJobs();
-
-    const timer = setInterval(loadJobs, 1000);
-
-    return () => clearInterval(timer);
+    // Jobs come from App's single poller (the second 1 s interval is gone).
 
   }, []);
 
@@ -1386,6 +1370,7 @@ export default function PageDashboard({
               onToggleTheme={onToggleTheme}
               streamFeed={streamFeed}
               indexJobs={indexJobs}
+              onJobsChanged={onJobsChanged}
             />
           )}
 

@@ -3,10 +3,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { Platform, PlatformId, IndexLog, DashboardStats } from "../types";
 import { MOCK_FILES } from "../data/mockFiles";
 import { getDashboardStats } from "../services/dashboard";
-import {
-  startScheduler,
-  getSchedulerStatus
-} from "../services/scheduler";
+import IndexJobsPanel from "./IndexJobsPanel";
+import { cancelIndexJob, IndexJob } from "../services/index";
 import {
   Database,
   CheckCircle2,
@@ -38,7 +36,8 @@ interface PageIndexingCenterProps {
   onToggleTheme?: () => void;
   streamFeed: IndexLog[];
   priorityPlatformId?: PlatformId | null;
-  indexJobs: any[];
+  indexJobs: IndexJob[];
+  onJobsChanged?: () => void;
 }
 
 export default function PageIndexingCenter({
@@ -54,7 +53,8 @@ export default function PageIndexingCenter({
   onToggleTheme,
   streamFeed,
   priorityPlatformId,
-  indexJobs
+  indexJobs,
+  onJobsChanged
 }: PageIndexingCenterProps) {
   const activePlatform = platforms.find(
     (p) =>
@@ -75,7 +75,7 @@ export default function PageIndexingCenter({
 
     return (
       job.platform === backendPlatform &&
-      job.status === "indexing"
+      job.status === "running"
     );
 
   });
@@ -94,7 +94,18 @@ export default function PageIndexingCenter({
     );
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
+    // Real cancel on the backend: stops the running job after its current
+    // file and cancels this user's queued jobs.
+    const running = indexJobs.find((job) => job.status === "running");
+    if (running) {
+      try {
+        await cancelIndexJob(running.id);
+      } catch (error) {
+        alert((error as Error).message || "Unable to cancel indexing.");
+      }
+      onJobsChanged?.();
+    }
     if (!activePlatformId) return;
     onUpdatePlatforms((prev) =>
       prev.map((p) => {
@@ -191,6 +202,11 @@ export default function PageIndexingCenter({
                   IDLE
                 </span>
               )}
+            </div>
+
+            {/* Real per-job state: status, counters, errors, cancel */}
+            <div className="mb-4">
+              <IndexJobsPanel jobs={indexJobs} onChanged={onJobsChanged} />
             </div>
 
             {currentActivePlatform ? (
