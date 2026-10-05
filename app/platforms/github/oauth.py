@@ -8,6 +8,7 @@ import requests
 from sqlalchemy.orm import Session
 
 from app.database.models import OAuthState
+from app.platforms.errors import PlatformPreconditionError
 from app.database.platform_connection_service import (
     get_platform_connection
 )
@@ -92,9 +93,9 @@ def get_access_token(
 
     if connection is None or not connection.connected or not connection.access_token:
 
-        raise Exception(
+        raise PlatformPreconditionError(
 
-            "GitHub not connected."
+            "GitHub is not connected."
 
         )
 
