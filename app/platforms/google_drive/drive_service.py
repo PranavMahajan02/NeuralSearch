@@ -1,4 +1,5 @@
 import io
+import logging
 import os
 
 from googleapiclient.discovery import build
@@ -6,6 +7,9 @@ from googleapiclient.http import MediaIoBaseDownload
 
 from app.database.db import SessionLocal
 from app.platforms.errors import PlatformPreconditionError
+
+
+logger = logging.getLogger("cogniseek.google_drive")
 
 from app.platforms.google_drive.google_drive_credentials import (
     load_google_credentials
@@ -151,10 +155,6 @@ def download_file(
 
             if status:
 
-                print(
-
-                    f"Download: {int(status.progress() * 100)}%"
-
-                )
+                logger.debug("Download %s%%", int(status.progress() * 100))
 
     return save_path

@@ -8,9 +8,9 @@ from app.services.index_store import IndexPoint
 
 def extract_image_text(path: str) -> str:
 
-    from paddle_extract import extract_text as paddle_ocr
+    from app.extractors.ocr import extract_text
 
-    return paddle_ocr(path) or ""
+    return extract_text(path) or ""
 
 
 def build_image_points(path: str, temp_dir=None) -> List[IndexPoint]:

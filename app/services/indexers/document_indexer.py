@@ -16,15 +16,15 @@ def extract_document_text(path: str) -> str:
     extension = os.path.splitext(path)[1].lower()
 
     if extension == ".pdf":
-        from extract import extract_text
+        from app.extractors.pdf_extract import extract_text
         return extract_text(path)
 
     if extension == ".docx":
-        from docx_extract import extract_docx
+        from app.extractors.docx_extract import extract_docx
         return extract_docx(path)
 
     if extension == ".pptx":
-        from pptx_extract import extract_pptx
+        from app.extractors.pptx_extract import extract_pptx
         return extract_pptx(path)
 
     if extension == ".csv":

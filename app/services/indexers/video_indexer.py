@@ -21,14 +21,14 @@ CHUNK_SIZE = 500
 
 def extract_video_transcript(path: str) -> str:
 
-    from video_extract import extract_video_text
+    from app.extractors.video_extract import extract_video_text
 
     return extract_video_text(path) or ""
 
 
 def extract_frames(path: str, output_folder: str) -> List[str]:
 
-    from video_frame_extract import extract_frames as extract
+    from app.extractors.video_frames import extract_frames as extract
 
     return extract(path, output_folder)
 

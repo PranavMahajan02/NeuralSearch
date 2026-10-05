@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from "motion/react";
 import { Platform, PlatformId, MockFile, DashboardStats, SearchType, IndexLog } from "../types";
 import { MOCK_FILES } from "../data/mockFiles";
 import { searchFiles as apiSearchFiles } from "../services/search";
+
+// Results requested per search (the backend caps limit at 50).
+const SEARCH_PAGE_SIZE = 50;
 import PageIndexingCenter from "./PageIndexingCenter";
 import { openFile } from "../services/open";
 import type { IndexJob } from "../services/index";
@@ -392,11 +395,14 @@ export default function PageDashboard({
 
     try {
 
-      const results = await apiSearchFiles(
+      const response = await apiSearchFiles(
         currentQuery,
         currentPlatform,
-        currentSearchType
+        currentSearchType,
+        SEARCH_PAGE_SIZE,
+        0
       );
+      const results = response.results;
       console.log("API RESULTS");
       console.table(results);
       console.log("API RESULTS");
@@ -1079,7 +1085,7 @@ export default function PageDashboard({
                         const platformObj = platforms.find((p) => p.id === file.platform);
                         return (
                           <motion.div
-                            key={file.id}
+                            key={`${file.platform}:${file.source_id}`}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/85 rounded-2xl p-5 hover:border-blue-300 dark:hover:border-slate-700 hover:shadow-xs transition-all relative group flex flex-col"
@@ -1099,8 +1105,8 @@ export default function PageDashboard({
                                 {/* Content Preview highlighting matches */}
                                 <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-normal">
                                   {renderHighlightedSnippet(
-                                    file.ocr_text ??
-                                    file.file ??
+                                    file.match?.snippet ||
+                                    file.file ||
                                     "",
                                     query
                                   )}
@@ -1123,7 +1129,7 @@ export default function PageDashboard({
                               <span>Last Modified: <strong className="font-mono text-slate-700 dark:text-slate-300">{file.modifiedDate}</strong></span>
                               <span>&bull;</span>
                               <span className="inline-flex items-center gap-1 bg-blue-50/85 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border border-blue-100/30 dark:border-blue-900/30 px-2 py-0.5 rounded-full font-bold">
-                                Relevance: {file.file.toLowerCase().includes(query.toLowerCase()) ? "98%" : "84%"}
+                                Relevance: {Math.round((file.score ?? 0) * 100)}%
                               </span>
                             </div>
 
@@ -1480,7 +1486,7 @@ export default function PageDashboard({
                     </span>
 
                     <div className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl p-4 font-mono text-[11px] text-slate-650 dark:text-slate-300 leading-relaxed overflow-y-auto max-h-56 min-h-[11rem] whitespace-pre-wrap select-text">
-                      {activeModalFile.ocr_text}
+                      {activeModalFile.match?.snippet || activeModalFile.ocr_text}
                     </div>
                   </div>
 
