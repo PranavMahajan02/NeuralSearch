@@ -332,6 +332,13 @@ class IndexedFile(Base):
             name="ck_indexed_files_status"
         ),
         Index("ix_indexed_files_user_platform", "user_id", "platform"),
+        # Trigram index: fuzzy file-name candidates for search (BUG-21).
+        Index(
+            "ix_indexed_files_file_name_trgm",
+            "file_name",
+            postgresql_using="gin",
+            postgresql_ops={"file_name": "gin_trgm_ops"}
+        ),
     )
 
     id = Column(
