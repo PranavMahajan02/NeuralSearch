@@ -63,6 +63,8 @@ os.environ.update({
     "CORS_ORIGINS": "http://localhost:3000",
     "FRONTEND_URL": "http://localhost:3000",
     "COGNISEEK_SKIP_MODEL_PRELOAD": "1",
+    # Tests drive the indexing worker explicitly (IndexingWorker.run_once).
+    "COGNISEEK_DISABLE_WORKER": "1",
     "TEMP_DIR": str(WORK_DIR / "temp"),
     "BACKEND_PUBLIC_URL": "http://127.0.0.1:8000",
     "GITHUB_OAUTH_CONFIG_PATH": str(WORK_DIR / "no-github-oauth.json"),
