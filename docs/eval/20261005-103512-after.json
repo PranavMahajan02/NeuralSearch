@@ -1,0 +1,617 @@
+{
+  "aggregate": {
+    "queries": 39,
+    "positive_queries": 33,
+    "negative_queries": 6,
+    "precision_at_5": 0.903,
+    "recall_at_10": 0.9242,
+    "mrr": 0.904,
+    "negative_false_positives": 1,
+    "negative_queries_with_results": 1,
+    "latency_p50_s": 0.1992,
+    "latency_p95_s": 0.2326
+  },
+  "per_query": [
+    {
+      "query": "java",
+      "status": 200,
+      "latency_s": 0.1362,
+      "returned": 11,
+      "top5": [
+        "Coursera Object Oriented Programming in Java.pdf",
+        "ANimal kingdom java.docx",
+        "Coursera JAVA.pdf",
+        "Coursera 218C6INRWW2O.pdf",
+        "DAILY PRACTICE.docx"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "jva notes",
+      "status": 200,
+      "latency_s": 0.1784,
+      "returned": 4,
+      "top5": [
+        "DAILY PRACTICE.docx",
+        "Hall ticket.jpeg",
+        "Turing Machine_Notes.pdf",
+        "Unit 2 - Financial Management - Notes.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "java!!!@#$%",
+      "status": 200,
+      "latency_s": 0.1211,
+      "returned": 11,
+      "top5": [
+        "Coursera Object Oriented Programming in Java.pdf",
+        "ANimal kingdom java.docx",
+        "Coursera JAVA.pdf",
+        "Coursera 218C6INRWW2O.pdf",
+        "DAILY PRACTICE.docx"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "DBMS assignment",
+      "status": 200,
+      "latency_s": 0.1826,
+      "returned": 16,
+      "top5": [
+        "DBMS assignment 2.docx",
+        "DBMS ASSIGNMENT 4.docx",
+        "DBMS ASSIGNMENT 3 .docx",
+        "DBMS ASSIGNMENT 1 ER DIAGRAM.docx",
+        "SY DBMS LAB MANUAL 2025-26.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 0.8,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "hospital management system",
+      "status": 200,
+      "latency_s": 0.1745,
+      "returned": 19,
+      "top5": [
+        "Hospital_Management_System_Final.pptx",
+        "Unit-I Introduction of Software Engineering_1-8-25.pdf",
+        "SY_DASHBOARD_MITSOC.csv",
+        "Hospital Management System - DBMS Jury.pptx",
+        "SY DBMS LAB MANUAL 2025-26.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "capital budgeting",
+      "status": 200,
+      "latency_s": 0.1765,
+      "returned": 5,
+      "top5": [
+        "Unit 2 - Capital Budgeting.pdf",
+        "Unit 2 - Financial Management - Numerical Problems.pdf",
+        "Unit 2 - Time Value of Money.pdf",
+        "Unit 2 - Financial Management - Notes.pdf",
+        "1. Unit 1 - Basics of Economics - Updated PPT.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "time value of money",
+      "status": 200,
+      "latency_s": 0.1866,
+      "returned": 15,
+      "top5": [
+        "Unit 2 - Time Value of Money.pdf",
+        "Unit 2 - Financial Management - Notes.pdf",
+        "Unit 2 - Financial Management - Numerical Problems.pdf",
+        "Unit 2 - Capital Budgeting.pdf",
+        "1. Unit 1 - Basics of Economics - Updated PPT.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "photon detectors",
+      "status": 200,
+      "latency_s": 0.198,
+      "returned": 5,
+      "top5": [
+        "Unit 3 Photon Detectors 23.03.2025.pptx",
+        "hb_Quantum_Computing.pdf",
+        "Topic IV- photonics.pptx",
+        "Unit-II Photon Sources.pdf",
+        "Unit -I Interaction of photon with Matter.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "binary tree",
+      "status": 200,
+      "latency_s": 0.1831,
+      "returned": 12,
+      "top5": [
+        "Binary tree DSA ASS 1.docx",
+        "Binary tree DSA ASS 1.pdf",
+        "UNIT 1 (2).pdf",
+        "Data Structures Varsha Patil.pdf",
+        "DSA_LAB_ASS1.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "fee collection 57500",
+      "status": 200,
+      "latency_s": 0.1923,
+      "returned": 7,
+      "top5": [
+        "TCS iON Fee Collection 57500.pdf",
+        "TCS iON Fee Collection 50k 2nd sem.pdf",
+        "TCS iON Fee Collection.pdf",
+        "TCS iON Fee Collection 15000.pdf",
+        "TCS iON Fee Collection 70000.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 0.5,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "academic calendar 2024-25",
+      "status": 200,
+      "latency_s": 0.2084,
+      "returned": 10,
+      "top5": [
+        "B-Tech First Year Academic Calendar AY 2024-25.pdf",
+        "SE_TA-2_Set1_2024.pdf",
+        "SE TA-2_set2_2024.pdf",
+        "CN_ESE1.docx",
+        "CN_ESE_2.docx"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "quantum computing",
+      "status": 200,
+      "latency_s": 0.1875,
+      "returned": 8,
+      "top5": [
+        "hb_Quantum_Computing.pdf",
+        "CC Structure 2023-24 SoC CSE-NEP.pdf",
+        "AIA Structure 2023-24 SoC CSE-NEP.pdf",
+        "Unit -I Interaction of photon with Matter.pdf",
+        "Unit-II Photon Sources.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "SQL PLSQL",
+      "status": 200,
+      "latency_s": 0.1992,
+      "returned": 4,
+      "top5": [
+        "UNIT II- SQL PLSQL 2018-19 (1).pptx",
+        "unit i – introduction of database and sql.pptx",
+        "UNIT IV.pptx",
+        "SY DBMS LAB MANUAL 2025-26.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "TURING MACHINE",
+      "status": 200,
+      "latency_s": 0.1788,
+      "returned": 4,
+      "top5": [
+        "Turing Machine_Notes.pdf",
+        "paper_23IT2006.pdf",
+        "paper_23CSE2017.pdf",
+        "hb_Quantum_Computing.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "how should a project report be formatted",
+      "status": 200,
+      "latency_s": 0.2326,
+      "returned": 15,
+      "top5": [
+        "Annexure 6_Project report format - guidelines_SKP.docx",
+        "TechForGood2026_Report_Template.docx",
+        "SY & TY Mini Proejct Calendar sem-2_2025-26.pdf",
+        "Project_Phase-2_Notice_Final_Year_Sem-2_2025-26.pdf",
+        "SY & TY Mini Proejct Calendar sem-1_2025-26.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "Apple financial report",
+      "status": 200,
+      "latency_s": 0.2077,
+      "returned": 2,
+      "top5": [
+        "Financial Report Apple Inc.docx",
+        "Tata Steel.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "software engineering assignment",
+      "status": 200,
+      "latency_s": 0.2053,
+      "returned": 19,
+      "top5": [
+        "Unit-I Introduction of Software Engineering_1-8-25.pdf",
+        "Software Engineering  Project (1).pptx",
+        "Assignment No 01 SE.pdf",
+        "Unit3_FINAL.pdf",
+        "Data Structures Varsha Patil.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 0.5,
+      "recall_at_10": 0.5,
+      "reciprocal_rank": 0.3333333333333333,
+      "first_relevant_rank": 3
+    },
+    {
+      "query": "Find my government documents",
+      "status": 200,
+      "latency_s": 0.199,
+      "returned": 2,
+      "top5": [
+        "SY_DASHBOARD_MITSOC.csv",
+        "SIH Problem Statements.pdf"
+      ],
+      "modality": "document",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "train model",
+      "status": 200,
+      "latency_s": 0.1999,
+      "returned": 7,
+      "top5": [
+        "backend__train_model.py",
+        "SY_DASHBOARD_MITSOC.csv",
+        "Data Structures Varsha Patil.pdf",
+        "backend__app.py",
+        "SE TA-2_set2_2024.pdf"
+      ],
+      "modality": "code",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "chrome extension manifest",
+      "status": 200,
+      "latency_s": 0.2104,
+      "returned": 3,
+      "top5": [
+        "final report.docx",
+        "extension__manifest.json",
+        "SY1110.csv"
+      ],
+      "modality": "code",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 0.5,
+      "first_relevant_rank": 2
+    },
+    {
+      "query": "merge datasets",
+      "status": 200,
+      "latency_s": 0.2623,
+      "returned": 2,
+      "top5": [
+        "backend__merge_datasets.py",
+        "backend__clean_datasets.py"
+      ],
+      "modality": "code",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "tiger",
+      "status": 200,
+      "latency_s": 0.2055,
+      "returned": 1,
+      "top5": [
+        "tiger-looking-with-open-mouth_1150-18083.avif"
+      ],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "hall ticket",
+      "status": 200,
+      "latency_s": 0.2095,
+      "returned": 1,
+      "top5": [
+        "Hall ticket.jpeg"
+      ],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "golden retriever dog",
+      "status": 200,
+      "latency_s": 0.2236,
+      "returned": 1,
+      "top5": [
+        "Golden_Retriever.webp"
+      ],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "pizza",
+      "status": 200,
+      "latency_s": 0.1834,
+      "returned": 2,
+      "top5": [
+        "delicious-pepperoni-pizza-culinary-delight_632498-24206.avif",
+        "Unit 1.pdf"
+      ],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "coffee",
+      "status": 200,
+      "latency_s": 0.1976,
+      "returned": 2,
+      "top5": [
+        "latte-coffee_1122-2728.avif",
+        "Unit 1 Numerical Problems.pdf"
+      ],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "motorcycle",
+      "status": 200,
+      "latency_s": 0.1829,
+      "returned": 1,
+      "top5": [
+        "royalenfield-hunter-350-retro-factory1727790756803.webp"
+      ],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "climate change speech",
+      "status": 200,
+      "latency_s": 0.2163,
+      "returned": 4,
+      "top5": [
+        "5 Minute Speech - Action on Climate Change - 10 August 2021 - Gladys Liu MP.mp3",
+        "DSA[1][1].docx",
+        "Unit 1.pdf",
+        "1. Unit 1 - Basics of Economics - Updated PPT.pdf"
+      ],
+      "modality": "audio",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "gender equality",
+      "status": 200,
+      "latency_s": 0.2015,
+      "returned": 2,
+      "top5": [
+        "ENGLISH SPEECH  EMMA WATSON Gender Equality (English Subtitles) - English Speeches.mp3",
+        "Yashavant P. Kanetkar ( PDFDrive ).pdf"
+      ],
+      "modality": "audio",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "forest bathing",
+      "status": 200,
+      "latency_s": 0.1906,
+      "returned": 1,
+      "top5": [
+        "vidssave.com Forest Bathing _ Shinrin-Yoku _ Healing in Nature _ Short Documentary 720P.mp4"
+      ],
+      "modality": "video",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "brain behaves differently in nature",
+      "status": 200,
+      "latency_s": 0.2483,
+      "returned": 2,
+      "top5": [
+        "vidssave.com Forest Bathing _ Shinrin-Yoku _ Healing in Nature _ Short Documentary 720P.mp4",
+        "vidssave.com How Champions Train Their Minds to Win _ Raj shamani _ #rajshamani 480P.mp4"
+      ],
+      "modality": "video",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "cute baby animals",
+      "status": 200,
+      "latency_s": 0.1958,
+      "returned": 1,
+      "top5": [
+        "vidssave.com 7 Minutes of The Cutest Baby Animals You've Ever Seen _ Nat Geo 720p.mp4"
+      ],
+      "modality": "video",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "data centers in space",
+      "status": 200,
+      "latency_s": 0.1935,
+      "returned": 10,
+      "top5": [
+        "vidssave.com How Data Centers in Space Could Change AI 480P.mp4",
+        "UNIT 3.pptx.pdf",
+        "Data Structures Varsha Patil.pdf",
+        "SY_DASHBOARD_MITSOC.csv",
+        "BDCE Structure 2023-24 SoC-NEP.pdf"
+      ],
+      "modality": "video",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "xqzv wplk qqq",
+      "status": 200,
+      "latency_s": 0.2001,
+      "returned": 0,
+      "top5": [],
+      "negative": true,
+      "false_positives": 0
+    },
+    {
+      "query": "submarine volcano eruption",
+      "status": 200,
+      "latency_s": 0.2109,
+      "returned": 0,
+      "top5": [],
+      "negative": true,
+      "false_positives": 0
+    },
+    {
+      "query": "kubernetes helm chart deployment",
+      "status": 200,
+      "latency_s": 0.229,
+      "returned": 0,
+      "top5": [],
+      "negative": true,
+      "false_positives": 0
+    },
+    {
+      "query": "basketball tournament scores",
+      "status": 200,
+      "latency_s": 0.2186,
+      "returned": 0,
+      "top5": [],
+      "negative": true,
+      "false_positives": 0
+    },
+    {
+      "query": "zzzzzz",
+      "status": 200,
+      "latency_s": 0.2009,
+      "returned": 0,
+      "top5": [],
+      "negative": true,
+      "false_positives": 0
+    },
+    {
+      "query": "quarterly tax return form 1040",
+      "status": 200,
+      "latency_s": 0.2278,
+      "returned": 1,
+      "top5": [
+        "Unit 2 - Financial Management - Numerical Problems.pdf"
+      ],
+      "negative": true,
+      "false_positives": 1
+    }
+  ],
+  "label": "after",
+  "created_at": "2026-10-05T10:35:12"
+}
