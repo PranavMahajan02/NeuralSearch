@@ -6,6 +6,8 @@ from sqlalchemy import (
     DateTime,
     Text,
     ForeignKey,
+    CheckConstraint,
+    Index,
     UniqueConstraint,
     text
 )
@@ -118,9 +120,44 @@ class PlatformConnection(Base):
 # INDEXING JOBS
 # ==========================================================
 
+JOB_STATUSES = (
+    "queued",
+    "running",
+    "completed",
+    "completed_with_errors",
+    "failed",
+    "cancelled"
+)
+
+ACTIVE_JOB_STATUSES = ("queued", "running")
+
+FINISHED_JOB_STATUSES = ("completed", "completed_with_errors", "failed", "cancelled")
+
+
 class IndexingJob(Base):
+    """One indexing run of one platform for one user (rows are never reused).
+
+    State machine: see app/scheduler/jobs.py.
+    """
 
     __tablename__ = "indexing_jobs"
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN (" + ", ".join(f"'{s}'" for s in JOB_STATUSES) + ")",
+            name="ck_indexing_jobs_status"
+        ),
+        Index("ix_indexing_jobs_status_created_at", "status", "created_at"),
+        Index("ix_indexing_jobs_user_platform", "user_id", "platform"),
+        # At most one queued/running job per user and platform (409 on enqueue).
+        Index(
+            "uq_indexing_jobs_one_active",
+            "user_id",
+            "platform",
+            unique=True,
+            postgresql_where=text("status IN ('queued', 'running')")
+        ),
+    )
 
     id = Column(
         UUID(as_uuid=True),
@@ -142,8 +179,9 @@ class IndexingJob(Base):
 
     status = Column(
         String(30),
-        default="not_started",
-        server_default=text("'not_started'::character varying")
+        nullable=False,
+        default="queued",
+        server_default=text("'queued'::character varying")
     )
 
     total_files = Column(
@@ -175,6 +213,56 @@ class IndexingJob(Base):
         default=False,
         server_default=text("false")
     )
+
+    # Progress: total_files counts supported files only; processed =
+    # succeeded + failed. Unsupported files and folders go to skipped_files.
+    processed_files = Column(Integer, nullable=False, default=0, server_default=text("0"))
+
+    succeeded_files = Column(Integer, nullable=False, default=0, server_default=text("0"))
+
+    failed_files = Column(Integer, nullable=False, default=0, server_default=text("0"))
+
+    skipped_files = Column(Integer, nullable=False, default=0, server_default=text("0"))
+
+    error_message = Column(Text)
+
+    cancel_requested = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+
+    created_at = Column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+
+    heartbeat_at = Column(DateTime)
+
+
+# ==========================================================
+# INDEXING JOB ERRORS (per-file failures, capped per job)
+# ==========================================================
+
+class IndexingJobError(Base):
+
+    __tablename__ = "indexing_job_errors"
+
+    __table_args__ = (
+        Index("ix_indexing_job_errors_job_id", "job_id"),
+    )
+
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()")
+    )
+
+    job_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("indexing_jobs.id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    file_ref = Column(Text, nullable=False)
+
+    error = Column(Text, nullable=False)
+
+    created_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
 
 # ==========================================================
