@@ -54,7 +54,13 @@ def local_meta(user_id, path: str) -> FileMeta:
     )
 
 
-def drive_meta(user_id, file: dict, local_name: str) -> FileMeta:
+def drive_meta(user_id, file: dict, extension: str) -> FileMeta:
+    """`extension` is the type the file will have locally (exports: .docx/.pptx/.csv)."""
+
+    version = file.get("modifiedTime")
+
+    if file.get("md5Checksum"):
+        version = f"{version}|{file['md5Checksum']}"
 
     return FileMeta(
         user_id=str(user_id),
@@ -62,13 +68,13 @@ def drive_meta(user_id, file: dict, local_name: str) -> FileMeta:
         source_id=file["id"],
         file_name=file["name"],
         display_path=file["name"],
-        # Native Google files are typed by their exported extension.
-        file_type=file_type_for(local_name) or "unsupported",
-        version=file.get("modifiedTime")
+        file_type=file_type_for(f"x{extension}") or "unsupported",
+        version=version,
+        web_view_link=file.get("webViewLink")
     )
 
 
-def github_meta(user_id, owner: str, repo: str, file: dict) -> FileMeta:
+def github_meta(user_id, owner: str, repo: str, file: dict, default_branch: Optional[str] = None) -> FileMeta:
 
     path = file["path"]
 
@@ -81,7 +87,8 @@ def github_meta(user_id, owner: str, repo: str, file: dict) -> FileMeta:
         file_type=file_type_for(path) or "unsupported",
         version=file.get("sha"),
         owner=owner,
-        repo=repo
+        repo=repo,
+        default_branch=default_branch
     )
 
 
