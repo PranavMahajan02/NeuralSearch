@@ -3,6 +3,8 @@ DOCUMENTS = (
     ".docx",
     ".pptx",
     ".txt",
+    ".md",
+    ".markdown",
     ".csv",
 
     ".py",
@@ -48,3 +50,27 @@ VIDEOS = (
     ".mov",
     ".mkv"
 )
+
+# Plain-text document formats (read as text, no parser).
+TEXT_DOCUMENTS = tuple(
+    ext for ext in DOCUMENTS if ext not in (".pdf", ".docx", ".pptx", ".csv")
+)
+
+
+def file_type_for(name: str):
+    """'document' | 'image' | 'audio' | 'video' | None (unsupported)."""
+
+    import os
+
+    extension = os.path.splitext(name or "")[1].lower()
+
+    if extension in DOCUMENTS:
+        return "document"
+    if extension in IMAGES:
+        return "image"
+    if extension in AUDIOS:
+        return "audio"
+    if extension in VIDEOS:
+        return "video"
+
+    return None

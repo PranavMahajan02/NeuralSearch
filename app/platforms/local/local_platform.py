@@ -20,8 +20,7 @@ class LocalPlatform(BasePlatform):
     def index(self, ctx):
 
         from app.core.local_folders import is_allowed_folder
-        from app.services.upload_service import process_uploaded_file
-        from app.services.index_manager import remove_deleted_files
+        from app.services.indexing_pipeline import index_local_file
 
         with SessionLocal() as db:
             stored = [folder.folder_path for folder in get_local_folders(db, ctx.user_id)]
@@ -44,9 +43,6 @@ class LocalPlatform(BasePlatform):
         self.folders = folders
         ctx.allowed_roots.extend(Path(folder) for folder in folders)
 
-        # TODO(phase-3): prunes the global pickles; replaced by the per-user index.
-        remove_deleted_files()
-
         supported, skipped = self.scan(folders)
 
         ctx.add_skipped(skipped)
@@ -56,121 +52,17 @@ class LocalPlatform(BasePlatform):
             ctx,
             supported,
             file_ref=lambda path: path,
-            handle=lambda _position, path: process_uploaded_file(
+            handle=lambda _position, path: index_local_file(
+                ctx.user_id,
                 path,
-                platform="local",
                 temp_dir=ctx.temp_dir
             )
         )
 
-    def search(
-        self,
-        query,
-        search_type="all"
-    ):
+        removed = sync_deleted_sources(ctx.user_id, folders)
 
-        from app.services.document_service import search_document
-        from app.services.image_service import search_image
-        from app.services.audio_service import search_audio_file
-        from app.services.video_service import search_video_file
-
-        results = []
-
-        if search_type == "all":
-
-            results.extend(
-                search_document(
-                    query,
-                    "local"
-                )
-            )
-
-            results.extend(
-                search_image(
-                    query,
-                    "local"
-                )
-            )
-
-            results.extend(
-                search_audio_file(
-                    query,
-                    "local"
-                )
-            )
-
-            results.extend(
-                search_video_file(
-                    query,
-                    "local"
-                )
-            )
-
-        elif search_type == "document":
-
-            results.extend(
-                search_document(
-                    query,
-                    "local"
-                )
-            )
-
-        elif search_type == "image":
-
-            results.extend(
-                search_image(
-                    query,
-                    "local"
-                )
-            )
-
-        elif search_type == "audio":
-
-            results.extend(
-                search_audio_file(
-                    query,
-                    "local"
-                )
-            )
-
-        elif search_type == "video":
-
-            results.extend(
-                search_video_file(
-                    query,
-                    "local"
-                )
-            )
-
-        return results
-
-    def open(
-        self,
-        file_path,
-        file_id=None
-    ):
-
-        if not os.path.exists(file_path):
-
-            return {
-                "status": "error",
-                "message": "File not found."
-            }
-
-        # Files are never opened on the server; the browser downloads them
-        # through GET /files/local (see app/services/open_service.py).
-        return {
-            "status": "success",
-            "path": file_path
-        }
-
-    def upload(self, file_path):
-
-        print(f"Uploading: {file_path}")
-
-    def delete(self, file_name):
-
-        print(f"Deleting: {file_name}")
+        if removed:
+            ctx.report_progress(force=True)
 
     @staticmethod
     def scan(folders):
@@ -202,3 +94,27 @@ class LocalPlatform(BasePlatform):
     def list_files(self):
 
         return self.scan(self.folders)[0]
+
+
+def sync_deleted_sources(user_id, folders) -> int:
+    """Drop this user's local sources that no longer exist, or that are no
+    longer under one of the user's CURRENT folders (or their upload dir).
+    Strictly per user: other users' rows and vectors are never touched."""
+
+    from app.core.ownership import user_upload_dir
+    from app.core.paths import is_within
+    from app.services import index_store
+
+    bases = [Path(os.path.realpath(folder)) for folder in folders]
+    bases.append(Path(os.path.realpath(user_upload_dir(user_id))))
+
+    stale = []
+
+    for row in index_store.list_sources(user_id, "local"):
+
+        path = Path(row.display_path)
+
+        if not path.is_file() or not any(is_within(path, base) for base in bases):
+            stale.append(row.source_id)
+
+    return index_store.delete_sources(user_id, "local", stale)

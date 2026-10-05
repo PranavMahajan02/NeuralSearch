@@ -1,28 +1,51 @@
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
-from app.core.ownership import connected_platforms, resolve_user_file
-from app.platforms.registry import platform_manager
+from app.core.ownership import resolve_user_file
+from app.services import index_store
+from app.services.indexing_pipeline import local_source_id
+
+
+def _owned_source(user_id, platform: str, source_id):
+    """The user's ledger row for this source, or 404 (also for other users')."""
+
+    row = index_store.get_source(user_id, platform, source_id) if source_id else None
+
+    if row is None:
+        raise AppError(404, "File not found.")
+
+    return row
+
+
+def drive_url(file_id: str) -> str:
+
+    return f"https://drive.google.com/file/d/{quote(file_id, safe='')}/view"
+
+
+def github_url(owner: str, repo: str, path: str) -> str:
+
+    # TODO(phase-5): use the repository's default branch instead of "main".
+    return f"https://github.com/{quote(owner)}/{quote(repo)}/blob/main/{quote(path)}"
 
 
 def open_result(db: Session, user_id, request):
     """Describe how the browser should open a search result.
 
-    Nothing is opened on the server. Returns either
-    {"type": "url", "url": ...} (Drive / GitHub, opened in a new tab) or
-    {"type": "download", "url": "/files/local?path=..."} (local files).
+    Nothing is opened on the server. The source must be in this user's
+    indexed_files ledger, otherwise 404 (same answer whether it does not
+    exist or belongs to someone else).
     """
 
-    platform_name = request.platform
+    platform = "local" if request.platform == "local_storage" else request.platform
 
-    if platform_name == "local_storage":
-        platform_name = "local"
+    if platform == "local":
 
-    if platform_name == "local":
+        source_id = request.source_id or (local_source_id(request.path) if request.path else None)
+        row = _owned_source(user_id, "local", source_id)
 
-        resolved = resolve_user_file(db, user_id, request.path)
+        resolved = resolve_user_file(db, user_id, row.display_path)
 
         if resolved is None:
             raise AppError(404, "File not found.")
@@ -33,26 +56,17 @@ def open_result(db: Session, user_id, request):
             "filename": resolved.name
         }
 
-    if platform_name not in ("google_drive", "github"):
-        raise AppError(400, "Unknown platform.")
+    if platform == "google_drive":
 
-    if platform_name not in connected_platforms(db, user_id):
-        raise AppError(404, "File not found.")
+        row = _owned_source(user_id, "google_drive", request.source_id or request.file_id)
 
-    if platform_name == "google_drive" and not request.file_id:
-        raise AppError(400, "file_id is required for Google Drive.")
+        return {"type": "url", "url": drive_url(row.source_id)}
 
-    platform = platform_manager.get(platform_name)
+    if platform == "github":
 
-    result = platform.open(
-        request.path,
-        request.file_id
-    )
+        row = _owned_source(user_id, "github", request.source_id)
+        path = row.source_id.split(":", 1)[1]
 
-    if result.get("status") != "success" or not result.get("url"):
-        raise AppError(404, result.get("message") or "File not found.")
+        return {"type": "url", "url": github_url(row.owner, row.repo, path)}
 
-    return {
-        "type": "url",
-        "url": result["url"]
-    }
+    raise AppError(400, "Unknown platform.")

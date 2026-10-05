@@ -3,7 +3,7 @@ import os
 from app.platforms.base_platform import BasePlatform
 from app.platforms.errors import PlatformPreconditionError
 from app.platforms.indexing import is_supported, process_files
-from app.services.upload_service import process_uploaded_file
+from app.services.indexing_pipeline import github_meta, index_source
 from app.database.db import SessionLocal
 
 from app.platforms.github.github_service import (
@@ -88,13 +88,9 @@ class GitHubPlatform(BasePlatform):
                 )
 
                 try:
-                    process_uploaded_file(
+                    index_source(
+                        github_meta(ctx.user_id, owner, repo_name, file),
                         local_path,
-                        platform="github",
-                        file_id=file["path"],
-                        file_sha=file["sha"],
-                        owner=owner,
-                        repo=repo_name,
                         temp_dir=ctx.temp_dir
                     )
                 finally:
@@ -112,162 +108,6 @@ class GitHubPlatform(BasePlatform):
             )
 
             # TODO(phase-5): deletion sync (remove_deleted_github_files is broken).
-
-    def search(
-        self,
-        query,
-        search_type="all"
-    ):
-
-        from app.services.document_service import search_document
-        from app.services.image_service import search_image
-        from app.services.audio_service import search_audio_file
-        from app.services.video_service import search_video_file
-
-        results = []
-
-        if search_type == "all":
-
-            results.extend(
-                search_document(
-                    query,
-                    "github"
-                )
-            )
-
-            results.extend(
-                search_image(
-                    query,
-                    "github"
-                )
-            )
-
-            results.extend(
-                search_audio_file(
-                    query,
-                    "github"
-                )
-            )
-
-            results.extend(
-                search_video_file(
-                    query,
-                    "github"
-                )
-            )
-
-        elif search_type == "document":
-
-            results.extend(
-                search_document(
-                    query,
-                    "github"
-                )
-            )
-
-        elif search_type == "image":
-
-            results.extend(
-                search_image(
-                    query,
-                    "github"
-                )
-            )
-
-        elif search_type == "audio":
-
-            results.extend(
-                search_audio_file(
-                    query,
-                    "github"
-                )
-            )
-
-        elif search_type == "video":
-
-            results.extend(
-                search_video_file(
-                    query,
-                    "github"
-                )
-            )
-
-        # Global sorting
-        results.sort(
-            key=lambda x: x.get("score", 0),
-            reverse=True
-        )
-
-        # Remove duplicate files
-        unique_results = []
-        seen = set()
-
-        for result in results:
-
-            key = (
-                result.get("platform"),
-                result.get("file_id")
-                or result.get("path")
-            )
-
-            if key in seen:
-                continue
-
-            seen.add(key)
-            unique_results.append(result)
-
-        return unique_results
-
-    def open(
-        self,
-        path,    
-        file_id=None
-    ):
-
-        from app.platforms.github.github_service import (
-            get_github_file_url
-        )
-
-        from app.services.index_manager import load_index
-
-        data = load_index(path)
-
-        for item in data:
-
-            if (
-                item.get("platform") == "github"
-                and item.get("file_id") == file_id
-            ):
-
-                url = get_github_file_url(
-                    item["owner"],
-                    item["repo"],
-                    item["file_id"]
-                )    
-
-                return {
-                    "status": "success",
-                    "url": url
-                }
-
-        return {
-            "status": "error",
-            "message": "GitHub file not found."
-        }
-
-    def upload(
-        self,
-        file_path
-    ):
-
-        print("GitHub upload not implemented.")
-
-    def delete(
-        self,
-        file_name
-    ):
-
-        print("GitHub delete not implemented.")
 
     def list_files(self):
 

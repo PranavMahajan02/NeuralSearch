@@ -46,7 +46,7 @@ class GoogleDrivePlatform(BasePlatform):
     def index(self, ctx):
 
         from app.platforms.google_drive.drive_service import download_file
-        from app.services.upload_service import process_uploaded_file
+        from app.services.indexing_pipeline import drive_meta, index_source
 
         try:
             files = self.list_files(ctx.user_id)
@@ -84,11 +84,10 @@ class GoogleDrivePlatform(BasePlatform):
                     file["mimeType"]
                 )
 
-                process_uploaded_file(
+                # TODO(phase-5): check needs_index before downloading (BUG-05).
+                index_source(
+                    drive_meta(ctx.user_id, file, downloaded_path),
                     downloaded_path,
-                    platform="google_drive",
-                    file_id=file["id"],
-                    file_sha=file["modifiedTime"],
                     temp_dir=ctx.temp_dir
                 )
 
@@ -140,114 +139,3 @@ class GoogleDrivePlatform(BasePlatform):
                 break
 
         return files
-
-    def search(
-        self,
-        query,
-        search_type="all"
-    ):
-
-        print(f"Searching Google Drive: {query}")
-
-        from app.services.document_service import search_document
-        from app.services.image_service import search_image
-        from app.services.audio_service import search_audio_file
-        from app.services.video_service import search_video_file
-
-        results = []
-
-        if search_type == "all":
-
-            results.extend(
-                search_document(
-                    query,
-                    "google_drive"
-                )
-            )
-
-            results.extend(
-                search_image(
-                    query,
-                    "google_drive"
-                )
-            )
-
-            results.extend(
-                search_audio_file(
-                    query,
-                    "google_drive"
-                )
-            )
-
-            results.extend(
-                search_video_file(
-                    query,
-                    "google_drive"
-                )
-            )
-
-        elif search_type == "document":
-
-            results.extend(
-                search_document(
-                    query,
-                    "google_drive"
-                )
-            )
-
-        elif search_type == "image":
-
-            results.extend(
-                search_image(
-                    query,
-                    "google_drive"
-                )
-            )
-
-        elif search_type == "audio":
-
-            results.extend(
-                search_audio_file(
-                    query,
-                    "google_drive"
-                )
-            )
-
-        elif search_type == "video":
-
-            results.extend(
-                search_video_file(
-                    query,
-                    "google_drive"
-                )
-            )
-
-        return results
-        
-    def open(
-        self,
-        file_path,
-        file_id=None
-    ):
-
-        if not file_id:
-
-            return {
-               "status": "error",
-               "message": "File ID not found."
-            }
-
-        url = f"https://drive.google.com/file/d/{file_id}/view"
-
-        return {
-            "status": "success",
-            "url": url
-        }
-
-    def upload(self, file_path):
-
-        print(f"Upload not implemented: {file_path}")
-
-    def delete(self, file_name):
-
-        print(f"Delete not implemented: {file_name}")
