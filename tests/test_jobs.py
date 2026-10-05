@@ -487,9 +487,16 @@ def test_startup_recovery_fails_running_jobs_and_keeps_queued(app, user, db):
     db.add_all([running, queued])
     db.commit()
 
+    from app.scheduler.worker import jobs_temp_root
+    orphan = jobs_temp_root() / str(running.id)
+    (orphan / "frames").mkdir(parents=True)
+    (orphan / "frames" / "frame_0.jpg").write_bytes(b"x")
+
     # A fresh app lifespan = a server restart.
     with TestClient(app):
         pass
+
+    assert not orphan.exists()
 
     db.expire_all()
     assert db.get(IndexingJob, running.id).status == "failed"
