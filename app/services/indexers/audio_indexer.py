@@ -12,7 +12,7 @@ CHUNK_SIZE = 500
 
 def extract_audio_transcript(path: str) -> str:
 
-    from audio_extract import extract_audio_text
+    from app.extractors.audio_extract import extract_audio_text
 
     return extract_audio_text(path) or ""
 

@@ -21,9 +21,9 @@ def extract_frames(
         cv2.CAP_PROP_FPS
     )
 
-    frame_interval = int(
-        fps * interval
-    )
+    # Corrupt or unreadable videos report 0 fps: sample every frame instead
+    # of dividing by zero.
+    frame_interval = max(1, int((fps or 0) * interval))
 
     count = 0
 
