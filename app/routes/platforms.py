@@ -9,6 +9,7 @@ from app.auth.auth_dependency import get_current_user
 
 from app.models.request_models import FolderRequest
 from app.core.local_folders import normalize_folder, validate_local_folder
+from app.platforms.local.local_platform import sync_deleted_sources as purge_unregistered_local_sources
 
 from app.database.local_storage_service import (
     get_local_folders,
@@ -116,6 +117,14 @@ def delete_folder(
             candidate
         )
 
+    # Purge the removed folder's files from the index (this user only),
+    # except files still covered by another of the user's folders.
+    purged = purge_unregistered_local_sources(
+        current_user["id"],
+        [folder.folder_path for folder in get_local_folders(db, current_user["id"])]
+    )
+
+
     folders = get_local_folders(
 
         db,
@@ -127,6 +136,7 @@ def delete_folder(
     return {
 
         "status": "success",
+        "purged_files": purged,
 
         "folders": [
 
