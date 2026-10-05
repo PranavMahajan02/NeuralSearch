@@ -44,9 +44,10 @@ def register(client, user, path):
     assert response.status_code == 200, response.text
 
 
-def search(client, user, query, **params):
+def search(client, user, query, debug=False, **params):
 
-    response = client.post("/search/", json={"query": query, **params}, headers=user["headers"])
+    url = "/search/?debug=true" if debug else "/search/"
+    response = client.post(url, json={"query": query, **params}, headers=user["headers"])
     assert response.status_code == 200, response.text
     return response.json()["results"]
 
@@ -353,11 +354,12 @@ def test_same_basename_in_two_folders_is_scored_independently(client, user, loca
     index_local_file(user["id"], str(first / "Calculator.txt"))
     index_local_file(user["id"], str(second / "Calculator.txt"))
 
-    results = search(client, user, "calculator kubernetes", search_type="document")
+    results = search(client, user, "calculator kubernetes", search_type="document", debug=True)
     paths = {Path(r["path"]).parent.name: r for r in results}
 
     assert len(results) == 2
-    assert paths[first.name]["content_score"] > paths[second.name]["content_score"]
+    assert paths[first.name]["debug"]["content"] > paths[second.name]["debug"]["content"]
+    assert Path(results[0]["path"]).parent.name == first.name   # better match ranks first
     assert paths[first.name]["source_id"] != paths[second.name]["source_id"]
 
 
@@ -381,12 +383,13 @@ def test_video_transcript_drives_semantic_and_content_scores(client, user, folde
 
     assert index_local_file(user["id"], str(video)) == "indexed"
 
-    results = search(client, user, "photosynthesis plants", search_type="video")
+    results = search(client, user, "photosynthesis plants", search_type="video", debug=True)
 
     assert len(results) == 1
     result = results[0]
-    assert result["semantic_score"] > 0
-    assert result["content_score"] == 1.0 or result["content_score"] > 0
+    assert result["debug"]["semantic"] > 0
+    assert result["debug"]["content"] > 0
+    assert "transcript" in result["match"]["reasons"]
     assert result["source_id"] == local_source_id(str(video))
     assert count_points(user["id"], "local", result["source_id"], "video_frame") == 1
 

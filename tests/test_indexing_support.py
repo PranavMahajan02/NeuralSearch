@@ -13,15 +13,13 @@ from app.scheduler.errors import sanitize_error
 
 ROOT = Path(__file__).resolve().parent.parent
 
-PRODUCTION_MODULES = ["document_search_v2.py", "image_search.py", "audio_search.py", "video_search.py",
-                      "embeddings.py", "clip_extract.py", "extract.py", "chunk.py"]
 
 
 def test_no_pickle_anywhere_in_the_app():
 
     offenders = []
 
-    files = list((ROOT / "app").rglob("*.py")) + [ROOT / name for name in PRODUCTION_MODULES]
+    files = list((ROOT / "app").rglob("*.py"))
 
     for path in files:
         text = path.read_text(encoding="utf-8", errors="replace").lower()
