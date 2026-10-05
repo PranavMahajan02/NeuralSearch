@@ -224,6 +224,9 @@ class IndexingJob(Base):
 
     skipped_files = Column(Integer, nullable=False, default=0, server_default=text("0"))
 
+    # Files actually fetched from the remote (0 on a run with no changes).
+    downloaded_files = Column(Integer, nullable=False, default=0, server_default=text("0"))
+
     error_message = Column(Text)
 
     cancel_requested = Column(Boolean, nullable=False, default=False, server_default=text("false"))
@@ -309,11 +312,11 @@ class LocalStorageFolder(Base):
 # INDEXED FILES (per-file ledger of the Qdrant index)
 # ==========================================================
 
-LEDGER_STATUSES = ("indexed", "no_content", "failed", "unsupported")
+LEDGER_STATUSES = ("indexed", "no_content", "failed", "unsupported", "too_large")
 
 # A source in one of these states is not re-processed while its version is
 # unchanged (failed files are retried on the next run).
-LEDGER_SKIP_STATUSES = ("indexed", "no_content", "unsupported")
+LEDGER_SKIP_STATUSES = ("indexed", "no_content", "unsupported", "too_large")
 
 
 class IndexedFile(Base):
@@ -376,6 +379,11 @@ class IndexedFile(Base):
     owner = Column(Text)
 
     repo = Column(Text)
+
+    default_branch = Column(Text)
+
+    # Google Drive: the file's webViewLink (used by /open).
+    web_view_link = Column(Text)
 
     indexed_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
@@ -455,6 +463,9 @@ class OAuthState(Base):
         default=False,
         server_default=text("false")
     )
+
+    # PKCE code_verifier (Google); kept server-side with the single-use state.
+    code_verifier = Column(Text)
 
     created_at = Column(
         DateTime,
