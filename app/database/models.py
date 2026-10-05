@@ -306,54 +306,33 @@ class LocalStorageFolder(Base):
 
 
 # ==========================================================
-# INDEXED FILES
+# INDEXED FILES (per-file ledger of the Qdrant index)
 # ==========================================================
 
+LEDGER_STATUSES = ("indexed", "no_content", "failed", "unsupported")
+
+# A source in one of these states is not re-processed while its version is
+# unchanged (failed files are retried on the next run).
+LEDGER_SKIP_STATUSES = ("indexed", "no_content", "unsupported")
+
+
 class IndexedFile(Base):
+    """One row per indexed source (file) of a user on a platform.
+
+    source_id: local = normcase(realpath), google_drive = file id,
+    github = "owner/repo:path". version: mtime / modifiedTime / blob sha.
+    """
 
     __tablename__ = "indexed_files"
 
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        server_default=text("gen_random_uuid()")
+    __table_args__ = (
+        UniqueConstraint("user_id", "platform", "source_id", name="uq_indexed_files_source"),
+        CheckConstraint(
+            "status IN (" + ", ".join(f"'{s}'" for s in LEDGER_STATUSES) + ")",
+            name="ck_indexed_files_status"
+        ),
+        Index("ix_indexed_files_user_platform", "user_id", "platform"),
     )
-
-    user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False
-    )
-
-    platform = Column(
-        String(50),
-        nullable=False
-    )
-
-    external_file_id = Column(Text)
-
-    file_path = Column(Text)
-
-    file_name = Column(Text)
-
-    file_hash = Column(Text)
-
-    modified_time = Column(DateTime)
-
-    indexed_at = Column(
-        DateTime,
-        server_default=text("CURRENT_TIMESTAMP")
-    )
-
-
-# ==========================================================
-# SEARCH CACHE
-# ==========================================================
-
-class SearchCache(Base):
-
-    __tablename__ = "search_cache"
 
     id = Column(
         UUID(as_uuid=True),
@@ -368,19 +347,32 @@ class SearchCache(Base):
         nullable=False
     )
 
-    platform = Column(String(50))
+    platform = Column(String(50), nullable=False)
 
-    file_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("indexed_files.id", ondelete="CASCADE")
-    )
+    source_id = Column(Text, nullable=False)
 
-    embedding_path = Column(Text)
+    file_name = Column(Text, nullable=False)
 
-    cache_updated_at = Column(
-        DateTime,
-        server_default=text("CURRENT_TIMESTAMP")
-    )
+    display_path = Column(Text, nullable=False)
+
+    file_type = Column(String(20), nullable=False)
+
+    version = Column(Text)
+
+    status = Column(String(20), nullable=False)
+
+    chunk_count = Column(Integer, nullable=False, default=0, server_default=text("0"))
+
+    error = Column(Text)
+
+    # GitHub only (needed to build the blob URL).
+    owner = Column(Text)
+
+    repo = Column(Text)
+
+    indexed_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+
+    updated_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
 
 
 # ==========================================================

@@ -8,6 +8,8 @@ from app.auth.auth_dependency import get_current_user
 from app.core.errors import AppError
 from app.core.ownership import resolve_user_file
 from app.database.db import get_db
+from app.services.index_store import get_source
+from app.services.indexing_pipeline import local_source_id
 
 
 router = APIRouter(
@@ -24,6 +26,11 @@ def download_local_file(
 ):
 
     resolved = resolve_user_file(db, current_user["id"], path)
+
+    # Must also be a file this user indexed (ledger row), not merely a file
+    # that happens to sit in one of their folders.
+    if resolved is not None and get_source(current_user["id"], "local", local_source_id(str(resolved))) is None:
+        resolved = None
 
     if resolved is None:
         # 404 (not 403) so the endpoint does not reveal which files exist.

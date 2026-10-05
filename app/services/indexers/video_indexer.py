@@ -1,191 +1,67 @@
-import os
+"""Video -> transcript chunks (MiniLM, collection: video)
+         + sampled frames (CLIP, collection: video_frames).
+
+BUG-02 (storage side): the transcript text is stored on every "video" point
+as `chunk`, so search can score spoken content.
+"""
+
 import shutil
 import uuid
 from pathlib import Path
+from typing import List
 
+from app.ai.embedder import embed_clip_image, embed_texts
 from app.core.config import settings
-
-from app.services.index_manager import (
-    load_index,
-    save_index
-)
-
-from video_extract import extract_video_text
-from video_frame_extract import extract_frames
-from clip_extract import get_image_embedding
-
-from chunk import chunk_text
-from embeddings import get_embeddings
-
-from app.vectorstore.insert import insert_vectors
-from app.vectorstore.delete import delete_vectors
-from app.vectorstore.config import (
-    VIDEO_COLLECTION,
-    VIDEO_FRAME_COLLECTION,
-)
+from app.services.index_store import IndexPoint
+from app.services.indexers.document_indexer import chunk_text
 
 
-def index_video(
-    file_path,
-    platform="local",
-    file_id=None,
-    file_sha=None,
-    owner=None,
-    repo=None,
-    frames_root=None
-):
+CHUNK_SIZE = 500
 
-    print(f"Indexing video: {file_path}")
 
-    filename = os.path.basename(file_path)
+def extract_video_transcript(path: str) -> str:
 
-    # ------------------------------------
-    # Delete old vectors from Qdrant
-    # ------------------------------------
+    from video_extract import extract_video_text
 
-    delete_vectors(
-        collection_name=VIDEO_COLLECTION,
-        platform=platform,
-        file_id=file_id,
-        path=file_path,
-        repo=repo,
-    )
+    return extract_video_text(path) or ""
 
-    transcript = extract_video_text(file_path)
 
-    # Per-call frame folder (the shared "temp_frames" let two videos
-    # overwrite each other's frames - BUG-18). Deleted once embedded.
-    frames_dir = Path(frames_root or settings.TEMP_DIR) / f"frames-{uuid.uuid4().hex}"
+def extract_frames(path: str, output_folder: str) -> List[str]:
 
-    try:
+    from video_frame_extract import extract_frames as extract
 
-        print("Extracting frames...")
+    return extract(path, output_folder)
 
-        frames = extract_frames(
-            file_path,
-            str(frames_dir)
-        )
 
-        print(f"Frames Extracted: {len(frames)}")
+def build_video_points(path: str, temp_dir=None) -> List[IndexPoint]:
 
-        clip_embeddings = []
-        new_frames = []
+    points: List[IndexPoint] = []
 
-        for i, frame in enumerate(frames):
-
-            try:
-
-                embedding = get_image_embedding(frame)
-
-                embedding = (
-                    embedding.tolist()
-                    if hasattr(embedding, "tolist")
-                    else embedding
-                )
-
-                clip_embeddings.append(embedding)
-
-                new_frames.append(
-                    {
-                        "file": filename,
-                        "path": file_path,
-                        "platform": platform,
-                        "file_id": file_id,
-                        "owner": owner,
-                        "repo": repo,
-                        "sha": file_sha,
-                        "last_modified": (
-                            file_sha
-                            if platform == "google_drive"
-                            else os.path.getmtime(file_path)
-                        ),
-                        "frame_number": i,
-                        "chunk": f"Frame {i}",
-                        "embedding": embedding,
-                    }
-                )
-
-            except Exception as e:
-
-                print(e)
-
-    finally:
-
-        shutil.rmtree(frames_dir, ignore_errors=True)
+    transcript = extract_video_transcript(path)
 
     if transcript.strip():
-
-        chunks = chunk_text(
-            transcript,
-            chunk_size=500
+        chunks = chunk_text(transcript, CHUNK_SIZE)
+        vectors = embed_texts(chunks)
+        points.extend(
+            IndexPoint(type="video", vector=vector, chunk_index=index, chunk=chunk)
+            for index, (chunk, vector) in enumerate(zip(chunks, vectors))
         )
 
-        embeddings = get_embeddings(chunks)
+    # Private frame folder per call (no shared temp_frames - BUG-18).
+    frames_dir = Path(temp_dir or settings.TEMP_DIR) / f"frames-{uuid.uuid4().hex}"
 
-    else:
+    try:
+        for number, frame_path in enumerate(extract_frames(path, str(frames_dir))):
+            points.append(
+                IndexPoint(
+                    type="video_frame",
+                    vector=embed_clip_image(frame_path),
+                    chunk_index=number,
+                    chunk=f"Frame {number}",
+                    frame_number=number
+                )
+            )
+    finally:
+        shutil.rmtree(frames_dir, ignore_errors=True)
 
-        print("No transcript generated.")
-
-        filename_text = (
-            filename
-            .rsplit(".", 1)[0]
-            .replace("_", " ")
-            .replace("-", " ")
-        )
-
-        chunks = [filename_text]
-
-        embeddings = get_embeddings(chunks)
-
-    all_video = load_index(file_path)
-
-    new_videos = []
-
-    for chunk, embedding in zip(chunks, embeddings):
-
-        video = {
-            "file": filename,
-            "path": file_path,
-            "platform": platform,
-            "file_id": file_id,
-            "owner": owner,
-            "repo": repo,
-            "sha": file_sha,
-            "last_modified": (
-                file_sha
-                if platform == "google_drive"
-                else os.path.getmtime(file_path)
-            ),
-            "transcript": transcript,
-            "chunk": chunk,
-            "embedding": (
-                embedding.tolist()
-                if hasattr(embedding, "tolist")
-                else embedding
-            ),
-            "clip_embeddings": clip_embeddings
-        }
-
-        all_video.append(video)
-        new_videos.append(video)
-
-    save_index(
-        file_path,
-        all_video
-    )
-
-    # ------------------------------------
-    # Store vectors in Qdrant
-    # ------------------------------------
-     
-    insert_vectors(
-        new_videos,
-        VIDEO_COLLECTION
-    )
-
-    insert_vectors(
-        new_frames,
-        VIDEO_FRAME_COLLECTION
-    )
-
-    print("Video indexing completed.")
+    return points

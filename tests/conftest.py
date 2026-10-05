@@ -65,11 +65,18 @@ os.environ.update({
     "COGNISEEK_SKIP_MODEL_PRELOAD": "1",
     # Tests drive the indexing worker explicitly (IndexingWorker.run_once).
     "COGNISEEK_DISABLE_WORKER": "1",
+    # In-process Qdrant + a throwaway prefix: tests can never reach the real
+    # collections (cogniseek_v2_* / cogniseek*).
+    "QDRANT_LOCATION": ":memory:",
+    "QDRANT_COLLECTION_PREFIX": f"test_{uuid.uuid4().hex[:12]}",
     "TEMP_DIR": str(WORK_DIR / "temp"),
     "BACKEND_PUBLIC_URL": "http://127.0.0.1:8000",
     "GITHUB_OAUTH_CONFIG_PATH": str(WORK_DIR / "no-github-oauth.json"),
     "GOOGLE_CLIENT_SECRET_PATH": str(WORK_DIR / "no-client-secret.json"),
 })
+
+
+assert os.environ["QDRANT_COLLECTION_PREFIX"].startswith("test_")
 
 
 if os.environ.get("COGNISEEK_TEST_REAL_MODELS") != "1":
@@ -217,3 +224,67 @@ def make_user(client):
 def user(make_user):
 
     return make_user()
+
+
+# ---------------------------------------------------------------------------
+# Deterministic fake embeddings (no models)
+# ---------------------------------------------------------------------------
+
+import hashlib
+import math
+import re as _re
+
+
+def _bag_of_words_vector(text: str, size: int):
+    """Hashed bag of words, L2-normalized: cosine similarity tracks word overlap."""
+
+    vector = [0.0] * size
+
+    for word in _re.findall(r"\w+", (text or "").lower()):
+        bucket = int(hashlib.md5(word.encode()).hexdigest(), 16) % size
+        vector[bucket] += 1.0
+
+    norm = math.sqrt(sum(v * v for v in vector))
+
+    if norm == 0:
+        vector[0] = 1.0
+        return vector
+
+    return [v / norm for v in vector]
+
+
+class FakeEmbedder:
+
+    def text(self, texts):
+        return [_bag_of_words_vector(t, 384) for t in texts]
+
+    def clip_text(self, text):
+        return _bag_of_words_vector(text, 512)
+
+    def clip_image(self, path):
+        # Test images are text files: their content stands in for pixels.
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            return _bag_of_words_vector(f.read(), 512)
+
+
+@pytest.fixture(autouse=True)
+def fake_embedder(monkeypatch):
+
+    import app.ai.embedder as embedder
+
+    monkeypatch.setattr(embedder, "backend", FakeEmbedder())
+
+    yield
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _assert_test_qdrant():
+
+    from app.core.config import settings
+    from app.vectorstore.client import get_client
+
+    assert settings.QDRANT_LOCATION == ":memory:"
+    assert settings.QDRANT_COLLECTION_PREFIX.startswith("test_")
+    assert get_client()._client.__class__.__name__ == "QdrantLocal"
+
+    yield

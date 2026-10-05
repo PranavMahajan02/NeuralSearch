@@ -541,13 +541,12 @@ def test_video_frames_go_to_a_private_dir_that_is_removed(monkeypatch, tmp_path)
         (Path(output_folder) / "frame_0.jpg").write_bytes(b"x")
         raise RuntimeError("decoder failed")
 
-    monkeypatch.setattr(video_indexer, "delete_vectors", lambda **kwargs: None)
-    monkeypatch.setattr(video_indexer, "extract_video_text", lambda path: "")
+    monkeypatch.setattr(video_indexer, "extract_video_transcript", lambda path: "")
     monkeypatch.setattr(video_indexer, "extract_frames", fake_extract_frames)
 
     for _ in range(2):
         with pytest.raises(RuntimeError, match="decoder failed"):
-            video_indexer.index_video(str(tmp_path / "clip.mp4"), frames_root=tmp_path / "job")
+            video_indexer.build_video_points(str(tmp_path / "clip.mp4"), temp_dir=tmp_path / "job")
 
     assert used[0] != used[1]
     assert all(path.parent == tmp_path / "job" and path.name.startswith("frames-") for path in used)
@@ -560,8 +559,7 @@ def test_video_frames_go_to_a_private_dir_that_is_removed(monkeypatch, tmp_path)
 
 def test_local_platform_counts_only_supported_files(client, user, local_root, monkeypatch):
 
-    import app.services.index_manager as index_manager
-    import app.services.upload_service as upload_service
+    import app.services.indexing_pipeline as pipeline
 
     folder = local_root / f"index-me-{uuid.uuid4().hex[:6]}"
     (folder / "sub" / "deeper").mkdir(parents=True)
@@ -572,14 +570,13 @@ def test_local_platform_counts_only_supported_files(client, user, local_root, mo
 
     processed = []
 
-    def fake_process(path, platform="local", temp_dir=None, **kwargs):
+    def fake_process(user_id, path, temp_dir=None, **kwargs):
         processed.append(Path(path).name)
         assert temp_dir is not None
         if Path(path).name == "corrupt.pdf":
             raise ValueError("PDF is damaged")
 
-    monkeypatch.setattr(upload_service, "process_uploaded_file", fake_process)
-    monkeypatch.setattr(index_manager, "remove_deleted_files", lambda: None)
+    monkeypatch.setattr(pipeline, "index_local_file", fake_process)
 
     assert client.post("/platforms/local/folders", json={"folder": str(folder)}, headers=user["headers"]).status_code == 200
 

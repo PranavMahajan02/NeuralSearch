@@ -1,46 +1,21 @@
+"""Audio search over the user's Qdrant points (transcript chunks)."""
+
 import re
 
-from app.ai.model_manager import model_manager
+from app.ai.embedder import embed_text
+from app.search.common import base_result
+from app.vectorstore.query import search_points
 
-from app.vectorstore.audio_search import (
-    search_audio_vectors,
-)
-
-
-# ==========================
-# CONFIG
-# ==========================
 
 TOP_K = 5
 MIN_SCORE = 0.15
+QDRANT_LIMIT = 100
 
-# ==========================
-# LOAD MODEL
-# ==========================
 
-print(
-    "Loading semantic model..."
-)
-
-model = model_manager.semantic_model
-
-print("Ready.\n")
-
-# ==========================
-# HELPER FUNCTIONS
-# ==========================
-
-def get_filename_score(
-    query,
-    filename
-):
+def get_filename_score(query, filename):
 
     query = query.lower()
-
-    filename = (
-        filename.lower()
-        .rsplit(".", 1)[0]
-    )
+    filename = filename.lower().rsplit(".", 1)[0]
 
     if query == filename:
         return 1.0
@@ -48,227 +23,68 @@ def get_filename_score(
     if query in filename:
         return 0.9
 
-    query_words = set(
-        re.findall(
-            r"\w+",
-            query
-        )
-    )
-
-    filename_words = set(
-        re.findall(
-            r"\w+",
-            filename
-        )
-    )
+    query_words = set(re.findall(r"\w+", query))
+    filename_words = set(re.findall(r"\w+", filename))
 
     if not query_words:
         return 0
 
-    matches = len(
-        query_words &
-        filename_words
-    )
-
-    return matches / len(
-        query_words
-    )
+    return len(query_words & filename_words) / len(query_words)
 
 
-def get_content_score(
-    query,
-    transcript
-):
+def get_content_score(query, transcript):
 
     query = query.lower()
-
-    transcript = (
-        transcript.lower()
-    )
+    transcript = transcript.lower()
 
     if query in transcript:
         return 1.0
 
-    query_words = set(
-        re.findall(
-            r"\w+",
-            query
-        )
-    )
-
-    transcript_words = set(
-        re.findall(
-            r"\w+",
-            transcript
-        )
-    )
+    query_words = set(re.findall(r"\w+", query))
+    transcript_words = set(re.findall(r"\w+", transcript))
 
     if not query_words:
         return 0
 
-    matches = len(
-        query_words &
-        transcript_words
-    )
-
-    return matches / len(
-        query_words
-    )
+    return len(query_words & transcript_words) / len(query_words)
 
 
-# ==========================
-# SEARCH FUNCTION
-# ==========================
-
-def search_audio(
-    query,
-    platform="all"
-):
+def search_audio(query, user_id, platform="all"):
 
     if not query:
         return []
 
     query = query.strip().lower()
 
-    # ----------------------
-    # Query Embedding
-    # ----------------------
+    hits = search_points("audio", embed_text(query), user_id, platform, limit=QDRANT_LIMIT)
 
-    query_embedding = model.encode(query).tolist()
+    best = {}
 
-    audios = search_audio_vectors(
-        query_embedding,
-        limit=100,
-        platform=platform,
-    )
+    # Score each chunk; keep the best chunk per source (not per basename).
+    for point in hits:
 
-    # ----------------------
-    # Search
-    # ----------------------
-
-    results = []
-
-    for point in audios:
-
-        audio = point.payload
-
-        if (
-            platform != "all"
-            and audio.get("platform", "local") != platform
-        ):
-            continue
-
+        payload = point.payload or {}
         semantic_score = float(point.score)
+        filename_score = get_filename_score(query, payload.get("file", ""))
+        content_score = get_content_score(query, payload.get("chunk", ""))
 
-        filename_score = (
-            get_filename_score(
-                query,
-                audio.get("file", "")
-            )
-        )
-
-        content_score = (
-            get_content_score(
-                query,
-                audio.get("chunk", "")
-            )
-        )
-
-        final_score = (
-            0.20 * filename_score +
-            0.40 * content_score +
-            0.40 * semantic_score
-        )
-
-        results.append(
-            (
-                float(final_score),
-                float(filename_score),
-                float(content_score),
-                float(semantic_score),
-                audio
-            )
-        )
-
-    # ----------------------
-    # Sort Results
-    # ----------------------
-
-    results.sort(
-        key=lambda x: x[0],
-        reverse=True
-    )
-
-    # ----------------------
-    # Remove Duplicates
-    # ----------------------
-
-    unique_results = []
-
-    seen_files = set()
-
-    for (
-        final_score,
-        filename_score,
-        content_score,
-        semantic_score,
-        audio
-    ) in results:
+        final_score = 0.20 * filename_score + 0.40 * content_score + 0.40 * semantic_score
 
         if final_score < MIN_SCORE:
             continue
 
-        filename = audio.get("file", "")
+        key = (payload.get("platform"), payload.get("source_id"))
 
-        if filename in seen_files:
+        if key in best and best[key]["score"] >= final_score:
             continue
 
-        seen_files.add(
-            filename
-        )
-
-        unique_results.append(
-            (
-                final_score,
-                filename_score,
-                content_score,
-                semantic_score,
-                audio
-            )
-        )
-
-    # ----------------------
-    # No Results
-    # ----------------------
-
-    if not unique_results:
-        return []
-
-    # ----------------------
-    # Build Output
-    # ----------------------
-
-    output = []
-
-    for (
-        final_score,
-        filename_score,
-        content_score,
-        semantic_score,
-        audio
-    ) in unique_results[:TOP_K]:
-
-        output.append({
-            "type": "audio",
-            "file": audio.get("file", ""),
-            "score": final_score,
-            "path": audio["path"],
-            "platform": audio.get("platform", "local"),
+        result = base_result(payload, "audio", final_score)
+        result.update({
             "filename_score": filename_score,
             "content_score": content_score,
             "semantic_score": semantic_score,
-            "preview": audio.get("chunk", "")[:300],
-            "file_id": audio.get("file_id"),
+            "preview": payload.get("chunk", "")[:300],
         })
+        best[key] = result
 
-    return output
+    return sorted(best.values(), key=lambda r: r["score"], reverse=True)[:TOP_K]
