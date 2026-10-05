@@ -9,10 +9,12 @@ type OpenTarget =
  * Drive / GitHub open in a new tab, local files are downloaded with auth.
  * Throws an Error carrying the backend's message on failure.
  */
-export async function openFile(platform: string, path?: string, file_id?: string) {
+export async function openFile(platform: string, path?: string, file_id?: string, source_id?: string) {
+  // source_id identifies the indexed file (local path / Drive id / owner/repo:path);
+  // the backend only opens sources this user has indexed.
   const target = await apiJson<OpenTarget>("/open/", {
     method: "POST",
-    json: { platform, path, file_id },
+    json: { platform, path, file_id, source_id },
     errorMessage: "Unable to open file.",
   });
 
