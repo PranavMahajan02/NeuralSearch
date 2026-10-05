@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
 from app.database.db import get_db
+from app.services.index_store import purge_platform
 
 from app.auth.auth_dependency import get_current_user
 
@@ -124,6 +125,8 @@ def disconnect_google_drive(
 
     current_user=Depends(get_current_user),
 
+    purge: bool = False,
+
     db: Session = Depends(get_db)
 
 ):
@@ -136,10 +139,14 @@ def disconnect_google_drive(
 
     )
 
+    # ?purge=true also removes every indexed file of this platform (this user only).
+    purged = purge_platform(current_user["id"], "google_drive") if purge else 0
+
     return {
 
         "status": "success",
 
+        "purged_files": purged,
         "connected": False,
 
         "message": "Google Drive disconnected successfully."

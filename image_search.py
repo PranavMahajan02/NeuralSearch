@@ -1,30 +1,22 @@
+"""Image search over the user's Qdrant points (CLIP vector + OCR text)."""
+
 import re
-import os
-import sys
+
 from rapidfuzz import fuzz
-from clip_extract import get_text_embedding
 
-from app.vectorstore.image_search import (  
-    search_image_vectors,
-)
+from app.ai.embedder import embed_clip_text
+from app.search.common import base_result, group_hits
+from app.vectorstore.query import search_points
 
-
-
-# ==========================
-# CONSTANTS
-# ==========================
 
 TOP_K = 5
 MIN_FINAL_SCORE = 0.05
+QDRANT_LIMIT = 30
 
-# ==========================
-# HELPERS
-# ==========================
 
 def get_filename_score(query, filename):
-    query = query.lower()
 
-    # Improvement 4: normalise underscores and hyphens → spaces before tokenising
+    query = query.lower()
     filename = re.sub(r"[_\-]+", " ", filename.lower().rsplit(".", 1)[0])
 
     if query in filename:
@@ -36,11 +28,11 @@ def get_filename_score(query, filename):
     if not query_words:
         return 0.0
 
-    matches = len(query_words & filename_words)
-    return matches / len(query_words)
+    return len(query_words & filename_words) / len(query_words)
 
 
 def get_content_score(query, content):
+
     query = query.lower()
     content = content.lower()
 
@@ -50,87 +42,59 @@ def get_content_score(query, content):
     query_words = re.findall(r"\w+", query)
     content_words = set(re.findall(r"\w+", content))
 
+    if not query_words:
+        return 0.0
+
     matches = 0
+
     for word in query_words:
         for c_word in content_words:
             if fuzz.ratio(word, c_word) >= 85:
                 matches += 1
                 break
 
-    if not query_words:
-        return 0.0
-
     return matches / len(query_words)
 
 
-# ==========================
-# SEARCH FUNCTION
-# ==========================
+def search_images(query, user_id, platform="all"):
 
-def search_images(
-    query,
-    platform="all"
-):
     if not query:
         return []
 
     query = query.strip().lower()
 
-    query_embedding = get_text_embedding(query)
-
-    images = search_image_vectors(
-        query_embedding,
-        limit=30,
-        platform=platform
-    )
+    hits = search_points("image", embed_clip_text(query), user_id, platform, limit=QDRANT_LIMIT)
 
     results = []
 
-    for point in images:
+    for _key, group in group_hits(hits).items():
 
-        image = point.payload
+        payload = group["payload"]
+        clip_score = group["best"]
+        ocr_text = " ".join(group["chunks"])
 
-        # Fix 2: pull CLIP score from lookup (0.0 if absent)
-        clip_score = float(point.score)
+        filename_score = get_filename_score(query, payload.get("file", ""))
+        content_score = get_content_score(query, ocr_text)
 
-        filename_score = get_filename_score(query, image.get("file", ""))
-        content_score = get_content_score(query, image.get("ocr_text", ""))
-
-        # Fix 3: adaptive ranking weights
         if content_score > 0:
-            image_score = (
-                0.50 * content_score +
-                0.30 * filename_score +
-                0.20 * clip_score
-            )
+            score = 0.50 * content_score + 0.30 * filename_score + 0.20 * clip_score
         elif filename_score > 0:
-            image_score = (
-                0.60 * filename_score +
-                0.40 * clip_score
-            )
+            score = 0.60 * filename_score + 0.40 * clip_score
         else:
-            image_score = clip_score
+            score = clip_score
 
-        # Fix 4: skip results below minimum threshold
-        if image_score < MIN_FINAL_SCORE:
+        if score < MIN_FINAL_SCORE:
             continue
 
-        results.append({
-            "type": "image",
-            "file": image.get("file", ""),
-            "score": image_score,
-            "path": image.get("path", ""),
-            "platform": image.get("platform", "local"),
+        result = base_result(payload, "image", score)
+        result.update({
             "filename_score": filename_score,
             "ocr_score": content_score,
             "clip_score": clip_score,
-            # Remove before production deployment (debug only)
-            "ocr_text": image.get("ocr_text", ""),
-            "file_id": image.get("file_id"),
+            "ocr_text": ocr_text,
         })
+        results.append(result)
 
-    # Fix 6: single sort at the end only
-    results.sort(key=lambda x: x["score"], reverse=True)
+    results.sort(key=lambda r: r["score"], reverse=True)
 
-    # Fix 9: use TOP_K constant
     return results[:TOP_K]
