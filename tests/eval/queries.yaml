@@ -1,0 +1,166 @@
+# Search evaluation set for the owner's real data (pranav2@gmail.com).
+#
+# expected: file names (case-insensitive, exact) of the relevant sources.
+#           Any listed file counts as relevant; order does not matter.
+# modality: the main kind of evidence (documentation only; scoring uses all).
+# negative: true -> the query should return NO results.
+#
+# Run: venv\Scripts\python scripts\eval_search.py
+
+queries:
+
+  # ---------------- documents: names, topics, natural language ----------------
+  - query: java
+    modality: document
+    expected: [Coursera JAVA.pdf, Coursera Object Oriented Programming in Java.pdf, ANimal kingdom java.docx]
+
+  - query: jva notes                       # typo
+    modality: document
+    expected: [Coursera JAVA.pdf, Coursera Object Oriented Programming in Java.pdf, ANimal kingdom java.docx]
+
+  - query: "java!!!@#$%"                   # punctuation noise
+    modality: document
+    expected: [Coursera JAVA.pdf, Coursera Object Oriented Programming in Java.pdf, ANimal kingdom java.docx]
+
+  - query: DBMS assignment
+    modality: document
+    expected: [DBMS assignment 1.docx, DBMS assignment 2.docx, DBMS ASSIGNMENT 3 .docx, DBMS ASSIGNMENT 4.docx, DBMS ASSIGNMENT 1 ER DIAGRAM.docx]
+
+  - query: hospital management system
+    modality: document
+    expected: [Hospital Management System - DBMS Jury.pptx, Hospital_Management_System_Final.pptx]
+
+  - query: capital budgeting
+    modality: document
+    expected: [Unit 2 - Capital Budgeting.pdf]
+
+  - query: time value of money
+    modality: document
+    expected: [Unit 2 - Time Value of Money.pdf]
+
+  - query: photon detectors
+    modality: document
+    expected: [Unit 3 Photon Detectors 23.03.2025.pptx]
+
+  - query: binary tree
+    modality: document
+    expected: [Binary tree DSA ASS 1.docx, Binary tree DSA ASS 1.pdf]
+
+  - query: fee collection 57500            # numbers
+    modality: document
+    expected: [TCS iON Fee Collection 57500.pdf, Self Service 57500.pdf]
+
+  - query: academic calendar 2024-25       # year
+    modality: document
+    expected: [B-Tech First Year Academic Calendar AY 2024-25.pdf]
+
+  - query: quantum computing
+    modality: document
+    expected: [hb_Quantum_Computing.pdf]
+
+  - query: SQL PLSQL
+    modality: document
+    expected: [UNIT II- SQL PLSQL 2018-19 (1).pptx, unit i – introduction of database and sql.pptx]
+
+  - query: TURING MACHINE                  # mixed case
+    modality: document
+    expected: [Turing Machine_Notes.pdf]
+
+  - query: how should a project report be formatted   # natural language
+    modality: document
+    expected: [Annexure 6_Project report format - guidelines_SKP.docx, TechForGood2026_Report_Template.docx]
+
+  - query: Apple financial report
+    modality: document
+    expected: [Financial Report Apple Inc.docx]
+
+  - query: software engineering assignment
+    modality: document
+    expected: [Assignment No 01 SE.pdf, SE ASSIGNMENT 2.pdf]
+
+  - query: Find my government documents    # from the original audit
+    modality: document
+    expected: [ADHAR.pdf]
+
+  # ---------------- code (GitHub) ----------------
+  - query: train model
+    modality: code
+    expected: [backend__train_model.py]
+
+  - query: chrome extension manifest
+    modality: code
+    expected: [extension__manifest.json]
+
+  - query: merge datasets
+    modality: code
+    expected: [backend__merge_datasets.py]
+
+  # ---------------- images ----------------
+  - query: tiger
+    modality: image
+    expected: [tiger-looking-with-open-mouth_1150-18083.avif]
+
+  - query: hall ticket
+    modality: image
+    expected: [Hall ticket.jpeg]
+
+  - query: golden retriever dog
+    modality: image
+    expected: [Golden_Retriever.webp]
+
+  - query: pizza
+    modality: image
+    expected: [delicious-pepperoni-pizza-culinary-delight_632498-24206.avif]
+
+  - query: coffee
+    modality: image
+    expected: [latte-coffee_1122-2728.avif]
+
+  - query: motorcycle
+    modality: image
+    expected: [royalenfield-hunter-350-retro-factory1727790756803.webp]
+
+  # ---------------- audio ----------------
+  - query: climate change speech
+    modality: audio
+    expected: [5 Minute Speech - Action on Climate Change - 10 August 2021 - Gladys Liu MP.mp3]
+
+  - query: gender equality
+    modality: audio
+    expected: [ENGLISH SPEECH  EMMA WATSON Gender Equality (English Subtitles) - English Speeches.mp3]
+
+  # ---------------- video ----------------
+  - query: forest bathing
+    modality: video
+    expected: [vidssave.com Forest Bathing _ Shinrin-Yoku _ Healing in Nature _ Short Documentary 720P.mp4]
+
+  - query: brain behaves differently in nature   # transcript phrase
+    modality: video
+    expected: [vidssave.com Forest Bathing _ Shinrin-Yoku _ Healing in Nature _ Short Documentary 720P.mp4]
+
+  - query: cute baby animals
+    modality: video
+    expected: [vidssave.com 7 Minutes of The Cutest Baby Animals You've Ever Seen _ Nat Geo 720p.mp4]
+
+  - query: data centers in space
+    modality: video
+    expected: [vidssave.com How Data Centers in Space Could Change AI 480P.mp4]
+
+  # ---------------- negatives: should return nothing ----------------
+  - query: xqzv wplk qqq
+    negative: true
+
+  - query: submarine volcano eruption
+    negative: true
+
+  - query: kubernetes helm chart deployment
+    negative: true
+
+  - query: basketball tournament scores
+    negative: true
+
+  - query: zzzzzz
+    negative: true
+
+  - query: quarterly tax return form 1040
+    negative: true
