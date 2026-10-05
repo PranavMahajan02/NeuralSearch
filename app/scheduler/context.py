@@ -84,6 +84,11 @@ class JobContext:
 
         self.current_file = str(file_ref)[:500]
 
+        # Time-based only: a slow file (e.g. a video) still shows up in the UI
+        # within about a second instead of at the next 10-file boundary.
+        if self._clock() - self._last_flush >= FLUSH_INTERVAL_SECONDS:
+            self.flush()
+
     def file_succeeded(self) -> None:
 
         self.succeeded_files += 1

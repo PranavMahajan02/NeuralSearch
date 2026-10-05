@@ -27,7 +27,7 @@ from app.routes import platforms
 from app.ai.model_manager import model_manager
 from app.database.db import SessionLocal
 from app.scheduler.jobs import recover_interrupted_jobs
-from app.scheduler.worker import worker as indexing_worker
+from app.scheduler.worker import clear_orphaned_job_dirs, worker as indexing_worker
 
 
 logging.basicConfig(level=logging.INFO)
@@ -66,6 +66,11 @@ async def lifespan(_app: FastAPI):
 
     if recovered:
         logger.warning("Marked %s interrupted job(s) as failed.", recovered)
+
+    orphaned = clear_orphaned_job_dirs()
+
+    if orphaned:
+        logger.warning("Removed %s orphaned job temp dir(s).", orphaned)
 
     run_worker = os.getenv("COGNISEEK_DISABLE_WORKER") != "1"
 

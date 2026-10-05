@@ -51,6 +51,25 @@ def jobs_temp_root() -> Path:
     return Path(settings.TEMP_DIR) / "jobs"
 
 
+def clear_orphaned_job_dirs() -> int:
+    """At startup no job can be running, so any job temp dir is left over
+    from a crash or a hard kill (where `finally` never ran)."""
+
+    root = jobs_temp_root()
+
+    if not root.is_dir():
+        return 0
+
+    removed = 0
+
+    for child in root.iterdir():
+        if child.is_dir():
+            shutil.rmtree(child, ignore_errors=True)
+            removed += 1
+
+    return removed
+
+
 class IndexingWorker:
 
     def __init__(
