@@ -13,6 +13,7 @@ from app.scheduler.jobs import (
     ActiveJobExists,
     enqueue_jobs,
     get_user_job,
+    indexed_platforms,
     job_errors,
     latest_jobs_per_platform,
     request_cancel,
@@ -78,10 +79,17 @@ def get_jobs(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Latest job per platform for the current user."""
+    """Latest job per platform for the current user.
+
+    `indexed` is true when the platform has ever finished a run successfully
+    (completed or completed_with_errors), even while a new job is queued or
+    running, so the UI never hides a platform's results during a re-index.
+    """
+
+    indexed = set(indexed_platforms(db, current_user["id"]))
 
     return [
-        serialize_job(job)
+        {**serialize_job(job), "indexed": job.platform in indexed}
         for job in latest_jobs_per_platform(db, current_user["id"])
     ]
 

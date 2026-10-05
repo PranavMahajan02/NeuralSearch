@@ -660,3 +660,31 @@ def test_progress_flushes_after_one_second(user):
         assert stored.heartbeat_at is not None
         stored.status = "cancelled"
         session.commit()
+
+
+def test_indexed_flag_survives_a_new_queued_or_failed_job(client, user):
+
+    enqueue(client, user, ["local"])
+    drain(make_worker())
+    assert jobs_of(client, user)["local"]["indexed"] is True
+
+    # A new run is queued: the latest job is "queued", the platform stays indexed.
+    enqueue(client, user, ["local"])
+    latest = jobs_of(client, user)["local"]
+    assert (latest["status"], latest["indexed"]) == ("queued", True)
+
+    drain(make_worker(local=Exploding))
+    latest = jobs_of(client, user)["local"]
+    assert (latest["status"], latest["indexed"]) == ("failed", True)
+
+    state = client.get("/auth/login-state", headers=user["headers"]).json()
+    assert state == {"has_indexed": True, "platforms": ["local"]}
+
+
+def test_never_indexed_platform_is_not_indexed(client, user):
+
+    enqueue(client, user, ["github"])
+    drain(make_worker(github=NotConnected))
+
+    assert jobs_of(client, user)["github"]["indexed"] is False
+    assert client.get("/auth/login-state", headers=user["headers"]).json()["has_indexed"] is False
