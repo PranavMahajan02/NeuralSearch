@@ -1,10 +1,34 @@
+"""The process-wide Qdrant client (created lazily so tests can swap it)."""
+
+import threading
+from typing import Optional
+
 from qdrant_client import QdrantClient
 
 from app.core.config import settings
 
-client = QdrantClient(
-    host=settings.QDRANT_HOST,
-    port=settings.QDRANT_PORT
-)
 
-print("Connected to Qdrant!")
+_client: Optional[QdrantClient] = None
+_lock = threading.Lock()
+
+
+def get_client() -> QdrantClient:
+
+    global _client
+
+    if _client is None:
+        with _lock:
+            if _client is None:
+                if settings.QDRANT_LOCATION:
+                    _client = QdrantClient(location=settings.QDRANT_LOCATION)
+                else:
+                    _client = QdrantClient(host=settings.QDRANT_HOST, port=settings.QDRANT_PORT)
+
+    return _client
+
+
+def set_client(client: Optional[QdrantClient]) -> None:
+    """Tests only: install a client (e.g. QdrantClient(":memory:"))."""
+
+    global _client
+    _client = client
