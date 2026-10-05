@@ -11,6 +11,7 @@ import { startIndexing } from "./services/index";
 import { getDashboardStats } from "./services/dashboard";
 import { getLoginState } from "./services/loginState";
 import { useIndexJobs } from "./hooks/useIndexJobs";
+import { consumeOAuthRedirect } from "./services/oauthRedirect";
 import { getFolders } from "./services/localStorage";
 import {
   connectGoogleDrive,
@@ -19,7 +20,6 @@ import {
 } from "./services/googleDrive";
 import {
   connectGithub,
-  consumeGithubRedirectResult,
   disconnectGithub,
   getGithubStatus
 } from "./services/github";
@@ -89,9 +89,9 @@ export default function App() {
   const { jobs: indexJobs, refresh: refreshIndexJobs } = useIndexJobs(authStatus === "authenticated");
   const [toast, setToast] = useState<{ ok: boolean; message: string } | null>(null);
 
-  // Result of the GitHub OAuth redirect (?github=connected|error&reason=...).
+  // Result of an OAuth redirect (?github= / ?google_drive= connected|error&reason=...).
   useEffect(() => {
-    const result = consumeGithubRedirectResult();
+    const result = consumeOAuthRedirect();
     if (!result) return;
     setToast(result);
     const timer = setTimeout(() => setToast(null), 6000);
@@ -185,7 +185,9 @@ export default function App() {
 
         if (googlePlatform?.connected) {
 
-          await disconnectGoogleDrive();
+          await disconnectGoogleDrive(
+            window.confirm("Also delete the files indexed from Google Drive? OK = delete them, Cancel = keep them searchable.")
+          );
 
           setPlatforms((prev) =>
             prev.map((p) =>
@@ -202,20 +204,18 @@ export default function App() {
 
         } else {
 
-          await connectGoogleDrive();
+          // Redirects the browser to Google unless already connected.
+          const result = await connectGoogleDrive();
 
-          setPlatforms((prev) =>
-            prev.map((p) =>
-              p.id === "google_drive"
-                ? {
-                  ...p,
-                  connected: true,
-                  status: "waiting",
-                  progress: 0
-                }
-                : p
-            )
-          );
+          if (result.connected) {
+            setPlatforms((prev) =>
+              prev.map((p) =>
+                p.id === "google_drive"
+                  ? { ...p, connected: true, account: result.account_email, status: "waiting", progress: 0 }
+                  : p
+              )
+            );
+          }
 
         }
 
@@ -241,7 +241,9 @@ export default function App() {
 
         if (githubPlatform?.connected) {
 
-          await disconnectGithub();
+          await disconnectGithub(
+            window.confirm("Also delete the files indexed from GitHub? OK = delete them, Cancel = keep them searchable.")
+          );
 
           setPlatforms((prev) =>
             prev.map((p) =>
@@ -531,6 +533,7 @@ export default function App() {
               ? {
                 ...p,
                 connected: status.connected,
+                account: status.account_email,
                 status: status.connected ? "waiting" : "idle"
               }
               : p
@@ -554,6 +557,7 @@ export default function App() {
               ? {
                 ...p,
                 connected: github.connected,
+                account: github.account_name,
                 status: github.connected ? "waiting" : "idle"
               }
               : p
