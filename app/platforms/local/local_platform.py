@@ -1,15 +1,11 @@
 import os
+from pathlib import Path
 
 from app.platforms.base_platform import BasePlatform
-from app.scheduler.cancel import is_cancelled, clear_cancel
+from app.platforms.errors import PlatformPreconditionError
+from app.platforms.indexing import is_supported, process_files
 from app.database.db import SessionLocal
 from app.database.local_storage_service import get_local_folders
-from app.database.indexing_job_service import (
-    set_total_files,
-    increment_indexed_files,
-    update_current_file
-)
-
 
 
 class LocalPlatform(BasePlatform):
@@ -21,109 +17,51 @@ class LocalPlatform(BasePlatform):
 
         self.folders = folders
 
-    def index(
-        self,
-        user_id
-    ):
+    def index(self, ctx):
 
-        db = SessionLocal()
-
-        try:
-
-            self.folders = [
-
-                folder.folder_path
-
-                for folder in get_local_folders(
-
-                    db,
-
-                    user_id
-
-                )
-
-            ]
-
-            # ==========================
-            # DEBUG
-            # ==========================
-
-            print("\n==============================")
-            print("LOCAL STORAGE DEBUG")
-            print("==============================")
-            print("User ID:", user_id)
-            print("Folders loaded from DB:")
-            print(self.folders)
-            print("==============================\n")
-
-        finally:
-
-            db.close()
-
+        from app.core.local_folders import is_allowed_folder
         from app.services.upload_service import process_uploaded_file
         from app.services.index_manager import remove_deleted_files
 
+        with SessionLocal() as db:
+            stored = [folder.folder_path for folder in get_local_folders(db, ctx.user_id)]
+
+        folders = []
+
+        for raw in stored:
+            try:
+                resolved = Path(raw).resolve(strict=True)
+            except OSError:
+                ctx.record_error(raw, FileNotFoundError("Folder no longer exists."))
+                continue
+            # Same rules as registration (no roots, inside ALLOWED_LOCAL_ROOTS).
+            if resolved.is_dir() and is_allowed_folder(resolved):
+                folders.append(str(resolved))
+
+        if not folders:
+            raise PlatformPreconditionError("No valid local folders are registered.")
+
+        self.folders = folders
+        ctx.allowed_roots.extend(Path(folder) for folder in folders)
+
+        # TODO(phase-3): prunes the global pickles; replaced by the per-user index.
         remove_deleted_files()
 
-        files = self.list_files()
+        supported, skipped = self.scan(folders)
 
-        print(f"\nFound {len(files)} files.\n")
+        ctx.add_skipped(skipped)
+        ctx.set_total(len(supported))
 
-        db = SessionLocal()
-
-        try:
-
-            set_total_files(
-                db,
-                user_id,
-                "local",
-                len(files)
+        process_files(
+            ctx,
+            supported,
+            file_ref=lambda path: path,
+            handle=lambda _position, path: process_uploaded_file(
+                path,
+                platform="local",
+                temp_dir=ctx.temp_dir
             )
-
-            for file_path in files:
-
-                if is_cancelled(user_id):
-
-                    print("\nLocal indexing cancelled.")
-
-                    break
-
-                try:
-
-                    print(f"Indexing: {file_path}")
-
-                    # Update currently processing file
-                    update_current_file(
-                        db,
-                        user_id,
-                        "local",
-                        os.path.basename(file_path)
-                    )
-
-                    process_uploaded_file(
-                        file_path,
-                        platform="local"
-                    )
-
-                    increment_indexed_files(
-                        db,
-                        user_id,
-                        "local"
-                    )
-
-                except Exception as e:
-
-                    print(
-                        f"Failed to index {file_path}: {e}"
-                    )
-
-        finally:
-
-            db.close()
-
-            clear_cancel(user_id)
-
-        print("\nLocal indexing completed.")
+        )
 
     def search(
         self,
@@ -234,38 +172,33 @@ class LocalPlatform(BasePlatform):
 
         print(f"Deleting: {file_name}")
 
-    def list_files(self):
+    @staticmethod
+    def scan(folders):
+        """(supported file paths, number of skipped entries).
 
-        files = []
+        Skipped = sub-folders + unsupported files; they are not part of the
+        progress denominator."""
 
-        print("\n========== SCANNING FOLDERS ==========")
+        supported = []
+        skipped = 0
 
-        for folder in self.folders:
+        for folder in folders:
 
-            print("\nFolder:")
-            print(folder)
-
-            exists = os.path.exists(folder)
-
-            print("Exists:", exists)
-
-            if not exists:
+            if not os.path.isdir(folder):
                 continue
 
-            for root, _, filenames in os.walk(folder):
+            for root, dirnames, filenames in os.walk(folder):
 
-                print(f"Scanning: {root}")
-                print(f"Files in folder: {len(filenames)}")
+                skipped += len(dirnames)
 
-                for file in filenames:
+                for name in filenames:
+                    if is_supported(name):
+                        supported.append(os.path.join(root, name))
+                    else:
+                        skipped += 1
 
-                    full_path = os.path.join(root, file)
+        return supported, skipped
 
-                    print(f"Checking: {full_path}")
-                    print("Exists:", os.path.exists(full_path))
+    def list_files(self):
 
-                    files.append(full_path)
-
-        print("======================================\n")
-
-        return files
+        return self.scan(self.folders)[0]

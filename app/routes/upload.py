@@ -8,7 +8,7 @@ from fastapi import UploadFile
 from app.auth.auth_dependency import get_current_user
 from app.core.config import settings
 from app.core.errors import AppError
-from app.services.upload_service import process_uploaded_file
+from app.services.upload_service import process_uploaded_file_in_background as process_uploaded_file
 from app.services.upload_service import save_uploaded_file
 
 

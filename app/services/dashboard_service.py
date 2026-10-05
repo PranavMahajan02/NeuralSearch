@@ -1,6 +1,6 @@
 import os
 import pickle
-from app.scheduler.status import get_status_for_user
+from app.scheduler.jobs import indexed_platforms
 from app.database.db import SessionLocal
 from app.database.local_storage_service import get_local_folders
 from app.database.platform_connection_service import (
@@ -14,9 +14,9 @@ def count_index(index_file):
 
     try:
 
-        with open(index_file, "rb") as f:
+        from app.services.pickle_store import load_pickle
 
-            data = pickle.load(f)
+        data = load_pickle(index_file)
 
     except (EOFError, pickle.UnpicklingError):
 
@@ -52,7 +52,6 @@ def get_dashboard_stats(user_id):
         + video
     )
 
-    scheduler = get_status_for_user(user_id)
 
     db = SessionLocal()
 
@@ -81,6 +80,8 @@ def get_dashboard_stats(user_id):
 
         ]
 
+        ready = indexed_platforms(db, user_id)
+
     finally:
 
         db.close()
@@ -97,13 +98,9 @@ def get_dashboard_stats(user_id):
 
         "video": video,
 
-        "connected_platforms": len(
-            scheduler["completed_platforms"]
-        ),
+        "connected_platforms": sum([drive_connected, github_connected, len(folders) > 0]),
 
-        "ready_platforms": len(
-            scheduler["completed_platforms"]
-        ),
+        "ready_platforms": len(ready),
 
         "platforms": {
 

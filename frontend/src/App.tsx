@@ -10,7 +10,7 @@ import PageDashboard from "./components/PageDashboard";
 import { startIndexing } from "./services/index";
 import { getDashboardStats } from "./services/dashboard";
 import { getLoginState } from "./services/loginState";
-import { getIndexJobs } from "./services/indexStatus";
+import { useIndexJobs } from "./hooks/useIndexJobs";
 import { getFolders } from "./services/localStorage";
 import {
   connectGoogleDrive,
@@ -85,6 +85,8 @@ export default function App() {
   >("checking");
 
   const [user, setUser] = useState<AuthUser | null>(null);
+  // The only /index/jobs poller in the app (2 s while active, 15 s idle).
+  const { jobs: indexJobs, refresh: refreshIndexJobs } = useIndexJobs(authStatus === "authenticated");
   const [toast, setToast] = useState<{ ok: boolean; message: string } | null>(null);
 
   // Result of the GitHub OAuth redirect (?github=connected|error&reason=...).
@@ -112,7 +114,6 @@ export default function App() {
   // Priority platform, stream log feed and counts ref
   const [priorityPlatformId, setPriorityPlatformId] = useState<PlatformId | null>(null);
   const [streamFeed, setStreamFeed] = useState<IndexLog[]>([]);
-  const [indexJobs, setIndexJobs] = useState<any[]>([]);
   const indexedFileCountsRef = useRef<Record<PlatformId, number>>({
     google_drive: 0,
     google_photos: 0,
@@ -345,6 +346,8 @@ export default function App() {
         connectedPlatforms
       );
 
+      void refreshIndexJobs();
+
       if (!fromDashboard) {
 
         setCurrentPage("indexing_first");
@@ -432,138 +435,82 @@ export default function App() {
     checkAuthentication();
   }, []);
 
+  // Derive platform state from the single /index/jobs poller (useIndexJobs).
   useEffect(() => {
 
-    if (
-      currentPage !== "indexing_first" &&
-      currentPage !== "dashboard"
-    ) {
+    const toUiId = (platform: string) =>
+      platform === "local" ? "local_storage" : platform;
+
+    // A platform is "indexed" once any run succeeded, whatever runs now (FE-01).
+    setIndexedPlatforms(
+      indexJobs.filter((job) => job.indexed).map((job) => toUiId(job.platform))
+    );
+
+    const running = indexJobs.find((job) => job.status === "running");
+
+    setIndexingState(
+      running
+        ? { active: true, platform: running.platform, progress: running.progress, status: "indexing" }
+        : { active: false, platform: "", progress: 0, status: "idle" }
+    );
+
+    setPlatforms((prev) =>
+      prev.map((platform) => {
+
+        const job = indexJobs.find((j) => toUiId(j.platform) === platform.id);
+
+        if (!job) {
+          return platform;
+        }
+
+        if (job.status === "running") {
+          return { ...platform, status: "indexing", progress: job.progress };
+        }
+
+        if (job.status === "queued") {
+          return { ...platform, status: "waiting", progress: 0 };
+        }
+
+        return {
+          ...platform,
+          status: job.indexed ? "indexed" : "idle",
+          progress: job.progress,
+          indexed: job.indexed
+        };
+      })
+    );
+
+  }, [indexJobs]);
+
+  // Onboarding: go to the dashboard once the priority platform is indexed.
+  useEffect(() => {
+
+    if (currentPage !== "indexing_first" || !priorityPlatformId) {
       return;
     }
 
-    const interval = setInterval(async () => {
-      try {
+    const priority = priorityPlatformId === "local_storage" ? "local" : priorityPlatformId;
 
-        const jobs = await getIndexJobs();
-        setIndexJobs(jobs);
+    if (!indexJobs.some((job) => job.platform === priority && job.indexed)) {
+      return;
+    }
 
-        setPlatforms(prev =>
-          prev.map(platform => {
+    getDashboardStats()
+      .then((dashboard) => {
+        setStats((prev) => ({
+          ...prev,
+          indexedFiles: dashboard.total_files,
+          indexedImages: dashboard.images,
+          indexedAudio: dashboard.audio,
+          indexedVideos: dashboard.video,
+          connectedPlatforms: dashboard.connected_platforms,
+          platformsReady: dashboard.ready_platforms
+        }));
+      })
+      .catch((error) => console.error(error))
+      .finally(() => setCurrentPage("dashboard"));
 
-            const backendName =
-              platform.id === "local_storage"
-                ? "local"
-                : platform.id;
-
-            const job = jobs.find(
-              (j: any) => j.platform === backendName
-            );
-
-            if (!job) {
-              return platform;
-            }
-
-            if (job.status === "indexing") {
-
-              setIndexingState({
-
-                active: true,
-
-                platform: backendName,
-
-                progress: job.progress,
-
-                status: "indexing"
-
-              });
-
-              return {
-
-                ...platform,
-
-                status: "indexing",
-
-                progress: job.progress
-
-              };
-
-            }
-
-            if (job.status === "completed") {
-              setIndexingState({
-
-                active: false,
-
-                platform: backendName,
-
-                progress: job.progress,
-
-                status: "completed"
-
-              });
-
-              return {
-                ...platform,
-                status: "indexed",
-                progress: job.progress,
-                indexed: true
-              };
-
-            }
-
-            return platform;
-
-          })
-        );
-
-        const completed = jobs
-          .filter((j: any) => j.status === "completed");
-
-        // NEW
-        setIndexedPlatforms(
-          completed.map((j: any) =>
-            j.platform === "local"
-              ? "local_storage"
-              : j.platform
-          )
-        );
-
-        if (
-          completed.length > 0 &&
-          completed[0].platform ===
-          (priorityPlatformId === "local_storage"
-            ? "local"
-            : priorityPlatformId)
-        ) {
-
-          const dashboard = await getDashboardStats();
-
-          setStats(prev => ({
-            ...prev,
-            indexedFiles: dashboard.total_files,
-            indexedImages: dashboard.images,
-            indexedAudio: dashboard.audio,
-            indexedVideos: dashboard.video,
-            connectedPlatforms: dashboard.connected_platforms,
-            platformsReady: dashboard.ready_platforms
-          }));
-
-          setCurrentPage("dashboard");
-
-
-        }
-
-      } catch (err) {
-
-        console.error("Polling failed:", err);
-
-      }
-
-    }, 1000);
-
-    return () => clearInterval(interval);
-
-  }, [currentPage, priorityPlatformId]);
+  }, [indexJobs, currentPage, priorityPlatformId]);
 
   useEffect(() => {
 
@@ -667,40 +614,8 @@ export default function App() {
 
       }
 
-      try {
-
-        const jobs = await getIndexJobs();
-
-        setIndexJobs(jobs);
-
-        const ready: string[] = [];
-
-        jobs.forEach((job: any) => {
-
-          if (job.status === "completed") {
-
-            if (job.platform === "local") {
-
-              ready.push("local_storage");
-
-            } else {
-
-              ready.push(job.platform);
-
-            }
-
-          }
-
-        });
-
-        setIndexedPlatforms(ready);
-
-      } catch (err) {
-
-        console.error("Polling failed:", err);
-
-
-      }
+      // Indexed platforms come from the single jobs poller.
+      void refreshIndexJobs();
 
     }
 
@@ -842,6 +757,7 @@ export default function App() {
               streamFeed={streamFeed}
               priorityPlatformId={priorityPlatformId}
               indexJobs={indexJobs}
+              onJobsChanged={refreshIndexJobs}
             />
           </motion.div>
         )}
@@ -862,6 +778,8 @@ export default function App() {
               stats={stats}
               onUpdateStats={setStats}
               onLogout={handleLogout}
+              indexJobs={indexJobs}
+              onJobsChanged={refreshIndexJobs}
               onStartIndexing={handleStartIndexing}
               onTogglePlatformConnect={handleTogglePlatformConnect}
               indexingState={indexingState}

@@ -1,16 +1,25 @@
-from datetime import datetime
+import uuid
 
 from fastapi import APIRouter
 from fastapi import Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.scheduler.queue import create_queue
-from app.scheduler.worker import start_worker
-from app.database.db import get_db
-from app.database.models import IndexingJob
 from app.auth.auth_dependency import get_current_user
+from app.core.errors import AppError
+from app.database.db import get_db
 from app.models.platforms import PlatformName
+from app.scheduler.jobs import (
+    ActiveJobExists,
+    enqueue_jobs,
+    get_user_job,
+    indexed_platforms,
+    job_errors,
+    latest_jobs_per_platform,
+    request_cancel,
+    serialize_job
+)
+from app.scheduler.worker import notify_worker
 
 
 router = APIRouter(
@@ -40,75 +49,92 @@ def index(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """Queue one new job per platform (priority platform first)."""
 
-    # Plain strings from here on (DB columns, scheduler, registry keys).
     priority_platform = request.priority_platform.value
     platforms = list(dict.fromkeys(p.value for p in request.platforms))
 
-    # ---------------------------------------
-    # Create indexing jobs for this user
-    # ---------------------------------------
-
-    for platform in platforms:
-
-        job = (
-            db.query(IndexingJob)
-            .filter(
-                IndexingJob.user_id == current_user["id"],
-                IndexingJob.platform == platform
-            )
-            .order_by(IndexingJob.started_at.desc())
-            .first()
+    try:
+        jobs = enqueue_jobs(db, current_user["id"], priority_platform, platforms)
+    except ActiveJobExists as conflict:
+        raise AppError(
+            409,
+            "Indexing is already queued or running for: " + ", ".join(conflict.platforms) + ".",
+            code="job_already_active"
         )
 
-        if job:
-
-            if platform == priority_platform:
-                job.status = "indexing"
-            else:
-                job.status = "queued"
-
-            job.started_at = datetime.utcnow()
-            job.completed_at = None
-            job.indexed_files = 0
-            job.total_files = 0
-            job.current_file = ""
-
-        else:
-
-            job = IndexingJob(
-                user_id=current_user["id"],
-                platform=platform,
-                status=(
-                    "indexing"
-                    if platform == priority_platform
-                    else "queued"
-                ),
-                started_at=datetime.utcnow(),
-                indexed_files=0,
-                total_files=0,
-                current_file=""
-            )
-
-            db.add(job)
-
-    db.commit()
-
-    # ---------------------------------------
-    # Start scheduler
-    # ---------------------------------------
-
-    create_queue(
-        current_user["id"],
-        priority_platform,
-        platforms
-    )
-
-    start_worker()
+    notify_worker()
 
     return {
         "status": "success",
-        "message": "Indexing started",
+        "message": "Indexing queued",
         "priority_platform": priority_platform,
-        "platforms": platforms
+        "platforms": [job.platform for job in jobs],
+        "jobs": [serialize_job(job) for job in jobs]
     }
+
+
+@router.get("/jobs")
+def get_jobs(
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Latest job per platform for the current user.
+
+    `indexed` is true when the platform has ever finished a run successfully
+    (completed or completed_with_errors), even while a new job is queued or
+    running, so the UI never hides a platform's results during a re-index.
+    """
+
+    indexed = set(indexed_platforms(db, current_user["id"]))
+
+    return [
+        {**serialize_job(job), "indexed": job.platform in indexed}
+        for job in latest_jobs_per_platform(db, current_user["id"])
+    ]
+
+
+def _owned_job(db: Session, user_id, job_id: uuid.UUID):
+
+    job = get_user_job(db, user_id, job_id)
+
+    if job is None:
+        # Same answer for "missing" and "someone else's".
+        raise AppError(404, "Job not found.")
+
+    return job
+
+
+@router.get("/jobs/{job_id}/errors")
+def get_job_errors(
+    job_id: uuid.UUID,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+
+    job = _owned_job(db, current_user["id"], job_id)
+
+    return {
+        "job_id": str(job.id),
+        "failed_files": job.failed_files,
+        "errors": [
+            {
+                "file": error.file_ref,
+                "error": error.error,
+                "created_at": error.created_at
+            }
+            for error in job_errors(db, job.id)
+        ]
+    }
+
+
+@router.post("/jobs/{job_id}/cancel")
+def cancel_job(
+    job_id: uuid.UUID,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+
+    job = request_cancel(db, _owned_job(db, current_user["id"], job_id))
+
+    return serialize_job(job)

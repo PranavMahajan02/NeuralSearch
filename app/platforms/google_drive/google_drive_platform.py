@@ -1,124 +1,114 @@
-from importlib.metadata import files
 import os
-from app.scheduler.cancel import is_cancelled, clear_cancel
+import re
+
 from app.platforms.base_platform import BasePlatform
+from app.platforms.errors import PlatformPreconditionError
+from app.platforms.indexing import is_supported, process_files
 from app.platforms.google_drive.drive_service import (
     get_drive_service
 )
-from app.database.db import SessionLocal
 
-from app.database.indexing_job_service import (
-    set_total_files,
-    increment_indexed_files,
-    update_current_file
-)
+
+FOLDER_MIME = "application/vnd.google-apps.folder"
+
+# Native Google files that download_file exports to a supported format.
+EXPORTABLE_MIMES = {
+    "application/vnd.google-apps.document",
+    "application/vnd.google-apps.presentation",
+    "application/vnd.google-apps.spreadsheet",
+}
+
+_UNSAFE_NAME = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+
+
+def safe_local_name(name: str) -> str:
+    """Drive names may contain '/' or characters Windows rejects."""
+
+    cleaned = _UNSAFE_NAME.sub("_", name or "").strip(" .")
+
+    return (cleaned or "file")[:200]
+
+
+def is_drive_file_supported(file: dict) -> bool:
+
+    return file.get("mimeType") in EXPORTABLE_MIMES or is_supported(file.get("name", ""))
+
+
+def is_auth_error(error: Exception) -> bool:
+
+    status = getattr(getattr(error, "resp", None), "status", None)
+
+    return status in (401, 403)
 
 
 class GoogleDrivePlatform(BasePlatform):
 
-    def index(
-        self,
-        user_id
-    ):
-
-        os.makedirs(
-            "temp",
-            exist_ok=True
-        )
+    def index(self, ctx):
 
         from app.platforms.google_drive.drive_service import download_file
         from app.services.upload_service import process_uploaded_file
 
-        files = self.list_files(
-            user_id
-        )
-        print(f"\nFound {len(files)} Google Drive files.\n")
-
-        db = SessionLocal()
-
         try:
+            files = self.list_files(ctx.user_id)
+        except PlatformPreconditionError:
+            raise
+        except Exception as error:
+            if is_auth_error(error):
+                raise PlatformPreconditionError(
+                    "Google Drive rejected the stored credentials. Please reconnect Google Drive."
+                ) from error
+            raise
 
-            set_total_files(
-                db,
-                user_id,
-                "google_drive",
-                len(files)
-            )
+        supported = []
+        skipped = 0
 
-            for file in files:
+        for file in files:
+            if file.get("mimeType") == FOLDER_MIME or not is_drive_file_supported(file):
+                skipped += 1
+            else:
+                supported.append(file)
 
-                if is_cancelled(user_id):
-                    print("\nGoogle Drive indexing cancelled.")
-                    break
+        ctx.add_skipped(skipped)
+        ctx.set_total(len(supported))
 
-                name = file["name"]
-                file_id = file["id"]
-                mime = file["mimeType"]
-                modified_time = file["modifiedTime"]
+        def handle(position, file):
 
-                # Skip folders
-                if mime == "application/vnd.google-apps.folder":
-                    print(f"Skipping folder: {name}")
-                    continue
+            target = ctx.file_dir(position) / safe_local_name(file["name"])
+            downloaded_path = None
 
-                temp_path = os.path.join(
-                    "temp",
-                    name
+            try:
+                downloaded_path = download_file(
+                    ctx.user_id,
+                    file["id"],
+                    str(target),
+                    file["mimeType"]
                 )
 
-                downloaded_path = None
+                process_uploaded_file(
+                    downloaded_path,
+                    platform="google_drive",
+                    file_id=file["id"],
+                    file_sha=file["modifiedTime"],
+                    temp_dir=ctx.temp_dir
+                )
 
-                try:
+            except Exception as error:
+                if is_auth_error(error):
+                    raise PlatformPreconditionError(
+                        "Google Drive access was revoked during indexing."
+                    ) from error
+                raise
 
-                    print(f"\nDownloading: {name}")
+            finally:
+                if downloaded_path and os.path.exists(downloaded_path):
+                    os.remove(downloaded_path)
 
-                    print(f"Name: {name}")
-                    print(f"MIME: {mime}")
-
-                    downloaded_path = download_file(
-                        user_id,
-                        file_id,
-                        temp_path,
-                        mime
-                    )
-
-                    print(f"Indexing: {os.path.basename(downloaded_path)}")
-
-                    update_current_file(
-                        db,
-                        user_id,
-                        "google_drive",
-                        name
-                    )
-
-                    process_uploaded_file(
-                        downloaded_path,
-                        platform="google_drive",
-                        file_id=file_id,
-                        file_sha=modified_time
-                    )
-
-                    increment_indexed_files(
-                        db,
-                        user_id,
-                        "google_drive"
-                    )
-
-                    print(f"Finished: {name}")
-
-                finally:
-
-                    if (
-                        downloaded_path
-                        and os.path.exists(downloaded_path)
-                    ):
-                        os.remove(downloaded_path)
-
-        finally:
-
-            db.close()
-            clear_cancel(user_id)
-            print("\nGoogle Drive indexing completed.")
+        process_files(
+            ctx,
+            supported,
+            file_ref=lambda file: file.get("name") or file.get("id"),
+            handle=handle
+        )
 
     def list_files(
         self,
@@ -130,6 +120,7 @@ class GoogleDrivePlatform(BasePlatform):
         )
 
         files = []
+
         page_token = None
 
         while True:
