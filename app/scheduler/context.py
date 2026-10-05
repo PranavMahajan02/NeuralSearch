@@ -53,6 +53,7 @@ class JobContext:
         self.succeeded_files = 0
         self.failed_files = 0
         self.skipped_files = 0
+        self.downloaded_files = 0
         self.current_file = ""
         self.stored_errors = 0
 
@@ -88,6 +89,11 @@ class JobContext:
         # within about a second instead of at the next 10-file boundary.
         if self._clock() - self._last_flush >= FLUSH_INTERVAL_SECONDS:
             self.flush()
+
+    def file_downloaded(self) -> None:
+        """A remote file was fetched (0 on a run where nothing changed)."""
+
+        self.downloaded_files += 1
 
     def file_succeeded(self) -> None:
 
@@ -175,6 +181,7 @@ class JobContext:
                     IndexingJob.succeeded_files: self.succeeded_files,
                     IndexingJob.failed_files: self.failed_files,
                     IndexingJob.skipped_files: self.skipped_files,
+                    IndexingJob.downloaded_files: self.downloaded_files,
                     # Legacy column, kept equal to processed_files for old clients.
                     IndexingJob.indexed_files: self.processed_files,
                     IndexingJob.current_file: self.current_file,

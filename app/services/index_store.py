@@ -44,6 +44,8 @@ class FileMeta:
     version: Optional[str]
     owner: Optional[str] = None
     repo: Optional[str] = None
+    default_branch: Optional[str] = None     # GitHub
+    web_view_link: Optional[str] = None      # Google Drive
 
 
 @dataclass
@@ -181,6 +183,8 @@ def _record(meta: FileMeta, status: str, chunk_count, error=None, session_factor
         row.error = error
         row.owner = meta.owner
         row.repo = meta.repo
+        row.default_branch = meta.default_branch
+        row.web_view_link = meta.web_view_link
         row.updated_at = now
 
         if chunk_count is not None:
