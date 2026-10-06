@@ -22,29 +22,11 @@ queries:
     modality: document
     expected: [Coursera JAVA.pdf, Coursera Object Oriented Programming in Java.pdf, ANimal kingdom java.docx]
 
-  - query: DBMS assignment
-    modality: document
-    expected: [DBMS assignment 1.docx, DBMS assignment 2.docx, DBMS ASSIGNMENT 3 .docx, DBMS ASSIGNMENT 4.docx, DBMS ASSIGNMENT 1 ER DIAGRAM.docx]
 
-  - query: hospital management system
-    modality: document
-    expected: [Hospital Management System - DBMS Jury.pptx, Hospital_Management_System_Final.pptx]
 
-  - query: capital budgeting
-    modality: document
-    expected: [Unit 2 - Capital Budgeting.pdf]
 
-  - query: time value of money
-    modality: document
-    expected: [Unit 2 - Time Value of Money.pdf]
 
-  - query: photon detectors
-    modality: document
-    expected: [Unit 3 Photon Detectors 23.03.2025.pptx]
 
-  - query: binary tree
-    modality: document
-    expected: [Binary tree DSA ASS 1.docx, Binary tree DSA ASS 1.pdf]
 
   - query: fee collection 57500            # numbers
     modality: document
@@ -54,29 +36,14 @@ queries:
     modality: document
     expected: [B-Tech First Year Academic Calendar AY 2024-25.pdf]
 
-  - query: quantum computing
-    modality: document
-    expected: [hb_Quantum_Computing.pdf]
 
-  - query: SQL PLSQL
-    modality: document
-    expected: [UNIT II- SQL PLSQL 2018-19 (1).pptx, unit i – introduction of database and sql.pptx]
 
-  - query: TURING MACHINE                  # mixed case
-    modality: document
-    expected: [Turing Machine_Notes.pdf]
 
-  - query: how should a project report be formatted   # natural language
-    modality: document
-    expected: [Annexure 6_Project report format - guidelines_SKP.docx, TechForGood2026_Report_Template.docx]
 
   - query: Apple financial report
     modality: document
     expected: [Financial Report Apple Inc.docx]
 
-  - query: software engineering assignment
-    modality: document
-    expected: [Assignment No 01 SE.pdf, SE ASSIGNMENT 2.pdf]
 
   - query: Find my government documents    # from the original audit
     modality: document
@@ -89,15 +56,15 @@ queries:
   # ---------------- code (GitHub) ----------------
   - query: train model
     modality: code
-    expected: [backend__train_model.py]
+    expected: [train_model.py]
 
   - query: chrome extension manifest
     modality: code
-    expected: [extension__manifest.json]
+    expected: [manifest.json]
 
   - query: merge datasets
     modality: code
-    expected: [backend__merge_datasets.py]
+    expected: [merge_datasets.py]
 
   # ---------------- images ----------------
   - query: tiger
@@ -150,6 +117,30 @@ queries:
     modality: video
     expected: [vidssave.com How Data Centers in Space Could Change AI 480P.mp4]
 
+  # ---------------- VISUAL-ONLY images (Phase 5, bug #3) ----------------
+  # No query word appears in any expected file name: only CLIP can find these.
+  - {query: dog, modality: image, visual: true, expected: [Golden_Retriever.webp]}
+  - {query: big cat, modality: image, visual: true, expected: [tiger-looking-with-open-mouth_1150-18083.avif, image-asset.jpeg]}
+  - {query: kitten lying on the floor, modality: image, visual: true, expected: [image-asset.jpeg]}
+  - {query: dessert, modality: image, visual: true, expected: [delicious-raspberry-chocolate-ice-cream-sundae_632498-24987.avif]}
+  - {query: motorbike, modality: image, visual: true, expected: [royalenfield-hunter-350-retro-factory1727790756803.webp]}
+  - {query: sports car on a road, modality: image, visual: true, expected: [0x0.webp]}
+  - {query: washing machine, modality: image, visual: true, expected: [nxjziQPmnp7FlSsP.webp]}
+  - {query: sand dunes, modality: image, visual: true, expected: [photo-1473580044384-7ba9967e16a0.avif, desert-variety-example-wadi-rum.webp]}
+  - {query: river flowing through mountains, modality: image, visual: true, expected: [photo-1624807136278-e2973be118ff.avif]}
+  - {query: temple, modality: image, visual: true, expected: [photo-1715876722520-02ccc9248dab.avif]}
+  - {query: sunset, modality: image, visual: true, expected: [QKOPUFKJMVV7JE2YNBCV2FILFQ.webp, photo-1715876722520-02ccc9248dab.avif]}
+  - {query: passenger vehicle, modality: image, visual: true, expected: [image-bus-isolated-on-white-600nw-2578467983.webp]}
+  - {query: aircraft, modality: image, visual: true, expected: [helicopter-art-design-vector-luxury-260nw-2481556627.webp]}
+  - {query: sacred hindu sign, modality: image, visual: true, expected: [flat-design-om-symbol_23-2149276113.avif]}
+  - {query: food, modality: image, visual: true, expected: [delicious-pepperoni-pizza-culinary-delight_632498-24206.avif, delicious-raspberry-chocolate-ice-cream-sundae_632498-24987.avif, latte-coffee_1122-2728.avif]}
+  - {query: hot drink in a cup, modality: image, visual: true, expected: [latte-coffee_1122-2728.avif]}
+
+  # visual negatives: objects absent from every image
+  - {query: elephant, negative: true, visual: true}
+  - {query: laptop keyboard, negative: true, visual: true}
+  - {query: soccer ball, negative: true, visual: true}
+
   # ---------------- negatives: should return nothing ----------------
   - query: xqzv wplk qqq
     negative: true
@@ -168,3 +159,20 @@ queries:
 
   - query: quarterly tax return form 1040
     negative: true
+
+# Retired on 2026-10-06 (Phase 5): their target files are no longer in the
+# owner's index - the owner switched Google accounts (new Drive) and the local
+# job kept only the files under the one registered local folder. Kept here so
+# they can be restored if those files are indexed again.
+retired:
+  - {query: 'DBMS assignment', expected: ['DBMS assignment 1.docx', 'DBMS assignment 2.docx', 'DBMS ASSIGNMENT 3 .docx', 'DBMS ASSIGNMENT 4.docx', 'DBMS ASSIGNMENT 1 ER DIAGRAM.docx']}
+  - {query: 'hospital management system', expected: ['Hospital Management System - DBMS Jury.pptx', 'Hospital_Management_System_Final.pptx']}
+  - {query: 'capital budgeting', expected: ['Unit 2 - Capital Budgeting.pdf']}
+  - {query: 'time value of money', expected: ['Unit 2 - Time Value of Money.pdf']}
+  - {query: 'photon detectors', expected: ['Unit 3 Photon Detectors 23.03.2025.pptx']}
+  - {query: 'binary tree', expected: ['Binary tree DSA ASS 1.docx', 'Binary tree DSA ASS 1.pdf']}
+  - {query: 'quantum computing', expected: ['hb_Quantum_Computing.pdf']}
+  - {query: 'SQL PLSQL', expected: ['UNIT II- SQL PLSQL 2018-19 (1).pptx', 'unit i – introduction of database and sql.pptx']}
+  - {query: 'TURING MACHINE', expected: ['Turing Machine_Notes.pdf']}
+  - {query: 'how should a project report be formatted', expected: ['Annexure 6_Project report format - guidelines_SKP.docx', 'TechForGood2026_Report_Template.docx']}
+  - {query: 'software engineering assignment', expected: ['Assignment No 01 SE.pdf', 'SE ASSIGNMENT 2.pdf']}
