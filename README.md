@@ -59,3 +59,20 @@ the frontend (`/?google_drive=connected` or `/?github=connected`).
 
 Disconnecting revokes the grant at Google/GitHub; choose whether to also delete the files
 already indexed from that platform.
+
+## Known limitations
+
+- **Shared Drives are not indexed.** The Google Drive connector lists the files in your
+  My Drive and those shared with you; files that live in a Shared Drive (Team Drive) are skipped.
+- **No query expansion.** Search matches what files contain or are named. A category query such as
+  "Find my government documents" finds files whose name or text uses those words (e.g. "government");
+  an ID scan named `scan01.jpg` with no such words is only found by a query about its actual content.
+- **Visual image search** returns an image on visual similarity alone only when the CLIP match is clear
+  (about 70% of relevant images in the evaluation; see `docs/eval/phase5-clip-gate.md`).
+  Photos of documents (screenshots, scanned forms) are found through their OCR text and file name, not visually.
+- **Typos** are tolerated in single words ("jva" → "java"), but a typo plus an unmatched word
+  ("jva notes") may return nothing.
+- **Evaluation:** 1 false positive remains on the negative set — "elephant" returns a Java document whose
+  text mentions elephants (a true content match the eval counts as wrong).
+- **Local folders:** only files under the registered local folders stay indexed; removing a folder
+  (or a file) removes it from the index on the next run.
