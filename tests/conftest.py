@@ -3,7 +3,11 @@
 - Runs from a temporary working directory, so relative paths used by the app
   (index pickles, temp/) never touch the real project data. Every setting is
   pinned through environment variables.
-- Uses a separate Postgres database (<db>_test) created through Alembic.
+- Uses its own Postgres database per pytest process (<db>_test_<pid>_<id>),
+  created through Alembic when the session starts and dropped when it ends.
+  One shared, fixed-name test database let any second pytest process (an
+  IDE's test discovery after a branch switch, a parallel run) drop it WITH
+  (FORCE) under a running suite - the Phase 5 "flaky first run".
 - Replaces the AI model manager with a stub so no model is ever loaded
   (set COGNISEEK_TEST_REAL_MODELS=1 to use the real one).
 """
@@ -41,7 +45,8 @@ if not _base_url:
 
 _server_url, _db_name = _base_url.rsplit("/", 1)
 
-TEST_DB_NAME = _db_name.split("?")[0] + "_test"
+TEST_DB_PREFIX = _db_name.split("?")[0] + "_test_"
+TEST_DB_NAME = f"{TEST_DB_PREFIX}{os.getpid()}_{uuid.uuid4().hex[:8]}"
 TEST_DATABASE_URL = f"{_server_url}/{TEST_DB_NAME}"
 
 WORK_DIR = Path(tempfile.mkdtemp(prefix="cogniseek-tests-"))
@@ -91,15 +96,34 @@ if os.environ.get("COGNISEEK_TEST_REAL_MODELS") != "1":
 # Test database
 # ---------------------------------------------------------------------------
 
+def _admin_engine():
+
+    return create_engine(f"{_server_url}/postgres", isolation_level="AUTOCOMMIT")
+
+
+def _drop_abandoned_test_databases(conn):
+    """Drop test databases left by pytest processes that no longer exist
+    (killed runs). A live process's database is never touched."""
+
+    import psutil
+
+    names = conn.execute(
+        text("SELECT datname FROM pg_database WHERE starts_with(datname, :prefix)"),
+        {"prefix": TEST_DB_PREFIX}
+    ).scalars()
+
+    for name in names:
+        pid = name[len(TEST_DB_PREFIX):].split("_", 1)[0]
+        if pid.isdigit() and not psutil.pid_exists(int(pid)):
+            conn.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+
+
 def _create_test_database():
 
-    admin = create_engine(
-        f"{_server_url}/postgres",
-        isolation_level="AUTOCOMMIT"
-    )
+    admin = _admin_engine()
 
     with admin.connect() as conn:
-        conn.execute(text(f'DROP DATABASE IF EXISTS "{TEST_DB_NAME}" WITH (FORCE)'))
+        _drop_abandoned_test_databases(conn)
         conn.execute(text(f'CREATE DATABASE "{TEST_DB_NAME}"'))
 
     admin.dispose()
@@ -115,7 +139,29 @@ def _create_test_database():
     command.upgrade(config, "head")
 
 
-_create_test_database()
+def _drop_test_database():
+
+    from app.database.db import engine
+
+    engine.dispose()
+
+    admin = _admin_engine()
+
+    with admin.connect() as conn:
+        conn.execute(text(f'DROP DATABASE IF EXISTS "{TEST_DB_NAME}" WITH (FORCE)'))
+
+    admin.dispose()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _test_database():
+    # A fixture, not import time: `pytest --collect-only` creates nothing.
+
+    _create_test_database()
+
+    yield TEST_DB_NAME
+
+    _drop_test_database()
 
 
 # ---------------------------------------------------------------------------
