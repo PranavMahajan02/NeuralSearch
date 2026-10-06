@@ -6,6 +6,7 @@ user in the DB; PKCE's code_verifier is kept server-side with that state.
 """
 
 import os
+import secrets
 
 from app.core.config import settings
 from app.platforms import http
@@ -17,7 +18,19 @@ from app.platforms.google_drive.drive_service import SCOPES
 os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
 
 
+def new_code_verifier() -> str:
+    """PKCE verifier: 86 chars of [A-Za-z0-9_-] (RFC 7636 allows 43-128)."""
+
+    return secrets.token_urlsafe(64)
+
+
 def build_flow(code_verifier=None):
+    """The verifier is always set when the Flow is built.
+
+    google_auth_oauthlib only autogenerates one inside authorization_url(),
+    so reading flow.code_verifier before that returned None and the callback
+    then exchanged the code without a verifier ("Missing code verifier").
+    """
 
     from google_auth_oauthlib.flow import Flow
 
@@ -25,8 +38,8 @@ def build_flow(code_verifier=None):
         settings.GOOGLE_CLIENT_SECRET_PATH,
         scopes=SCOPES,
         redirect_uri=settings.google_redirect_uri,
-        code_verifier=code_verifier,
-        autogenerate_code_verifier=code_verifier is None,
+        code_verifier=code_verifier or new_code_verifier(),
+        autogenerate_code_verifier=False,
     )
 
 
