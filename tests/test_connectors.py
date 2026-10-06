@@ -1039,3 +1039,97 @@ def test_scanned_pdf_becomes_searchable_end_to_end(client, user, local_root, fak
 
     results = client.post("/search/", json={"query": "aadhaar government"}, headers=user["headers"]).json()["results"]
     assert [r["file"] for r in results] == ["ADHAR.pdf"]
+
+
+# ---------------------------------------------------------------------------
+# Regression: PKCE with the REAL google_auth_oauthlib Flow
+# ("invalid_grant: Missing code verifier" during the owner checklist)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def real_google_client(tmp_path, monkeypatch):
+    """A Web-application client config so the real Flow can be built."""
+
+    import app.platforms.google_drive.oauth as google_oauth
+    from app.core.config import settings
+
+    secret = tmp_path / "client_secret.json"
+    secret.write_text(json.dumps({"web": {
+        "client_id": "test-client.apps.googleusercontent.com",
+        "client_secret": "test-secret",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "redirect_uris": ["http://127.0.0.1:8000/platforms/google-drive/callback"],
+    }}))
+
+    monkeypatch.setattr(settings, "GOOGLE_CLIENT_SECRET_PATH", str(secret))
+    monkeypatch.setattr(google_oauth, "account_email", lambda creds: "owner@example.com")
+
+
+def pkce_challenge(verifier: str) -> str:
+
+    import base64
+    import hashlib
+
+    return base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
+
+
+def test_real_flow_stores_the_verifier_matching_the_challenge_and_sends_it(client, user, db, mocked, real_google_client):
+
+    from urllib.parse import parse_qs as qs
+
+    from app.database.models import OAuthState
+
+    body = client.get("/platforms/google-drive/connect", headers=user["headers"]).json()
+    query = qs(urlparse(body["authorization_url"]).query)
+
+    assert query["code_challenge_method"] == ["S256"]
+    challenge = query["code_challenge"][0]
+    state = query["state"][0]
+
+    row = db.get(OAuthState, state)
+    assert row.code_verifier, "the PKCE verifier must be stored with the state"
+    assert 43 <= len(row.code_verifier) <= 128
+    assert pkce_challenge(row.code_verifier) == challenge
+
+    mocked.add(responses.POST, "https://oauth2.googleapis.com/token", json={
+        "access_token": "ya29.test", "refresh_token": "1//test", "expires_in": 3600,
+        "token_type": "Bearer",
+        "scope": "https://www.googleapis.com/auth/drive.readonly openid https://www.googleapis.com/auth/userinfo.email",
+    })
+
+    response = client.get("/platforms/google-drive/callback", params={"code": "auth-code", "state": state},
+                          follow_redirects=False)
+
+    assert redirect_params(response) == {"google_drive": "connected"}
+
+    token_post = calls_to(mocked, r"oauth2\.googleapis\.com/token")[0]
+    sent = qs(token_post.request.body if isinstance(token_post.request.body, str) else token_post.request.body.decode())
+    assert sent["code_verifier"] == [row.code_verifier]
+    assert sent["code"] == ["auth-code"]
+
+    assert client.get("/platforms/google-drive/status", headers=user["headers"]).json()["connected"] is True
+
+
+def test_build_flow_has_a_verifier_before_authorization_url(real_google_client):
+
+    from app.platforms.google_drive.oauth import build_flow
+
+    flow = build_flow()
+    assert flow.code_verifier and len(flow.code_verifier) >= 43
+
+    # A given verifier is kept as-is (callback side).
+    assert build_flow(code_verifier="x" * 50).code_verifier == "x" * 50
+
+
+def test_callback_with_a_state_missing_its_verifier_is_invalid_state(client, user, db, mocked, real_google_client):
+
+    from app.platforms.oauth_state import create_oauth_state
+
+    state = create_oauth_state(db, user["id"], "google_drive", code_verifier=None)
+
+    response = client.get("/platforms/google-drive/callback", params={"code": "auth-code", "state": state},
+                          follow_redirects=False)
+
+    assert redirect_params(response) == {"google_drive": "error", "reason": "invalid_state"}
+    assert not calls_to(mocked, r"oauth2\.googleapis\.com/token")

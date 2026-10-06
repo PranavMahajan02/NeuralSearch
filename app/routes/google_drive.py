@@ -65,8 +65,15 @@ def connect_google_drive(
         logger.exception("Google OAuth client configuration is missing or invalid")
         raise AppError(503, "Google Drive is not configured on the server.")
 
+    # The verifier exists from build_flow() on, independent of call order.
+    code_verifier = flow.code_verifier
+
+    if not code_verifier:
+        logger.error("Google OAuth flow has no PKCE code_verifier")
+        raise AppError(500, "Google Drive connect is misconfigured.")
+
     # Single-use state bound to this user; the PKCE verifier stays server-side.
-    state = create_oauth_state(db, current_user["id"], "google_drive", code_verifier=flow.code_verifier)
+    state = create_oauth_state(db, current_user["id"], "google_drive", code_verifier=code_verifier)
 
     return {
         "status": "success",
@@ -87,6 +94,11 @@ def google_drive_callback(
         user_id, code_verifier = consume_oauth_state_row(db, state, "google_drive")
     except InvalidOAuthState as e:
         return _frontend_redirect(google_drive="error", reason=e.code)
+
+    if not code_verifier:
+        # A state without its PKCE verifier can never be exchanged.
+        logger.warning("Google OAuth state has no code_verifier")
+        return _frontend_redirect(google_drive="error", reason="invalid_state")
 
     if error or not code:
         return _frontend_redirect(google_drive="error", reason="access_denied")
