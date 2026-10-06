@@ -94,6 +94,9 @@ def run(base_url: str, headers: dict, queries: list, limit: int) -> dict:
             "top5": files[:5],
         }
 
+        if item.get("visual"):
+            record["visual"] = True
+
         if item.get("negative"):
             record["negative"] = True
             record["false_positives"] = len(results)
@@ -111,8 +114,20 @@ def run(base_url: str, headers: dict, queries: list, limit: int) -> dict:
 
         per_query.append(record)
 
+    aggregate = summarize(per_query, latencies)
+    aggregate["visual_only"] = summarize([r for r in per_query if r.get("visual")], [])
+    aggregate["non_visual"] = summarize([r for r in per_query if not r.get("visual")], [])
+
+    return {"aggregate": aggregate, "per_query": per_query}
+
+
+def summarize(per_query: list, latencies: list) -> dict:
+
     positives = [r for r in per_query if not r.get("negative")]
     negatives = [r for r in per_query if r.get("negative")]
+
+    if not positives:
+        return {}
 
     aggregate = {
         "queries": len(per_query),
@@ -127,7 +142,7 @@ def run(base_url: str, headers: dict, queries: list, limit: int) -> dict:
         "latency_p95_s": round(percentile(latencies, 95), 4),
     }
 
-    return {"aggregate": aggregate, "per_query": per_query}
+    return aggregate
 
 
 def print_report(report: dict, label: str):
@@ -141,6 +156,12 @@ def print_report(report: dict, label: str):
         else:
             rank = r["first_relevant_rank"] or "-"
             print(f"{r['query'][:40]:40} {r['precision_at_5']:>5.2f} {r['recall_at_10']:>5.2f} {rank!s:>5} {r['returned']:>4} {r['latency_s']*1000:>6.0f}")
+
+    for name, a in (("non-visual", report["aggregate"].get("non_visual")),
+                    ("visual-only", report["aggregate"].get("visual_only"))):
+        if a:
+            print(f"{name:12} P@5 {a['precision_at_5']:.3f} | R@10 {a['recall_at_10']:.3f} | MRR {a['mrr']:.3f} | "
+                  f"negatives FP {a['negative_false_positives']} ({a['negative_queries_with_results']}/{a['negative_queries']})")
 
     a = report["aggregate"]
     print(f"\nprecision@5 {a['precision_at_5']:.3f} | recall@10 {a['recall_at_10']:.3f} | MRR {a['mrr']:.3f} | "

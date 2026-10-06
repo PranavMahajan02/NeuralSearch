@@ -15,6 +15,8 @@ STOPWORDS = frozenset("""
 a an and are as at be by can do does for from how i in is it its me my of on or
 should so that the this to was what when where which who why will with you your
 find show get give
+photo photos image images picture pictures pic pics img imgs file files
+document documents doc docs
 """.split())
 
 
