@@ -46,13 +46,13 @@ def test_legacy_index_modules_are_deleted():
 @pytest.mark.parametrize("message, expected", [
     ("Bearer abc.def.ghi rejected", "RuntimeError: <redacted> rejected"),
     ("token gho_" + "A" * 30 + " invalid", "RuntimeError: token <redacted> invalid"),
-    ("url https://x/y?access_token=secret123&a=1", "RuntimeError: url https://x/y?access_token=<redacted>&a=1"),
+    ("url https://x/y?access_token=secret123&a=1", "RuntimeError: url <url>"),
     ("creds {'refresh_token': '1//abcdef'}", "RuntimeError: creds {'refresh_token': '<redacted>'}"),
     ("open C:\\Users\\other\\private.pdf failed", "RuntimeError: open <path> failed"),
     ("open /home/other/private.pdf failed", "RuntimeError: open <path> failed"),
     ("open \\\\server\\share\\x.pdf failed", "RuntimeError: open <path> failed"),
     ("open C:\\Users\\Jane Doe\\Private Docs\\x.pdf failed", "RuntimeError: open <path> failed"),
-    ("see https://example.com/a/b for help", "RuntimeError: see https://example.com/a/b for help"),
+    ("see https://example.com/a/b?q=1 for help", "RuntimeError: see <url> for help"),
 ])
 def test_sanitize_error_removes_secrets_and_paths(message, expected):
 

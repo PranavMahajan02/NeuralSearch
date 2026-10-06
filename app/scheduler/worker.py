@@ -202,7 +202,7 @@ class IndexingWorker:
 
         except PlatformPreconditionError as e:
 
-            error_message = sanitize_error(e, context.allowed_roots)
+            error_message = sanitize_error(e, context.allowed_roots, with_type=False)
             logger.warning("Job %s precondition failed: %s", job_id, error_message)
 
         except Exception as e:

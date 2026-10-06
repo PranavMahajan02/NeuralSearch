@@ -8,6 +8,8 @@ const REASONS: Record<string, string> = {
   state_already_used: "That sign-in link was already used.",
   access_denied: "Access was not granted.",
   token_exchange_failed: "The sign-in could not be completed. Please try again.",
+  drive_scope_not_granted:
+    "Please allow 'See and download your Google Drive files' on Google's consent screen.",
 };
 
 const LABELS: Record<string, string> = { github: "GitHub", google_drive: "Google Drive" };

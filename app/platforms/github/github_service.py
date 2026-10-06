@@ -36,6 +36,13 @@ class GitHubAuthExpired(PlatformPreconditionError):
         super().__init__("GitHub authorization expired — reconnect GitHub.")
 
 
+class GitHubPermissionMissing(PlatformPreconditionError):
+
+    def __init__(self):
+
+        super().__init__("GitHub permission missing — reconnect and allow repository access.")
+
+
 class GitHubError(RuntimeError):
     """A non-fatal API error for one repository or file."""
 
@@ -70,6 +77,14 @@ class GitHubClient:
         if response.status_code == 401:
             self._mark_disconnected()
             raise GitHubAuthExpired()
+
+        # A token granted without the "repo" scope (X-OAuth-Scopes lists what
+        # the token really has): not fixable by retrying.
+        if response.status_code in (403, 404) and "X-OAuth-Scopes" in response.headers:
+            granted = {s.strip() for s in response.headers["X-OAuth-Scopes"].split(",") if s.strip()}
+            if "repo" not in granted:
+                self._mark_disconnected()
+                raise GitHubPermissionMissing()
 
         if response.status_code in allow:
             return response

@@ -24,8 +24,10 @@ from app.platforms.errors import PlatformPreconditionError
 
 logger = logging.getLogger("cogniseek.google_drive")
 
+DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly"
+
 SCOPES = [
-    "https://www.googleapis.com/auth/drive.readonly",
+    DRIVE_SCOPE,
     "openid",
     "https://www.googleapis.com/auth/userinfo.email",
 ]
@@ -55,6 +57,28 @@ class GoogleAuthExpired(PlatformPreconditionError):
     def __init__(self):
 
         super().__init__("Google authorization expired — reconnect Google Drive.")
+
+
+class GoogleDrivePermissionMissing(PlatformPreconditionError):
+
+    def __init__(self):
+
+        super().__init__("Google Drive permission missing — reconnect and allow Drive access.")
+
+
+# 403 reasons that mean "this token may not read Drive" (not a transient error).
+PERMISSION_REASONS = ("insufficientPermissions", "insufficientScopes", "ACCESS_TOKEN_SCOPE_INSUFFICIENT")
+
+
+def is_permission_error(error: Exception) -> bool:
+
+    if http_status(error) != 403:
+        return False
+
+    content = getattr(error, "content", b"") or b""
+    text = content.decode("utf-8", "replace") if isinstance(content, bytes) else str(content)
+
+    return any(reason in text or reason in str(error) for reason in PERMISSION_REASONS)
 
 
 def http_status(error: Exception) -> Optional[int]:
@@ -192,14 +216,24 @@ class DriveClient:
                 raise GoogleAuthExpired() from error
             raise
         except Exception as error:
-            if http_status(error) == 401:
-                _mark_disconnected(self.user_id)
-                raise GoogleAuthExpired() from error
+            self._raise_auth_problem(error)
             raise
 
         self.save_if_refreshed()
 
         return result
+
+    def _raise_auth_problem(self, error: Exception) -> None:
+        """401 -> expired; 403 insufficient permissions/scopes -> missing
+        Drive permission. Both mark the connection disconnected."""
+
+        if http_status(error) == 401:
+            _mark_disconnected(self.user_id)
+            raise GoogleAuthExpired() from error
+
+        if is_permission_error(error):
+            _mark_disconnected(self.user_id)
+            raise GoogleDrivePermissionMissing() from error
 
     # ------------------------------------------------------------------
 
@@ -239,7 +273,11 @@ class DriveClient:
         done = False
 
         while not done:
-            _status, done = http.call_with_retry(lambda: downloader.next_chunk(), http_status, http_headers)
+            try:
+                _status, done = http.call_with_retry(lambda: downloader.next_chunk(), http_status, http_headers)
+            except Exception as error:
+                self._raise_auth_problem(error)
+                raise
 
         target.write_bytes(buffer.getvalue())
         self.save_if_refreshed()
