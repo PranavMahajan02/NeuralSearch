@@ -780,6 +780,8 @@ def fake_google(monkeypatch):
     class Creds:
         token = "access"
         refresh_token = "refresh"
+        granted_scopes = ["https://www.googleapis.com/auth/drive.readonly", "openid",
+                          "https://www.googleapis.com/auth/userinfo.email"]
 
         def to_json(self):
             return json.dumps({"token": "access", "refresh_token": "refresh"})
@@ -1133,3 +1135,135 @@ def test_callback_with_a_state_missing_its_verifier_is_invalid_state(client, use
 
     assert redirect_params(response) == {"google_drive": "error", "reason": "invalid_state"}
     assert not calls_to(mocked, r"oauth2\.googleapis\.com/token")
+
+
+
+# ---------------------------------------------------------------------------
+# Bug #2: Drive scope not granted (granular consent)
+# ---------------------------------------------------------------------------
+
+def _token_response(scope: str):
+
+    return {"access_token": "ya29.test", "refresh_token": "1//test", "expires_in": 3600,
+            "token_type": "Bearer", "scope": scope}
+
+
+def _connect_state(client, user):
+
+    from urllib.parse import parse_qs as qs
+
+    body = client.get("/platforms/google-drive/connect", headers=user["headers"]).json()
+    return qs(urlparse(body["authorization_url"]).query)["state"][0]
+
+
+def test_callback_without_drive_scope_saves_nothing_and_revokes(client, user, db, mocked, real_google_client):
+
+    state = _connect_state(client, user)
+
+    mocked.add(responses.POST, "https://oauth2.googleapis.com/token",
+               json=_token_response("openid https://www.googleapis.com/auth/userinfo.email"))
+    mocked.add(responses.POST, "https://oauth2.googleapis.com/revoke", status=200)
+
+    response = client.get("/platforms/google-drive/callback", params={"code": "c", "state": state},
+                          follow_redirects=False)
+
+    assert redirect_params(response) == {"google_drive": "error", "reason": "drive_scope_not_granted"}
+    assert calls_to(mocked, r"oauth2\.googleapis\.com/revoke")
+    assert db.query(PlatformConnection).filter_by(user_id=user["id"], platform="google_drive").count() == 0
+    assert client.get("/platforms/google-drive/status", headers=user["headers"]).json()["connected"] is False
+
+
+def test_token_json_stores_the_granted_scopes(client, user, db, mocked, real_google_client):
+
+    from app.core.crypto import decrypt
+    from sqlalchemy import text
+
+    state = _connect_state(client, user)
+
+    granted = "https://www.googleapis.com/auth/drive.readonly openid https://www.googleapis.com/auth/userinfo.email"
+    mocked.add(responses.POST, "https://oauth2.googleapis.com/token", json=_token_response(granted))
+
+    response = client.get("/platforms/google-drive/callback", params={"code": "c", "state": state},
+                          follow_redirects=False)
+    assert redirect_params(response) == {"google_drive": "connected"}
+
+    raw = db.execute(text("SELECT token_json FROM platform_connections WHERE user_id = :u AND platform = 'google_drive'"),
+                     {"u": user["id"]}).scalar_one()
+
+    assert json.loads(decrypt(raw))["scopes"] == sorted(granted.split())
+
+
+def test_granted_scopes_not_requested_scopes():
+
+    from app.platforms.google_drive.oauth import credentials_json, granted_scopes, has_drive_access
+
+    class Creds:
+        scopes = ["https://www.googleapis.com/auth/drive.readonly", "openid", "email"]
+        granted_scopes = ["openid", "email"]
+
+        def to_json(self):
+            return json.dumps({"token": "t", "scopes": self.scopes})
+
+    assert granted_scopes(Creds()) == ["email", "openid"]
+    assert has_drive_access(Creds()) is False
+    assert json.loads(credentials_json(Creds()))["scopes"] == ["email", "openid"]
+
+
+class _HttpError403(Exception):
+
+    def __init__(self, reason):
+        super().__init__(f"<HttpError 403 when requesting https://www.googleapis.com/drive/v3/files?q=trashed%3Dfalse "
+                         f"returned \"{reason}\">")
+        self.resp = type("Resp", (dict,), {"status": 403})({})
+        self.content = json.dumps({"error": {"errors": [{"reason": reason}]}}).encode()
+
+
+@pytest.mark.parametrize("reason", ["insufficientPermissions", "insufficientScopes"])
+def test_drive_403_permission_fails_job_and_disconnects(client, user, db, reason):
+
+    from app.platforms.google_drive.drive_service import DriveClient
+    from app.platforms.google_drive.google_drive_platform import GoogleDrivePlatform
+
+    connect(db, user, "google_drive", token_json="{}")
+
+    def factory(user_id):
+        return DriveClient(user_id, FakeCredentials(), service=FakeService([_HttpError403(reason)]))
+
+    enqueue(client, user, ["google_drive"])
+    drain(make_worker(google_drive=lambda: GoogleDrivePlatform(client_factory=factory)))
+
+    job = jobs_of(client, user)["google_drive"]
+    assert job["status"] == "failed"
+    assert job["error_message"] == ("Google Drive permission missing — "
+                                    "reconnect and allow Drive access.")
+    assert "http" not in job["error_message"] and "?" not in job["error_message"]
+
+    db.expire_all()
+    assert db.query(PlatformConnection).filter_by(user_id=user["id"], platform="google_drive").one().connected is False
+
+
+def test_github_token_without_repo_scope_fails_and_disconnects(client, gh_user, mocked, db):
+
+    mocked.add(responses.GET, re.compile(re.escape(API) + r"/user/repos.*"), status=403,
+               headers={"X-OAuth-Scopes": "read:user", "X-RateLimit-Remaining": "4999"})
+
+    job = run_github(client, gh_user)
+
+    assert job["status"] == "failed"
+    assert "GitHub permission missing" in job["error_message"]
+
+    db.expire_all()
+    assert db.query(PlatformConnection).filter_by(user_id=gh_user["id"], platform="github").one().connected is False
+
+
+def test_job_errors_never_contain_urls(client, user):
+
+    class Leaky:
+        def index(self, ctx):
+            raise RuntimeError("GET https://api.example.com/v1/files?token=abc&page=2 failed")
+
+    enqueue(client, user, ["local"])
+    drain(make_worker(local=Leaky))
+
+    message = jobs_of(client, user)["local"]["error_message"]
+    assert message == "RuntimeError: GET <url> failed"

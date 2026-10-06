@@ -5,12 +5,13 @@ GET /platforms/google-drive/callback. State is single-use and bound to the
 user in the DB; PKCE's code_verifier is kept server-side with that state.
 """
 
+import json
 import os
 import secrets
 
 from app.core.config import settings
 from app.platforms import http
-from app.platforms.google_drive.drive_service import SCOPES
+from app.platforms.google_drive.drive_service import DRIVE_SCOPE, SCOPES
 
 
 # Google may grant a superset of the requested scopes (include_granted_scopes);
@@ -62,6 +63,35 @@ def exchange_code(code: str, code_verifier: str):
     flow.fetch_token(code=code)
 
     return flow.credentials
+
+
+def granted_scopes(credentials) -> list:
+    """The scopes Google ACTUALLY granted (token response "scope").
+
+    With granular consent the user can untick Drive access; the requested
+    scopes (credentials.scopes) would then claim access the token doesn't have.
+    """
+
+    granted = getattr(credentials, "granted_scopes", None) or []
+
+    if isinstance(granted, str):
+        granted = granted.split()
+
+    return sorted(set(granted))
+
+
+def has_drive_access(credentials) -> bool:
+
+    return DRIVE_SCOPE in granted_scopes(credentials)
+
+
+def credentials_json(credentials) -> str:
+    """to_json() with the GRANTED scopes stored, never the requested ones."""
+
+    info = json.loads(credentials.to_json())
+    info["scopes"] = granted_scopes(credentials)
+
+    return json.dumps(info)
 
 
 def account_email(credentials) -> str:

@@ -106,6 +106,14 @@ def google_drive_callback(
     try:
         credentials = google_oauth.exchange_code(code, code_verifier)
 
+        # Granular consent: the user may have unticked Drive access. Keep
+        # nothing and revoke what we got; the frontend explains what to do.
+        if not google_oauth.has_drive_access(credentials):
+            logger.warning("Google granted %s without drive.readonly; not saving",
+                           google_oauth.granted_scopes(credentials))
+            revoke_token(credentials.refresh_token or credentials.token)
+            return _frontend_redirect(google_drive="error", reason="drive_scope_not_granted")
+
         if not credentials.refresh_token:
             logger.warning("Google returned no refresh token; indexing will stop working when it expires")
 
@@ -113,7 +121,8 @@ def google_drive_callback(
             db,
             user_id,
             credentials,
-            account_email=google_oauth.account_email(credentials)
+            account_email=google_oauth.account_email(credentials),
+            token_json=google_oauth.credentials_json(credentials)
         )
 
     except Exception:
