@@ -1,113 +1,146 @@
-import os
+"""GitHub connector: repositories -> git trees -> changed blobs -> index."""
 
+import logging
+import os
+from pathlib import PurePosixPath
+from typing import List, Optional
+
+from app.core.config import settings
+from app.database.db import SessionLocal
 from app.platforms.base_platform import BasePlatform
 from app.platforms.errors import PlatformPreconditionError
-from app.platforms.indexing import is_supported, process_files
-from app.services.indexing_pipeline import github_meta, index_source
-from app.database.db import SessionLocal
-
-from app.platforms.github.github_service import (
-    list_repositories,
-    get_all_files,
-    download_file
-)
+from app.platforms.github.github_service import GitHubClient, TreeEntry
+from app.platforms.sync import RemoteFile, sync_remote
 
 
-SKIP_FOLDERS = {
-    "temp",
-    "temp_frames",
-    ".git",
-    "__pycache__",
-    "venv",
-    "node_modules",
-    ".idx",
-    "build",
-    "dist"
+logger = logging.getLogger("cogniseek.github")
+
+
+# Vendored / generated paths are never indexed (and drop out of the index).
+SKIP_DIRECTORIES = {
+    "node_modules", "dist", "build", ".git", "venv", ".venv", "env", "__pycache__",
+    "vendor", "bower_components", ".next", ".idea", ".vscode", "temp", "temp_frames",
 }
 
+LOCK_FILES = {
+    "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "poetry.lock", "pipfile.lock",
+    "cargo.lock", "composer.lock", "gemfile.lock", "go.sum",
+}
 
-def is_github_file_supported(file: dict) -> bool:
+LFS_POINTER_PREFIX = b"version https://git-lfs.github.com/spec/"
+LFS_POINTER_MAX_BYTES = 1024
 
-    if file.get("download_url") is None:
+
+def is_vendored(path: str) -> bool:
+
+    parts = PurePosixPath(path).parts
+    name = parts[-1].lower() if parts else ""
+
+    return (
+        any(part.lower() in SKIP_DIRECTORIES for part in parts[:-1])
+        or name in LOCK_FILES
+        or name.endswith((".min.js", ".min.css", ".map"))
+    )
+
+
+def is_lfs_pointer(content: bytes) -> bool:
+
+    return len(content) <= LFS_POINTER_MAX_BYTES and content.startswith(LFS_POINTER_PREFIX)
+
+
+def include_repository(repo: dict) -> bool:
+
+    if repo.get("fork") and not settings.GITHUB_INCLUDE_FORKS:
         return False
 
-    if any(part in SKIP_FOLDERS for part in file["path"].split("/")):
+    if repo.get("archived") and not settings.GITHUB_INCLUDE_ARCHIVED:
         return False
 
-    return is_supported(file["path"])
+    return True
 
 
 class GitHubPlatform(BasePlatform):
 
-    def index(self, ctx):
+    def __init__(self, client: Optional[GitHubClient] = None):
+
+        self._client = client
+
+    def _make_client(self, user_id) -> GitHubClient:
+
+        if self._client is not None:
+            return self._client
+
+        from app.platforms.github.oauth import get_access_token
 
         with SessionLocal() as db:
+            token = get_access_token(db, user_id)      # PlatformPreconditionError if not connected
 
-            # Not connected / bad token / rate limit -> PlatformPreconditionError.
-            repos = list_repositories(db, ctx.user_id)
+        return GitHubClient(token, user_id=user_id)
 
-            supported = []
-            skipped = 0
+    def index(self, ctx):
 
-            # One listing pass per repo (the old code listed every repo twice).
-            for repo in repos:
+        from app.services.indexing_pipeline import github_meta
 
-                if ctx.is_cancelled():
-                    break
+        client = self._make_client(ctx.user_id)
 
-                owner = repo["owner"]["login"]
-                repo_name = repo["name"]
+        remote_files: List[RemoteFile] = []
+        complete = True
 
-                try:
-                    files = get_all_files(db, ctx.user_id, owner, repo_name)
-                except Exception as error:
-                    # e.g. an empty repo (409) or a repo we may not read (403).
-                    if isinstance(error, PlatformPreconditionError):
-                        raise
-                    ctx.record_error(f"{owner}/{repo_name}", error)
+        repos = [repo for repo in client.iter_repositories() if include_repository(repo)]
+
+        for repo in repos:
+
+            if ctx.is_cancelled():
+                return
+
+            owner = repo["owner"]["login"]
+            name = repo["name"]
+            branch = repo.get("default_branch") or "main"
+
+            try:
+                entries, repo_complete = client.tree(owner, name, branch)
+            except PlatformPreconditionError:
+                raise
+            except Exception as error:
+                # One repository failing must not wipe its files from the
+                # index: mark the whole listing incomplete.
+                ctx.record_error(f"{owner}/{name}", error)
+                complete = False
+                continue
+
+            complete = complete and repo_complete
+
+            for entry in entries:
+
+                if is_vendored(entry.path):
                     continue
 
-                for file in files:
-                    if is_github_file_supported(file):
-                        supported.append((owner, repo_name, file))
-                    else:
-                        skipped += 1
-
-            ctx.add_skipped(skipped)
-            ctx.set_total(len(supported))
-
-            def handle(position, item):
-
-                owner, repo_name, file = item
-
-                local_path = download_file(
-                    db,
-                    ctx.user_id,
-                    file,
-                    download_folder=str(ctx.file_dir(position))
+                meta = github_meta(
+                    ctx.user_id, owner, name,
+                    {"path": entry.path, "sha": entry.sha},
+                    default_branch=branch
                 )
 
-                try:
-                    index_source(
-                        github_meta(ctx.user_id, owner, repo_name, file),
-                        local_path,
-                        temp_dir=ctx.temp_dir
-                    )
-                finally:
-                    try:
-                        if local_path and os.path.exists(local_path):
-                            os.remove(local_path)
-                    except OSError:
-                        pass  # the job temp dir is removed by the worker anyway
+                remote_files.append(RemoteFile(
+                    meta=meta,
+                    extension=os.path.splitext(entry.path)[1],
+                    size=entry.size,
+                    download=self._downloader(client, owner, name, entry)
+                ))
 
-            process_files(
-                ctx,
-                supported,
-                file_ref=lambda item: f"{item[0]}/{item[1]}:{item[2]['path']}",
-                handle=handle
-            )
+        sync_remote(ctx, "github", remote_files, listing_complete=complete)
 
-            # TODO(phase-5): deletion sync (remove_deleted_github_files is broken).
+    @staticmethod
+    def _downloader(client: GitHubClient, owner: str, repo: str, entry: TreeEntry):
+
+        def download(target):
+            content = client.blob(owner, repo, entry.sha)
+            if is_lfs_pointer(content):
+                return None                 # the real file lives in Git LFS
+            target.write_bytes(content)
+            return str(target)
+
+        return download
 
     def list_files(self):
 

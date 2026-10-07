@@ -19,6 +19,7 @@ Results are saved to docs/eval/<timestamp>-<label>.json.
 import argparse
 import json
 import os
+import re
 import statistics
 import sys
 import time
@@ -63,7 +64,23 @@ def is_relevant(result: dict, expected: set) -> bool:
     return (result.get("file") or "").lower() in expected or (result.get("source_id") or "").lower() in expected
 
 
-def run(base_url: str, headers: dict, queries: list, limit: int) -> dict:
+# The owner's GitHub index contains THIS repository, whose eval set, eval
+# results and tests contain every eval query verbatim (true content matches).
+# They are dropped from the measurement (and counted) unless --include-self.
+SELF_ARTIFACT = re.compile(r"(^|/)(tests/eval/|docs/eval/|tests/test_[^/]*\.py$|scripts/eval_search\.py$)")
+
+
+def is_self_artifact(result: dict) -> bool:
+
+    if result.get("platform") != "github":
+        return False
+
+    path = (result.get("source_id") or "").split(":", 1)[-1]
+
+    return bool(SELF_ARTIFACT.search(path))
+
+
+def run(base_url: str, headers: dict, queries: list, limit: int, include_self: bool = False) -> dict:
 
     per_query = []
     latencies = []
@@ -84,6 +101,9 @@ def run(base_url: str, headers: dict, queries: list, limit: int) -> dict:
         latencies.append(latency)
 
         results = response.json().get("results", []) if response.status_code == 200 else []
+        dropped = 0 if include_self else sum(1 for r in results if is_self_artifact(r))
+        if not include_self:
+            results = [r for r in results if not is_self_artifact(r)]
         files = [r.get("file") for r in results]
 
         record = {
@@ -93,6 +113,12 @@ def run(base_url: str, headers: dict, queries: list, limit: int) -> dict:
             "returned": len(results),
             "top5": files[:5],
         }
+
+        if dropped:
+            record["self_artifacts_dropped"] = dropped
+
+        if item.get("visual"):
+            record["visual"] = True
 
         if item.get("negative"):
             record["negative"] = True
@@ -111,8 +137,20 @@ def run(base_url: str, headers: dict, queries: list, limit: int) -> dict:
 
         per_query.append(record)
 
+    aggregate = summarize(per_query, latencies)
+    aggregate["visual_only"] = summarize([r for r in per_query if r.get("visual")], [])
+    aggregate["non_visual"] = summarize([r for r in per_query if not r.get("visual")], [])
+
+    return {"aggregate": aggregate, "per_query": per_query}
+
+
+def summarize(per_query: list, latencies: list) -> dict:
+
     positives = [r for r in per_query if not r.get("negative")]
     negatives = [r for r in per_query if r.get("negative")]
+
+    if not positives:
+        return {}
 
     aggregate = {
         "queries": len(per_query),
@@ -127,7 +165,7 @@ def run(base_url: str, headers: dict, queries: list, limit: int) -> dict:
         "latency_p95_s": round(percentile(latencies, 95), 4),
     }
 
-    return {"aggregate": aggregate, "per_query": per_query}
+    return aggregate
 
 
 def print_report(report: dict, label: str):
@@ -141,6 +179,12 @@ def print_report(report: dict, label: str):
         else:
             rank = r["first_relevant_rank"] or "-"
             print(f"{r['query'][:40]:40} {r['precision_at_5']:>5.2f} {r['recall_at_10']:>5.2f} {rank!s:>5} {r['returned']:>4} {r['latency_s']*1000:>6.0f}")
+
+    for name, a in (("non-visual", report["aggregate"].get("non_visual")),
+                    ("visual-only", report["aggregate"].get("visual_only"))):
+        if a:
+            print(f"{name:12} P@5 {a['precision_at_5']:.3f} | R@10 {a['recall_at_10']:.3f} | MRR {a['mrr']:.3f} | "
+                  f"negatives FP {a['negative_false_positives']} ({a['negative_queries_with_results']}/{a['negative_queries']})")
 
     a = report["aggregate"]
     print(f"\nprecision@5 {a['precision_at_5']:.3f} | recall@10 {a['recall_at_10']:.3f} | MRR {a['mrr']:.3f} | "
@@ -156,11 +200,14 @@ def main():
     parser.add_argument("--label", default="run")
     parser.add_argument("--queries", default=str(ROOT / "tests" / "eval" / "queries.yaml"))
     parser.add_argument("--limit", type=int, default=0, help="send a limit (0 = server default)")
+    parser.add_argument("--include-self", action="store_true",
+                        help="keep results from this repo's own eval/test files (indexed via GitHub)")
     args = parser.parse_args()
 
     queries = yaml.safe_load(open(args.queries, encoding="utf-8"))["queries"]
 
-    report = run(args.base_url, owner_headers(args.email), queries, args.limit)
+    report = run(args.base_url, owner_headers(args.email), queries, args.limit, args.include_self)
+    report["include_self"] = args.include_self
     report["label"] = args.label
     report["created_at"] = datetime.now().isoformat(timespec="seconds")
 

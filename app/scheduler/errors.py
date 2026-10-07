@@ -31,6 +31,15 @@ _WINDOWS_PATH = re.compile(
 _POSIX_PATH = re.compile(r"(?<![\w.:/])/(?:[^/\s'\"<>]+/)+[^/\s'\"<>,;)\]]*")
 
 
+# Request URLs (with their query strings) never belong in a stored error.
+_URL = re.compile(r"(?i)\b(?:https?|wss?|ftp)://[^\s'\"<>]+")
+
+
+def _redact_urls(text: str) -> str:
+
+    return _URL.sub("<url>", text)
+
+
 def _redact_secrets(text: str) -> str:
 
     text = _BEARER.sub("<redacted>", text)
@@ -70,12 +79,19 @@ def _redact_paths(text: str, allowed_roots: Iterable[Path]) -> str:
     return text
 
 
-def sanitize_error(error: BaseException, allowed_roots: Iterable[Path] = ()) -> str:
-    """"ExceptionType: message" with secrets and out-of-scope paths removed."""
+def sanitize_error(error: BaseException, allowed_roots: Iterable[Path] = (), with_type: bool = True) -> str:
+    """"ExceptionType: message" with URLs, secrets and out-of-scope paths removed.
+
+    with_type=False keeps only the message (for errors written for users)."""
 
     message = str(error).strip()
-    text = type(error).__name__ + (f": {message}" if message else "")
 
+    if with_type:
+        text = type(error).__name__ + (f": {message}" if message else "")
+    else:
+        text = message or type(error).__name__
+
+    text = _redact_urls(text)
     text = _redact_secrets(text)
     text = _redact_paths(text, list(allowed_roots))
 

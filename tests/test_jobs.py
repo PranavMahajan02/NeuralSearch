@@ -315,7 +315,7 @@ def test_precondition_failure_fails_the_job_with_a_clear_message(client, user):
 
     job = jobs_of(client, user)["google_drive"]
     assert job["status"] == "failed"
-    assert job["error_message"] == "PlatformPreconditionError: Google Drive is not connected."
+    assert job["error_message"] == "Google Drive is not connected."
 
 
 def test_real_drive_platform_without_connection_fails_cleanly(client, user):
@@ -328,7 +328,7 @@ def test_real_drive_platform_without_connection_fails_cleanly(client, user):
 
     job = jobs_of(client, user)["google_drive"]
     assert (job["status"], job["error_message"]) == (
-        "failed", "PlatformPreconditionError: Google Drive is not connected."
+        "failed", "Google Drive is not connected."
     )
 
 
@@ -342,7 +342,7 @@ def test_real_github_platform_without_connection_fails_cleanly(client, user):
 
     job = jobs_of(client, user)["github"]
     assert (job["status"], job["error_message"]) == (
-        "failed", "PlatformPreconditionError: GitHub is not connected."
+        "failed", "GitHub is not connected."
     )
 
 
@@ -607,7 +607,7 @@ def test_local_platform_without_folders_fails(client, user):
 
     job = jobs_of(client, user)["local"]
     assert (job["status"], job["error_message"]) == (
-        "failed", "PlatformPreconditionError: No valid local folders are registered."
+        "failed", "No valid local folders are registered."
     )
 
 

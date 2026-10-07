@@ -62,6 +62,23 @@ class Settings(BaseSettings):
     # OAuth client config files
     GITHUB_OAUTH_CONFIG_PATH: str = "credentials/github_oauth.json"
     GOOGLE_CLIENT_SECRET_PATH: str = "credentials/client_secret.json"
+    # Must be registered in the Google Cloud console (Web application client).
+    # Empty = BACKEND_PUBLIC_URL + /platforms/google-drive/callback
+    GOOGLE_REDIRECT_URI: str = ""
+
+    # Connectors
+    MAX_DOWNLOAD_MB: int = 200
+    # Per-file indexing limits: text beyond them is truncated (ledger note).
+    MAX_TEXT_CHARS_PER_FILE: int = 2_000_000
+    MAX_CHUNKS_PER_FILE: int = 2000
+    # Points per Qdrant upsert request (one huge request exceeds Qdrant's
+    # 32 MB request limit and the connection is dropped).
+    QDRANT_UPSERT_BATCH: int = 256
+    GITHUB_INCLUDE_FORKS: bool = False
+    GITHUB_INCLUDE_ARCHIVED: bool = False
+
+    # OCR fallback for scanned / image-heavy PDF pages.
+    OCR_MAX_PAGES: int = 20
 
     # Models: load all of them at startup (True) or on first use (False).
     PRELOAD_MODELS: bool = True
@@ -86,6 +103,16 @@ class Settings(BaseSettings):
     def allowed_local_roots_list(self) -> List[str]:
 
         return _split_csv(self.ALLOWED_LOCAL_ROOTS) or [str(Path.home())]
+
+    @property
+    def google_redirect_uri(self) -> str:
+
+        return self.GOOGLE_REDIRECT_URI or f"{self.BACKEND_PUBLIC_URL}/platforms/google-drive/callback"
+
+    @property
+    def max_download_bytes(self) -> int:
+
+        return self.MAX_DOWNLOAD_MB * 1024 * 1024
 
     @property
     def max_upload_bytes(self) -> int:
