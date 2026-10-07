@@ -51,6 +51,11 @@ VIDEOS = (
     ".mkv"
 )
 
+# Source code and config files (DOCUMENTS minus prose formats).
+CODE_EXTENSIONS = tuple(
+    ext for ext in DOCUMENTS if ext not in (".pdf", ".docx", ".pptx", ".txt", ".md", ".markdown", ".csv")
+)
+
 # Plain-text document formats (read as text, no parser).
 TEXT_DOCUMENTS = tuple(
     ext for ext in DOCUMENTS if ext not in (".pdf", ".docx", ".pptx", ".csv")
