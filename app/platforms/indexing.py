@@ -12,6 +12,16 @@ SUPPORTED_EXTENSIONS = frozenset(ext.lower() for ext in DOCUMENTS + IMAGES + AUD
 T = TypeVar("T")
 
 
+# Generated/noise files, skipped by every connector (ledger status 'excluded').
+EXCLUDED_SUFFIXES = (".log", ".lock", ".min.js", ".map")
+EXCLUDED_REASON = "excluded"
+
+
+def is_excluded(name: str) -> bool:
+
+    return (name or "").lower().endswith(EXCLUDED_SUFFIXES)
+
+
 def is_supported(name: str) -> bool:
 
     return os.path.splitext(name or "")[1].lower() in SUPPORTED_EXTENSIONS

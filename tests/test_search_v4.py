@@ -426,3 +426,74 @@ def test_model_manager_loads_lazily_and_once(monkeypatch):
     first = manager.semantic_model
     second = manager.semantic_model
     assert first is second and len(created) == 1
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 bug #3: pure visual image search
+# ---------------------------------------------------------------------------
+
+def image(file, margin, ocr="", platform="local", source_id=None):
+
+    from app.search.retrieval import Candidate, Chunk
+
+    candidate = Candidate(platform=platform, source_id=source_id or file, file=file, path=file,
+                          file_type="image", clip_margin=margin)
+    candidate.chunks.append(Chunk(text=ocr, kind="image", score=0.2))
+
+    return candidate
+
+
+def test_a_strong_clip_margin_alone_returns_an_image_without_name_match():
+
+    from app.search.ranking import IMAGE_MARGIN_EVIDENCE, score_candidates
+
+    scored = score_candidates([image("IMG_0042.webp", IMAGE_MARGIN_EVIDENCE + 0.02)], "dog")
+
+    assert [s.candidate.file for s in scored] == ["IMG_0042.webp"]
+    assert scored[0].name == 0 and scored[0].reasons == ["visual"]
+
+
+def test_a_weak_clip_margin_alone_is_not_evidence():
+
+    from app.search.ranking import IMAGE_MARGIN_EVIDENCE, score_candidates
+
+    assert score_candidates([image("IMG_0042.webp", IMAGE_MARGIN_EVIDENCE - 0.01)], "dog") == []
+
+
+def test_photos_of_documents_need_text_or_name_evidence():
+
+    from app.search.ranking import score_candidates
+
+    page = " ".join(["candidate roll number examination centre subject"] * 5)
+
+    assert score_candidates([image("WhatsApp Image.jpeg", 0.07, ocr=page)], "tax return form") == []
+
+
+@pytest.mark.parametrize("query", ["a photo of a dog", "show me the image of my dog", "find dog pictures"])
+def test_generic_words_never_match_on_their_own(query):
+
+    from app.search.normalize import query_terms
+    from app.search.ranking import score_candidates
+
+    assert query_terms(query) == ["dog"]
+
+    scored = score_candidates([
+        image("Golden_Retriever.webp", 0.06),                        # the dog, no query word in its name
+        image("photo of the image file.jpg", -0.02),                 # only generic words in common
+        image("my pictures.png", -0.03),
+    ], query)
+
+    assert [s.candidate.file for s in scored] == ["Golden_Retriever.webp"]
+
+
+def test_repository_folders_count_as_name_words():
+
+    from app.search.retrieval import Candidate
+    from app.search.ranking import score_candidates
+
+    manifest = Candidate(platform="github", source_id="me/tool:extension/manifest.json", file="manifest.json",
+                         path="me/tool/extension/manifest.json", file_type="document")
+
+    scored = score_candidates([manifest], "chrome extension manifest")
+
+    assert [s.candidate.file for s in scored] == ["manifest.json"] and "filename" in scored[0].reasons

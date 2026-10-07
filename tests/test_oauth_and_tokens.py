@@ -33,6 +33,16 @@ def fake_github(monkeypatch):
     monkeypatch.setattr(oauth, "load_config", lambda: {"client_id": "cid", "client_secret": "csecret"})
     monkeypatch.setattr(github_route, "exchange_code_for_token", fake_exchange)
 
+    class FakeClient:
+        def __init__(self, token, *args, **kwargs):
+            pass
+
+        def user(self):
+            return {"login": "octocat"}
+
+    # The callback reads the GitHub login; never call the real API in tests.
+    monkeypatch.setattr(github_route, "GitHubClient", FakeClient)
+
     return exchanged
 
 
@@ -87,7 +97,7 @@ def test_valid_state_connects_the_state_owner(client, user, db, fake_github):
     assert fake_github == ["good"]
 
     status = client.get("/platforms/github/status", headers=user["headers"])
-    assert status.json() == {"connected": True}
+    assert status.json() == {"connected": True, "account_name": "octocat"}
 
     db.expire_all()
     assert db.get(OAuthState, state).used is True
@@ -107,7 +117,7 @@ def test_unknown_state_and_user_uuid_as_state_are_rejected(client, user, fake_gi
     assert redirect_params(callback(client, code="good", state=user["id"]))["reason"] == "invalid_state"
 
     assert fake_github == []
-    assert client.get("/platforms/github/status", headers=user["headers"]).json() == {"connected": False}
+    assert client.get("/platforms/github/status", headers=user["headers"]).json() == {"connected": False, "account_name": None}
 
 
 def test_expired_state_is_rejected(client, user, db, fake_github):

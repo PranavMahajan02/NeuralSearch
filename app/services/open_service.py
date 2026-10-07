@@ -24,10 +24,10 @@ def drive_url(file_id: str) -> str:
     return f"https://drive.google.com/file/d/{quote(file_id, safe='')}/view"
 
 
-def github_url(owner: str, repo: str, path: str) -> str:
+def github_url(owner: str, repo: str, path: str, branch: str = None) -> str:
+    """Blob URL on the repository's default branch (stored at index time)."""
 
-    # TODO(phase-5): use the repository's default branch instead of "main".
-    return f"https://github.com/{quote(owner)}/{quote(repo)}/blob/main/{quote(path)}"
+    return f"https://github.com/{quote(owner)}/{quote(repo)}/blob/{quote(branch or 'main', safe='')}/{quote(path)}"
 
 
 def open_result(db: Session, user_id, request):
@@ -60,13 +60,14 @@ def open_result(db: Session, user_id, request):
 
         row = _owned_source(user_id, "google_drive", request.source_id or request.file_id)
 
-        return {"type": "url", "url": drive_url(row.source_id)}
+        # The webViewLink stored at index time (works for native Google files too).
+        return {"type": "url", "url": row.web_view_link or drive_url(row.source_id)}
 
     if platform == "github":
 
         row = _owned_source(user_id, "github", request.source_id)
         path = row.source_id.split(":", 1)[1]
 
-        return {"type": "url", "url": github_url(row.owner, row.repo, path)}
+        return {"type": "url", "url": github_url(row.owner, row.repo, path, row.default_branch)}
 
     raise AppError(400, "Unknown platform.")

@@ -316,6 +316,9 @@ export default function PageConnection({
                       <div>
                         <h3 className="font-display font-bold text-slate-800 dark:text-white text-base">
                           {platform.name}
+                      {platform.connected && platform.account && (
+                        <span className="block text-[11px] font-normal text-slate-500 dark:text-slate-400 truncate">{platform.account}</span>
+                      )}
                         </h3>
                         <p className="text-[11px] text-slate-400 dark:text-slate-500">
                           Configure directories to index and search. Excluded folders won't be scanned.
@@ -503,6 +506,9 @@ export default function PageConnection({
 
                     <h3 className="font-display font-bold text-slate-800 dark:text-white text-base mt-2">
                       {platform.name}
+                      {platform.connected && platform.account && (
+                        <span className="block text-[11px] font-normal text-slate-500 dark:text-slate-400 truncate">{platform.account}</span>
+                      )}
                     </h3>
 
                     {

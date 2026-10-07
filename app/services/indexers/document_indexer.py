@@ -5,7 +5,8 @@ from typing import List
 
 from app.ai.embedder import embed_texts
 from app.config.file_types import TEXT_DOCUMENTS
-from app.services.index_store import IndexPoint
+from app.core.config import settings
+from app.services.index_store import IndexPoint, Points
 
 
 CHUNK_SIZE = 1000
@@ -44,17 +45,28 @@ def chunk_text(text: str, size: int) -> List[str]:
 
 
 def build_document_points(path: str, temp_dir=None) -> List[IndexPoint]:
-    """No text -> no points (the ledger records 'no_content')."""
+    """No text -> no points (the ledger records 'no_content').
+
+    Text beyond MAX_TEXT_CHARS_PER_FILE / MAX_CHUNKS_PER_FILE is dropped and
+    the result carries a 'truncated' note for the ledger."""
 
     text = extract_document_text(path) or ""
 
     if not text.strip():
-        return []
+        return Points()
+
+    limit = min(settings.MAX_TEXT_CHARS_PER_FILE, settings.MAX_CHUNKS_PER_FILE * CHUNK_SIZE)
+    note = None
+
+    if len(text) > limit:
+        note = f"truncated: first {limit:,} of {len(text):,} characters indexed"
+        text = text[:limit]
 
     chunks = chunk_text(text, CHUNK_SIZE)
     vectors = embed_texts(chunks)
 
-    return [
-        IndexPoint(type="document", vector=vector, chunk_index=index, chunk=chunk)
-        for index, (chunk, vector) in enumerate(zip(chunks, vectors))
-    ]
+    return Points(
+        (IndexPoint(type="document", vector=vector, chunk_index=index, chunk=chunk)
+         for index, (chunk, vector) in enumerate(zip(chunks, vectors))),
+        note=note
+    )

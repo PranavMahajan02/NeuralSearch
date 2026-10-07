@@ -4,8 +4,9 @@ Each candidate source gets three normalized signals in [0, 1]:
 
   semantic  meaning match from the embeddings, calibrated (see calibration.py)
             - text (documents, audio, video transcripts): MiniLM margin
-            - images: how far the image's CLIP margin stands out from the
-              other image candidates for this query (z-score)
+            - images: the absolute CLIP margin (cosine minus the neutral
+              baseline); the z-score among this query's images only orders
+              images, it never decides whether one is returned
             - video frames: a small boost only (frames alone are too noisy)
   name      the query terms found in the file name (exact, prefix, typo)
             or the pg_trgm file-name similarity
@@ -38,12 +39,23 @@ TEXT_MARGIN_FLOOR = 0.10        # semantic signal starts here
 TEXT_MARGIN_FULL = 0.60         # ... and saturates here
 TEXT_MARGIN_EVIDENCE = 0.35     # alone enough to return a result
 
-# CLIP image z-score within the query's image candidates: relevant top images
-# score >= 4.6, the best irrelevant/negative top image <= 4.3.
-IMAGE_Z_FLOOR = 2.5
-IMAGE_Z_FULL = 6.0
-IMAGE_Z_EVIDENCE = 4.4
-IMAGE_MARGIN_EVIDENCE = 0.04    # and an absolute floor on the margin
+# CLIP image margin (cosine - neutral baseline), measured on 33 image queries
+# (Phase 5, docs/eval): relevant images median 0.044, p10 0.012; irrelevant
+# images (n=873) median -0.047, p99 0.021; visual negatives' best <= -0.003.
+# 0.030 keeps 70% of relevant images and passes 0.5% of irrelevant ones.
+IMAGE_MARGIN_EVIDENCE = 0.030   # alone enough to return an image
+IMAGE_MARGIN_FLOOR = 0.0
+IMAGE_MARGIN_FULL = 0.10
+# z-score among the query's images: ordering only (a small share of the signal).
+IMAGE_Z_FLOOR = 1.0
+IMAGE_Z_FULL = 5.0
+IMAGE_Z_SHARE = 0.25
+# Photos of documents (screenshots, scanned forms) match any text-like query in
+# CLIP: on 10 text-like negative queries every image above the margin threshold
+# had >= 44 OCR words, every visual-eval image <= 2. For these, CLIP alone is
+# not evidence - they are found through their OCR text and file name.
+DOCUMENT_PHOTO_OCR_WORDS = 20
+_OCR_WORD = re.compile(r"[^\W\d_]{2,}", re.UNICODE)
 
 # Video frames: weak boost only.
 FRAME_MARGIN_FLOOR = 0.03
@@ -213,6 +225,28 @@ def image_zscores(candidates) -> Dict[Tuple[str, str], float]:
     return {c.key: float((c.clip_margin - mean) / std) for c in images}
 
 
+def name_for_matching(candidate) -> str:
+    """The normalized file name; for repository files also the folders inside
+    the repo ('extension/manifest.json' -> 'extension manifest'), which name a
+    code file as much as its base name does."""
+
+    name = normalize_name(candidate.file)
+
+    if candidate.platform == "github" and ":" in (candidate.source_id or ""):
+        folders = candidate.source_id.split(":", 1)[1].split("/")[:-1]
+        name = " ".join([normalize_name(folder) for folder in folders] + [name]).strip()
+
+    return name
+
+
+def is_document_photo(candidate) -> bool:
+    """An image whose OCR text is substantial (a photo of a page or screen)."""
+
+    words = max((len(_OCR_WORD.findall(ch.text)) for ch in candidate.chunks if ch.kind == "image"), default=0)
+
+    return words >= DOCUMENT_PHOTO_OCR_WORDS
+
+
 def score_candidates(candidates, query: str) -> List[Scored]:
 
     phrase = normalize_text(query)
@@ -230,9 +264,11 @@ def score_candidates(candidates, query: str) -> List[Scored]:
         visual = False
 
         if c.file_type == "image":
-            z = zscores.get(c.key)
-            semantic = max(semantic, _scale(z, IMAGE_Z_FLOOR, IMAGE_Z_FULL))
-            if z is not None and z >= IMAGE_Z_EVIDENCE and (c.clip_margin or 0) >= IMAGE_MARGIN_EVIDENCE:
+            visual_signal = ((1 - IMAGE_Z_SHARE) * _scale(c.clip_margin, IMAGE_MARGIN_FLOOR, IMAGE_MARGIN_FULL)
+                             + IMAGE_Z_SHARE * _scale(zscores.get(c.key), IMAGE_Z_FLOOR, IMAGE_Z_FULL))
+            semantic = max(semantic, visual_signal)
+            if (c.clip_margin is not None and c.clip_margin >= IMAGE_MARGIN_EVIDENCE
+                    and not is_document_photo(c)):
                 evidence = visual = True
 
         elif c.file_type == "video":
@@ -240,7 +276,7 @@ def score_candidates(candidates, query: str) -> List[Scored]:
             semantic = 1 - (1 - semantic) * (1 - frame)
 
         # --- name -----------------------------------------------------------
-        name_text = normalize_name(c.file)
+        name_text = name_for_matching(c)
         name_cov, name_words = coverage(terms, name_text.split(), phrase, name_text)
         trigram = c.name_similarity if c.name_similarity >= TRIGRAM_NAME_FLOOR else 0.0
         name = max(name_cov, trigram)

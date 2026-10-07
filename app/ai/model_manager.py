@@ -109,6 +109,9 @@ class ModelManager:
         if self._ocr_model is None:
             with self._load_lock:
                 if self._ocr_model is None:
+                    # On Windows, torch must load its DLLs before paddle's,
+                    # otherwise a later `import torch` fails (WinError 127).
+                    import torch  # noqa: F401
                     from paddleocr import PaddleOCR
                     logger.info("Loading PaddleOCR...")
                     self._ocr_model = PaddleOCR(use_angle_cls=True, lang="en")

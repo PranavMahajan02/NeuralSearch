@@ -26,49 +26,15 @@ export async function connectGithub(): Promise<ConnectResponse> {
 }
 
 export async function getGithubStatus() {
-  return apiJson<{ connected: boolean }>("/platforms/github/status", {
+  return apiJson<{ connected: boolean; account_name?: string | null }>("/platforms/github/status", {
     errorMessage: "Unable to fetch GitHub status.",
   });
 }
 
-export async function disconnectGithub() {
-  return apiJson("/platforms/github/disconnect", {
+/** purge=true also deletes everything indexed from GitHub. */
+export async function disconnectGithub(purge = false) {
+  return apiJson(`/platforms/github/disconnect${purge ? "?purge=true" : ""}`, {
     method: "POST",
     errorMessage: "Unable to disconnect GitHub.",
   });
-}
-
-const GITHUB_ERRORS: Record<string, string> = {
-  missing_state: "The GitHub sign-in link was incomplete. Please try again.",
-  invalid_state: "The GitHub sign-in link was not recognised. Please try again.",
-  state_expired: "The GitHub sign-in link expired. Please try again.",
-  state_already_used: "That GitHub sign-in link was already used.",
-  access_denied: "GitHub access was not granted.",
-  token_exchange_failed: "GitHub could not complete the sign-in. Please try again.",
-};
-
-/**
- * Reads ?github=connected|error&reason=... left by the OAuth callback,
- * removes it from the address bar, and returns a message to show (or null).
- */
-export function consumeGithubRedirectResult(): { ok: boolean; message: string } | null {
-  const params = new URLSearchParams(window.location.search);
-  const result = params.get("github");
-
-  if (!result) {
-    return null;
-  }
-
-  const reason = params.get("reason") || "";
-
-  params.delete("github");
-  params.delete("reason");
-  const query = params.toString();
-  window.history.replaceState(null, "", window.location.pathname + (query ? `?${query}` : ""));
-
-  if (result === "connected") {
-    return { ok: true, message: "GitHub connected successfully." };
-  }
-
-  return { ok: false, message: GITHUB_ERRORS[reason] || "GitHub connection failed." };
 }

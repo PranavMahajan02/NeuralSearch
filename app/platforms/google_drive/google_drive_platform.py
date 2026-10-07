@@ -1,141 +1,87 @@
+"""Google Drive connector: list metadata -> changed files -> download/export -> index."""
+
+import logging
 import os
-import re
+from typing import Callable, Optional
 
 from app.platforms.base_platform import BasePlatform
-from app.platforms.errors import PlatformPreconditionError
-from app.platforms.indexing import is_supported, process_files
 from app.platforms.google_drive.drive_service import (
-    get_drive_service
+    EXPORTS,
+    FOLDER_MIME,
+    GOOGLE_NATIVE_PREFIX,
+    SHORTCUT_MIME,
+    DriveClient,
+    client_for_user,
 )
+from app.platforms.sync import RemoteFile, sync_remote
 
 
-FOLDER_MIME = "application/vnd.google-apps.folder"
-
-# Native Google files that download_file exports to a supported format.
-EXPORTABLE_MIMES = {
-    "application/vnd.google-apps.document",
-    "application/vnd.google-apps.presentation",
-    "application/vnd.google-apps.spreadsheet",
-}
-
-_UNSAFE_NAME = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+logger = logging.getLogger("cogniseek.google_drive")
 
 
-def safe_local_name(name: str) -> str:
-    """Drive names may contain '/' or characters Windows rejects."""
+def local_extension(file: dict) -> Optional[str]:
+    """Extension the file will have locally, or None when it can't be fetched
+    (folders, shortcuts, non-exportable Google-native types)."""
 
-    cleaned = _UNSAFE_NAME.sub("_", name or "").strip(" .")
+    mime = file.get("mimeType", "")
 
-    return (cleaned or "file")[:200]
+    if mime in (FOLDER_MIME, SHORTCUT_MIME):
+        return None
 
+    if mime in EXPORTS:
+        return EXPORTS[mime][1]
 
-def is_drive_file_supported(file: dict) -> bool:
+    if mime.startswith(GOOGLE_NATIVE_PREFIX):
+        return None      # forms, sites, maps, drawings, ... can't be exported
 
-    return file.get("mimeType") in EXPORTABLE_MIMES or is_supported(file.get("name", ""))
-
-
-def is_auth_error(error: Exception) -> bool:
-
-    status = getattr(getattr(error, "resp", None), "status", None)
-
-    return status in (401, 403)
+    return os.path.splitext(file.get("name", ""))[1]
 
 
 class GoogleDrivePlatform(BasePlatform):
 
+    def __init__(self, client_factory: Optional[Callable[[object], DriveClient]] = None):
+
+        self._client_factory = client_factory or client_for_user
+
     def index(self, ctx):
 
-        from app.platforms.google_drive.drive_service import download_file
-        from app.services.indexing_pipeline import drive_meta, index_source
+        from app.services.indexing_pipeline import drive_meta
 
-        try:
-            files = self.list_files(ctx.user_id)
-        except PlatformPreconditionError:
-            raise
-        except Exception as error:
-            if is_auth_error(error):
-                raise PlatformPreconditionError(
-                    "Google Drive rejected the stored credentials. Please reconnect Google Drive."
-                ) from error
-            raise
+        client = self._client_factory(ctx.user_id)      # one client per job
 
-        supported = []
-        skipped = 0
+        files, complete = client.list_files()
+
+        remote_files = []
+        not_fetchable = 0
 
         for file in files:
-            if file.get("mimeType") == FOLDER_MIME or not is_drive_file_supported(file):
-                skipped += 1
-            else:
-                supported.append(file)
 
-        ctx.add_skipped(skipped)
-        ctx.set_total(len(supported))
+            extension = local_extension(file)
 
-        def handle(position, file):
+            if extension is None:
+                not_fetchable += 1
+                continue
 
-            target = ctx.file_dir(position) / safe_local_name(file["name"])
-            downloaded_path = None
+            size = file.get("size")
 
-            try:
-                downloaded_path = download_file(
-                    ctx.user_id,
-                    file["id"],
-                    str(target),
-                    file["mimeType"]
-                )
+            remote_files.append(RemoteFile(
+                meta=drive_meta(ctx.user_id, file, extension),
+                extension=extension,
+                size=int(size) if size is not None else None,
+                download=self._downloader(client, file)
+            ))
 
-                # TODO(phase-5): check needs_index before downloading (BUG-05).
-                index_source(
-                    drive_meta(ctx.user_id, file, downloaded_path),
-                    downloaded_path,
-                    temp_dir=ctx.temp_dir
-                )
+        ctx.add_skipped(not_fetchable)
 
-            except Exception as error:
-                if is_auth_error(error):
-                    raise PlatformPreconditionError(
-                        "Google Drive access was revoked during indexing."
-                    ) from error
-                raise
+        sync_remote(ctx, "google_drive", remote_files, listing_complete=complete)
 
-            finally:
-                if downloaded_path and os.path.exists(downloaded_path):
-                    os.remove(downloaded_path)
+        client.save_if_refreshed()
 
-        process_files(
-            ctx,
-            supported,
-            file_ref=lambda file: file.get("name") or file.get("id"),
-            handle=handle
-        )
+    @staticmethod
+    def _downloader(client: DriveClient, file: dict):
 
-    def list_files(
-        self,
-        user_id
-    ):
+        return lambda target: client.download(file, target)
 
-        service = get_drive_service(
-            user_id
-        )
+    def list_files(self, user_id):
 
-        files = []
-
-        page_token = None
-
-        while True:
-
-            response = service.files().list(
-                q="trashed=false",
-                pageSize=1000,
-                pageToken=page_token,
-                fields="nextPageToken, files(id,name,mimeType,modifiedTime)"
-            ).execute()
-
-            files.extend(response.get("files", []))
-
-            page_token = response.get("nextPageToken")
-
-            if page_token is None:
-                break
-
-        return files
+        return client_for_user(user_id).list_files()[0]

@@ -358,6 +358,7 @@ def serialize_job(job: IndexingJob) -> dict:
         "succeeded_files": job.succeeded_files or 0,
         "failed_files": job.failed_files or 0,
         "skipped_files": job.skipped_files or 0,
+        "downloaded_files": job.downloaded_files or 0,
         # Kept for older clients: same value as processed_files.
         "indexed_files": processed,
         "progress": 0 if total == 0 else min(100, int(processed * 100 / total)),
