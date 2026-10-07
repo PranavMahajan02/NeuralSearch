@@ -924,6 +924,8 @@ export interface components {
             snippet: string;
             /** Highlights */
             highlights: number[][];
+            /** Frame Time S */
+            frame_time_s?: number | null;
         };
         /** OpenRequest */
         OpenRequest: {

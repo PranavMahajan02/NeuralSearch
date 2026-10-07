@@ -199,3 +199,36 @@ describe("search", () => {
     expect(screen.queryByRole("button", { name: "java" })).not.toBeInTheDocument();
   });
 });
+
+describe("video frame matches", () => {
+  it('labels a visual video match "Looks similar (frame at m:ss)"', async () => {
+    server.use(
+      http.post(api("/search/"), () =>
+        HttpResponse.json(
+          searchResponse([
+            makeResult({
+              platform: "google_drive",
+              source_id: "vid",
+              type: "video",
+              file: "nature documentary.mp4",
+              score: 0.31,
+              match: {
+                reasons: ["visual"],
+                field: "filename",
+                snippet: "nature documentary.mp4",
+                highlights: [],
+                frame_time_s: 160,
+              },
+            }),
+          ]),
+        ),
+      ),
+    );
+    renderApp({ route: "/search?q=polar%20bear%20cubs" });
+
+    const card = (await screen.findByRole("heading", { name: "nature documentary.mp4" })).closest("article")!;
+    expect(within(card).getByRole("list", { name: "Why it matched" })).toHaveTextContent(
+      "Looks similar (frame at 2:40)",
+    );
+  });
+});

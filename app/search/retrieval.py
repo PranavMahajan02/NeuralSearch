@@ -17,6 +17,7 @@ from sqlalchemy import text
 from app.database.db import SessionLocal
 from app.search import calibration, query_vectors
 from app.vectorstore.client import get_client
+from app.search.frame_null import frame_time_s
 from app.vectorstore.config import collection_for_type
 from app.vectorstore.query import user_filter
 
@@ -71,6 +72,11 @@ class Candidate:
     text_margin: Optional[float] = None
     clip_cosine: float = 0.0
     clip_margin: Optional[float] = None
+    # Videos: the best retrieved frame and this video's null (app/search/frame_null.py).
+    frame_number: Optional[int] = None
+    frame_time_s: Optional[int] = None
+    frame_null_mean: Optional[float] = None
+    frame_null_std: Optional[float] = None
     name_similarity: float = 0.0
     chunks: List[Chunk] = field(default_factory=list)
 
@@ -190,6 +196,13 @@ def retrieve(user_id: str, normalized_query: str, platform: Optional[str], searc
                 candidate.text_margin = margin if candidate.text_margin is None else max(candidate.text_margin, margin)
             else:
                 candidate.clip_cosine = max(candidate.clip_cosine, score)
+                if point_type == "video_frame":
+                    if payload.get("null_mean") is not None:
+                        candidate.frame_null_mean = payload["null_mean"]
+                        candidate.frame_null_std = payload.get("null_std")
+                    if candidate.clip_margin is None or margin > candidate.clip_margin:
+                        candidate.frame_number = payload.get("frame_number")
+                        candidate.frame_time_s = payload.get("frame_time_s", frame_time_s(payload.get("frame_number")))
                 candidate.clip_margin = margin if candidate.clip_margin is None else max(candidate.clip_margin, margin)
 
             if point_type != "video_frame" and payload.get("chunk"):

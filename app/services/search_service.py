@@ -8,7 +8,7 @@ from typing import Optional
 
 from app.core.config import settings
 from app.search.normalize import normalize_text, query_terms
-from app.search.ranking import score_candidates
+from app.search.ranking import frame_z, score_candidates
 from app.search.retrieval import retrieve
 
 
@@ -164,6 +164,7 @@ def search(
                 "content": round(item.content, 4),
                 "text_margin": c.text_margin,
                 "clip_margin": c.clip_margin,
+                "frame_z": frame_z(c),
                 "text_cosine": c.text_cosine,
                 "clip_cosine": c.clip_cosine,
                 "name_similarity": c.name_similarity,

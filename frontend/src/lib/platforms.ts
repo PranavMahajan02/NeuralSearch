@@ -53,6 +53,22 @@ export function platformLabel(platform: PlatformName | string): string {
   return PLATFORM_LABEL[platform] ?? platform;
 }
 
+/** "1:05" / "1:02:05" from seconds. */
+export function formatTimestamp(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const ss = String(s).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
+}
+
+/** The label of one match reason; a video's visual match names the frame. */
+export function reasonLabel(reason: string, frameTimeS?: number | null): string {
+  if (reason === "visual" && frameTimeS != null)
+    return `Looks similar (frame at ${formatTimestamp(frameTimeS)})`;
+  return REASON_LABEL[reason] ?? reason;
+}
+
 /** Why a result matched, as returned by the API (match.reasons). */
 export const REASON_LABEL: Record<string, string> = {
   filename: "File name",

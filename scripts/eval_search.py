@@ -67,7 +67,8 @@ def is_relevant(result: dict, expected: set) -> bool:
 # The owner's GitHub index contains THIS repository, whose eval set, eval
 # results and tests contain every eval query verbatim (true content matches).
 # They are dropped from the measurement (and counted) unless --include-self.
-SELF_ARTIFACT = re.compile(r"(^|/)(tests/eval/|docs/eval/|tests/test_[^/]*\.py$|scripts/eval_search\.py$)")
+# docs/QA_REPORT.md is the audit that defined the eval negatives (it quotes them).
+SELF_ARTIFACT = re.compile(r"(^|/)(tests/eval/|docs/eval/|docs/QA_REPORT\.md$|tests/test_[^/]*\.py$|scripts/eval_search\.py$)")
 
 
 def is_self_artifact(result: dict) -> bool:
@@ -123,6 +124,9 @@ def run(base_url: str, headers: dict, queries: list, limit: int, include_self: b
         if item.get("code"):
             record["code"] = True
 
+        if item.get("visual_video"):
+            record["visual_video"] = True
+
         if item.get("negative"):
             record["negative"] = True
             record["false_positives"] = len(results)
@@ -142,8 +146,9 @@ def run(base_url: str, headers: dict, queries: list, limit: int, include_self: b
 
     aggregate = summarize(per_query, latencies)
     aggregate["visual_only"] = summarize([r for r in per_query if r.get("visual")], [])
-    aggregate["non_visual"] = summarize([r for r in per_query if not r.get("visual") and not r.get("code")], [])
+    aggregate["non_visual"] = summarize([r for r in per_query if not r.get("visual") and not r.get("code") and not r.get("visual_video")], [])
     aggregate["code"] = summarize([r for r in per_query if r.get("code")], [])
+    aggregate["visual_video"] = summarize([r for r in per_query if r.get("visual_video")], [])
 
     return {"aggregate": aggregate, "per_query": per_query}
 
@@ -186,7 +191,8 @@ def print_report(report: dict, label: str):
 
     for name, a in (("non-visual", report["aggregate"].get("non_visual")),
                     ("visual-only", report["aggregate"].get("visual_only")),
-                    ("code", report["aggregate"].get("code"))):
+                    ("code", report["aggregate"].get("code")),
+                    ("visual-video", report["aggregate"].get("visual_video"))):
         if a:
             print(f"{name:12} P@5 {a['precision_at_5']:.3f} | R@10 {a['recall_at_10']:.3f} | MRR {a['mrr']:.3f} | "
                   f"negatives FP {a['negative_false_positives']} ({a['negative_queries_with_results']}/{a['negative_queries']})")

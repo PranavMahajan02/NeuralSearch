@@ -70,6 +70,14 @@ FRAME_MARGIN_FLOOR = 0.03
 FRAME_MARGIN_FULL = 0.15
 FRAME_WEIGHT = 0.5
 
+# Video frames as evidence on their own (Phase 6C, docs/eval/phase6c-video-gate.md):
+# z = (best-frame margin - the video's null mean) / null std. 18 visual-only video
+# queries vs 367 negative (query, video) pairs: positives median 5.03, the
+# negatives' max 5.27 -> 5.3 passes 9/18 positives and no negative.
+VIDEO_FRAME_Z_EVIDENCE = 5.3
+VIDEO_FRAME_Z_FLOOR = 3.0
+VIDEO_FRAME_Z_FULL = 9.0
+
 # Lexical evidence.
 NAME_EVIDENCE = 0.5             # half of the query terms in the file name
 CONTENT_EVIDENCE = 0.6          # most of the query terms in the content
@@ -254,6 +262,15 @@ def name_for_matching(candidate) -> str:
     return name
 
 
+def frame_z(candidate) -> Optional[float]:
+    """Best retrieved frame vs this video's null distribution (None without frames or null)."""
+
+    if candidate.clip_margin is None or candidate.frame_null_mean is None or not candidate.frame_null_std:
+        return None
+
+    return (candidate.clip_margin - candidate.frame_null_mean) / candidate.frame_null_std
+
+
 def is_document_photo(candidate) -> bool:
     """An image whose OCR text is substantial (a photo of a page or screen)."""
 
@@ -290,6 +307,10 @@ def score_candidates(candidates, query: str) -> List[Scored]:
         elif c.file_type == "video":
             frame = FRAME_WEIGHT * _scale(c.clip_margin, FRAME_MARGIN_FLOOR, FRAME_MARGIN_FULL)
             semantic = 1 - (1 - semantic) * (1 - frame)
+            z = frame_z(c)
+            if z is not None and z >= VIDEO_FRAME_Z_EVIDENCE:
+                semantic = max(semantic, _scale(z, VIDEO_FRAME_Z_FLOOR, VIDEO_FRAME_Z_FULL))
+                evidence = visual = True
 
         # --- name -----------------------------------------------------------
         name_text = name_for_matching(c)
@@ -320,9 +341,13 @@ def score_candidates(candidates, query: str) -> List[Scored]:
         if c.text_margin is not None and c.text_margin >= text_evidence:
             reasons.append("semantic")
 
+        match = _match(c, chunks, name_words, content_words, reasons)
+        if visual and c.file_type == "video" and c.frame_time_s is not None:
+            match["frame_time_s"] = c.frame_time_s   # "Looks similar (frame at mm:ss)"
+
         results.append(Scored(
             candidate=c, score=round(float(score), 4), semantic=semantic, name=name, content=content,
-            reasons=reasons, match=_match(c, chunks, name_words, content_words, reasons)
+            reasons=reasons, match=match
         ))
 
     results.sort(key=lambda r: r.score, reverse=True)
