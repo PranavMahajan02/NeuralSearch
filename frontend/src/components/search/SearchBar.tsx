@@ -58,10 +58,17 @@ export function SearchBar({ value, onChange, onSubmit }: SearchBarProps) {
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "ArrowDown" && items.length) {
+    const available = prefix.length >= 2 ? (suggestions.data?.suggestions ?? []) : [];
+
+    if (event.key === "ArrowDown" && available.length) {
       event.preventDefault();
-      setOpen(true);
-      setActive((i) => (i + 1) % items.length);
+      if (!open) {
+        // Reopen a list closed with Esc (ARIA combobox pattern).
+        setOpen(true);
+        setActive(0);
+      } else {
+        setActive((i) => (i + 1) % available.length);
+      }
     } else if (event.key === "ArrowUp" && items.length) {
       event.preventDefault();
       setActive((i) => (i <= 0 ? items.length - 1 : i - 1));

@@ -1,5 +1,5 @@
 import { useId, useState, type FormEvent } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 
 import { ApiError } from "../api/client";
 import * as api from "../api/endpoints";
@@ -33,16 +33,14 @@ function Field({
 }
 
 export function LoginPage() {
-  const { status, login } = useAuth();
+  const { status, login, sessionExpired: expired } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [mode, setMode] = useState<Mode>("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const expired = (location.state as { expired?: boolean } | null)?.expired;
 
   if (status === "authenticated") return <Navigate to="/" replace />;
 
