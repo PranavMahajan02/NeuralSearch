@@ -85,28 +85,33 @@ describe("indexing center", () => {
     expect(screen.getAllByText("Never indexed.")).toHaveLength(2);
   });
 
-  it("has ONE /index/jobs poller: 2 s while active, none when idle", async () => {
-    let requests = 0;
+  it("has ONE /index/jobs poller: one request per tick while active, none when idle", async () => {
+    // timing.jobsPollMs is 100 ms in tests (src/test/setup.ts); production uses 2 s.
+    const times: number[] = [];
     let status: "running" | "completed" = "running";
     server.use(
       http.get(api("/index/jobs"), () => {
-        requests += 1;
+        times.push(performance.now());
         return HttpResponse.json([makeJob({ status })]);
       }),
     );
-    // The sidebar badge and the page both read the jobs query.
+    // The sidebar badge, the page and the stats hook all read the jobs query.
     renderApp({ route: "/indexing" });
 
     await screen.findByRole("progressbar");
-    expect(requests).toBe(1);
+    await waitFor(() => expect(times.length).toBeGreaterThanOrEqual(4));
 
-    await waitFor(() => expect(requests).toBe(2), { timeout: 3000 });
+    // Two pollers would fire within a few ms of each other; one poller is >= ~1 interval apart.
+    const gaps = times.slice(1).map((t, i) => t - times[i]);
+    expect(Math.min(...gaps)).toBeGreaterThan(50);
+
+    // Idle: after the job completes, polling stops (load can only make it slower, never add requests).
     status = "completed";
-    await waitFor(() => expect(requests).toBe(3), { timeout: 3000 });
-
-    await delay(2500); // idle: polling stopped
-    expect(requests).toBe(3);
-  }, 15_000);
+    await screen.findByText("Completed");
+    const settled = times.length;
+    await delay(600); // six poll intervals
+    expect(times.length).toBe(settled);
+  });
 });
 
 describe("platforms", () => {
@@ -230,7 +235,10 @@ describe("platforms", () => {
     );
     const { user } = renderApp({ route: "/platforms" });
 
-    await user.click(await screen.findByRole("button", { name: "Index local folders" }));
+    // Enabled only once the folder list has loaded: wait for that, as a user would.
+    const button = await screen.findByRole("button", { name: "Index local folders" });
+    await waitFor(() => expect(button).toBeEnabled());
+    await user.click(button);
     expect(await screen.findByText("Indexing is already queued or running for: local.")).toBeInTheDocument();
   });
 });

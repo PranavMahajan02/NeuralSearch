@@ -2,6 +2,7 @@
 import { QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthContext";
+import { timing } from "../lib/timing";
 import { ApiError } from "./client";
 import * as api from "./endpoints";
 import { isActiveJob, type JobWithHistory } from "./types";
@@ -36,8 +37,6 @@ export const keys = {
   suggestions: (userId: string, prefix: string) => ["user", userId, "suggestions", prefix] as const,
 };
 
-export const JOBS_ACTIVE_POLL_MS = 2000;
-
 /**
  * The ONE /index/jobs poller. Every component that needs jobs calls this hook;
  * TanStack Query shares the single request between them. It refetches every
@@ -50,17 +49,15 @@ export function useJobs() {
   return useQuery({
     queryKey: keys.jobs(userId),
     queryFn: ({ signal }) => api.getJobs(signal),
-    refetchInterval: (query) => (query.state.data?.some(isActiveJob) ? JOBS_ACTIVE_POLL_MS : false),
+    refetchInterval: (query) => (query.state.data?.some(isActiveJob) ? timing.jobsPollMs : false),
   });
 }
-
-export const LIVE_COUNTS_POLL_MS = 3000;
 
 /** Refetch every 3 s while a job runs (files become searchable one by one), otherwise not at all. */
 export function useWhileIndexing(userId: string): () => number | false {
   const client = useQueryClient();
   return () =>
-    client.getQueryData<JobWithHistory[]>(keys.jobs(userId))?.some(isActiveJob) ? LIVE_COUNTS_POLL_MS : false;
+    client.getQueryData<JobWithHistory[]>(keys.jobs(userId))?.some(isActiveJob) ? timing.liveCountsMs : false;
 }
 
 /** Dashboard stats: counts, last indexed time and THE connection count. */
