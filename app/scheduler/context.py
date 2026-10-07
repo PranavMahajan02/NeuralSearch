@@ -131,7 +131,8 @@ class JobContext:
         if self.stored_errors >= MAX_STORED_ERRORS:
             return
 
-        message = sanitize_error(error, allowed_roots=self.allowed_roots)
+        message = sanitize_error(error, allowed_roots=self.allowed_roots,
+                                 with_type=not getattr(error, "user_facing", False))
 
         with self._session_factory() as db:
             db.add(

@@ -312,11 +312,11 @@ class LocalStorageFolder(Base):
 # INDEXED FILES (per-file ledger of the Qdrant index)
 # ==========================================================
 
-LEDGER_STATUSES = ("indexed", "no_content", "failed", "unsupported", "too_large")
+LEDGER_STATUSES = ("indexed", "no_content", "failed", "unsupported", "too_large", "excluded")
 
 # A source in one of these states is not re-processed while its version is
 # unchanged (failed files are retried on the next run).
-LEDGER_SKIP_STATUSES = ("indexed", "no_content", "unsupported", "too_large")
+LEDGER_SKIP_STATUSES = ("indexed", "no_content", "unsupported", "too_large", "excluded")
 
 
 class IndexedFile(Base):
