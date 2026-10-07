@@ -307,6 +307,18 @@ def latest_jobs_per_platform(db: Session, user_id) -> List[IndexingJob]:
     )
 
 
+def recent_jobs(db: Session, user_id, platform: str, limit: int) -> List[IndexingJob]:
+    """The user's last `limit` jobs on one platform, newest first."""
+
+    return (
+        db.query(IndexingJob)
+        .filter(IndexingJob.user_id == user_id, IndexingJob.platform == platform)
+        .order_by(IndexingJob.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
 def indexed_platforms(db: Session, user_id) -> List[str]:
     """Platforms with at least one successful run, whatever is running now."""
 

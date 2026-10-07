@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import APIRouter
 from fastapi import Depends
+from fastapi import Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -16,6 +17,7 @@ from app.scheduler.jobs import (
     indexed_platforms,
     job_errors,
     latest_jobs_per_platform,
+    recent_jobs,
     request_cancel,
     serialize_job
 )
@@ -76,6 +78,7 @@ def index(
 
 @router.get("/jobs")
 def get_jobs(
+    history: int = Query(0, ge=0, le=20, description="Also return the last N jobs per platform."),
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -88,10 +91,18 @@ def get_jobs(
 
     indexed = set(indexed_platforms(db, current_user["id"]))
 
-    return [
+    jobs = [
         {**serialize_job(job), "indexed": job.platform in indexed}
         for job in latest_jobs_per_platform(db, current_user["id"])
     ]
+
+    if history:
+        for job in jobs:
+            job["history"] = [
+                serialize_job(old) for old in recent_jobs(db, current_user["id"], job["platform"], history)
+            ]
+
+    return jobs
 
 
 def _owned_job(db: Session, user_id, job_id: uuid.UUID):

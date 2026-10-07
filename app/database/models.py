@@ -3,6 +3,7 @@ from sqlalchemy import (
     String,
     Boolean,
     Integer,
+    BigInteger,
     DateTime,
     Text,
     ForeignKey,
@@ -370,6 +371,10 @@ class IndexedFile(Base):
     version = Column(Text)
 
     status = Column(String(20), nullable=False)
+    # File metadata (Phase 6); NULL until the file is indexed again.
+    size_bytes = Column(BigInteger)
+    modified_at = Column(DateTime)
+    mime_type = Column(Text)
 
     chunk_count = Column(Integer, nullable=False, default=0, server_default=text("0"))
 

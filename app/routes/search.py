@@ -6,7 +6,7 @@ from app.auth.auth_dependency import get_current_user
 from app.core.config import settings
 from app.core.errors import AppError
 from app.models.request_models import SearchRequest
-from app.services.search_service import search
+from app.services.search_service import search, suggestions
 
 
 router = APIRouter(
@@ -21,6 +21,16 @@ def health():
     return {
         "status": "Search API Ready"
     }
+
+
+@router.get("/suggestions")
+def search_suggestions(
+    prefix: str = Query("", max_length=200),
+    current_user=Depends(get_current_user)
+):
+    """Autocomplete: up to 8 of the user's indexed file names."""
+
+    return {"prefix": prefix, "suggestions": suggestions(current_user["id"], prefix)}
 
 
 @router.post("/")

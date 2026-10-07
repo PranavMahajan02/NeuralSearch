@@ -32,6 +32,75 @@ def _display_path(candidate) -> str:
     return path
 
 
+EMPTY_METADATA = {"file_size": None, "modified_at": None, "mime_type": None}
+
+
+def ledger_metadata(user_id, keys) -> dict:
+    """{(platform, source_id): {file_size, modified_at (ISO), mime_type}} for one page."""
+
+    from sqlalchemy import tuple_
+
+    from app.database.db import SessionLocal
+    from app.database.models import IndexedFile
+
+    if not keys:
+        return {}
+
+    with SessionLocal() as db:
+        rows = (
+            db.query(IndexedFile.platform, IndexedFile.source_id, IndexedFile.size_bytes,
+                     IndexedFile.modified_at, IndexedFile.mime_type)
+            .filter(IndexedFile.user_id == user_id,
+                    tuple_(IndexedFile.platform, IndexedFile.source_id).in_(list(keys)))
+            .all()
+        )
+
+    return {
+        (platform, source_id): {
+            "file_size": size,
+            "modified_at": modified.isoformat() + "Z" if modified else None,
+            "mime_type": mime,
+        }
+        for platform, source_id, size, modified, mime in rows
+    }
+
+
+def suggestions(user_id, prefix: str, limit: int = 8) -> list:
+    """File names of this user that start with / resemble `prefix` (pg_trgm)."""
+
+    from sqlalchemy import text
+
+    from app.database.db import SessionLocal
+
+    prefix = normalize_text(prefix)
+
+    if len(prefix) < 2:
+        return []
+
+    escaped = prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    with SessionLocal() as db:
+        rows = db.execute(
+            text("""
+                SELECT file_name, platform, file_type, starts, sim FROM (
+                    SELECT DISTINCT ON (lower(file_name)) file_name, platform, file_type,
+                           (lower(file_name) LIKE :starts ESCAPE '\\') AS starts,
+                           word_similarity(:q, lower(file_name)) AS sim
+                    FROM indexed_files
+                    WHERE user_id = :user_id AND status = 'indexed'
+                      AND (lower(file_name) LIKE :contains ESCAPE '\\' OR :q <% lower(file_name))
+                    ORDER BY lower(file_name)
+                ) matches
+                ORDER BY starts DESC, sim DESC, length(file_name), file_name
+                LIMIT :limit
+            """),
+            {"user_id": str(user_id), "q": prefix, "starts": f"{escaped}%",
+             "contains": f"%{escaped}%", "limit": limit}
+        ).fetchall()
+
+    return [{"file": r.file_name, "platform": r.platform, "type": r.file_type} for r in rows]
+
+
 def search(
     query: str,
     user_id,
@@ -62,6 +131,7 @@ def search(
     ranked = score_candidates(list(candidates.values()), normalized)
 
     page = ranked[offset:offset + limit]
+    metadata = ledger_metadata(user_id, [item.candidate.key for item in page])
 
     results = []
 
@@ -79,6 +149,8 @@ def search(
             "path": path,
             "score": item.score,
             "match": item.match,
+            **metadata.get(c.key, EMPTY_METADATA),
+            "extension": os.path.splitext(c.file or "")[1].lower().lstrip(".") or None,
         }
 
         if c.platform == "github":

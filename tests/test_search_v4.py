@@ -240,7 +240,10 @@ def test_result_shape_match_object_and_no_debug_fields(client, user):
 
     result = results(client, user, "volcano eruption")["results"][0]
 
-    assert set(result) == {"platform", "source_id", "type", "file", "display_path", "path", "score", "match"}
+    assert set(result) == {"platform", "source_id", "type", "file", "display_path", "path", "score", "match",
+                           "file_size", "modified_at", "mime_type", "extension"}
+    # Not indexed through a connector here: metadata is unknown (null), the extension is derived.
+    assert (result["file_size"], result["modified_at"], result["extension"]) == (None, None, "docx")
     match = result["match"]
     assert set(match) == {"reasons", "field", "snippet", "highlights"}
     assert "filename" in match["reasons"] and "content" in match["reasons"]
@@ -510,3 +513,73 @@ def test_code_files_need_a_higher_semantic_margin(file, returned):
                           file_type="document", text_margin=margin)
 
     assert bool(score_candidates([candidate], "kubernetes helm deployment")) is returned
+
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: result metadata, suggestions, recent files, job history
+# ---------------------------------------------------------------------------
+
+def test_local_results_carry_size_modified_time_and_mime(client, user, folder):
+
+    path = write(folder / "volcano notes.txt", "volcano eruption ash cloud")
+    index_local_file(user["id"], str(path))
+
+    result = results(client, user, "volcano notes")["results"][0]
+
+    assert result["file_size"] == path.stat().st_size
+    assert result["modified_at"].endswith("Z") and result["modified_at"][:4].isdigit()
+    assert (result["mime_type"], result["extension"]) == ("text/plain", "txt")
+
+
+def test_suggestions_are_prefix_first_and_scoped_to_the_user(client, user, make_user):
+
+    other = make_user()
+    for name in ("Quantum notes.pdf", "quantum physics.docx", "notes quantum.txt", "Turing.pdf"):
+        add_point(user, "google_drive", f"S-{name}", name, "document", "document", "text")
+    add_point(other, "google_drive", "S-x", "quantum secret.pdf", "document", "document", "text")
+
+    response = client.get("/search/suggestions", params={"prefix": "quan"}, headers=user["headers"])
+    assert response.status_code == 200
+    names = [s["file"] for s in response.json()["suggestions"]]
+
+    assert names[:2] == ["Quantum notes.pdf", "quantum physics.docx"]
+    assert "notes quantum.txt" in names and "Turing.pdf" not in names
+    assert "quantum secret.pdf" not in names
+
+    assert client.get("/search/suggestions", params={"prefix": "q"}, headers=user["headers"]).json()["suggestions"] == []
+    assert client.get("/search/suggestions", params={"prefix": "quan"}).status_code == 401
+
+
+def test_suggestion_prefix_wildcards_are_literal(client, user):
+
+    add_point(user, "google_drive", "S-a", "abc.pdf", "document", "document", "text")
+
+    response = client.get("/search/suggestions", params={"prefix": "%%"}, headers=user["headers"])
+
+    assert response.json()["suggestions"] == []
+
+
+def test_recent_files_are_the_last_eight_indexed_for_the_user(client, user, make_user):
+
+    other = make_user()
+    for i in range(10):
+        add_point(user, "google_drive", f"R-{i}", f"file {i}.pdf", "document", "document", "text")
+    add_point(other, "google_drive", "R-x", "not mine.pdf", "document", "document", "text")
+
+    files = client.get("/dashboard/recent", headers=user["headers"]).json()["files"]
+
+    assert [f["file"] for f in files] == [f"file {i}.pdf" for i in range(9, 1, -1)]
+    assert client.get("/dashboard/recent").status_code == 401
+
+
+def test_dashboard_stats_give_one_connection_count_and_per_platform_detail(client, user):
+
+    add_point(user, "google_drive", "P-1", "a.pdf", "document", "document", "text")
+
+    stats = client.get("/dashboard/stats", headers=user["headers"]).json()
+
+    assert (stats["connected_platforms"], stats["supported_platforms"]) == (0, 3)
+    drive = stats["platforms"]["google_drive"]
+    assert drive["indexed_files"] == 1 and drive["last_indexed_at"].endswith("Z")
+    assert stats["platforms"]["github"] == {"connected": False, "indexed_files": 0, "last_indexed_at": None}
