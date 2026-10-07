@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     # HTTP
     CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
     BACKEND_PUBLIC_URL: str = "http://127.0.0.1:8000"
-    FRONTEND_URL: str = "http://localhost:3000"
+    FRONTEND_URL: str = "http://127.0.0.1:3000"
 
     # OAuth client config files
     GITHUB_OAUTH_CONFIG_PATH: str = "credentials/github_oauth.json"

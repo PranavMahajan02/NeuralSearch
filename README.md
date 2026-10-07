@@ -20,6 +20,62 @@ Features:
 - File Name Search
 - Persistent Indexing
 
+## Screenshots
+
+Captured from a demo account whose index holds only sample notes and stock photos
+(`frontend/e2e/screenshots.ts`).
+
+| Search home (real counts, recently indexed) | Document query (highlighted passage) |
+|---|---|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Document search](docs/screenshots/search-document.png) |
+| **Visual query "dog"** (no word of the query in the file name) | **No results** |
+| ![Visual search](docs/screenshots/search-visual-dog.png) | ![Empty result](docs/screenshots/search-empty.png) |
+| **Platforms** | **Indexing** |
+| ![Platforms](docs/screenshots/platforms.png) | ![Indexing](docs/screenshots/indexing.png) |
+
+Mobile (375 px): ![Mobile](docs/screenshots/mobile-search.png)
+
+## Frontend
+
+React 19 + TypeScript + Vite + Tailwind, TanStack Query for server state, React Router.
+
+```bash
+cd frontend
+npm install
+npm run dev          # http://127.0.0.1:3000 - fails (strictPort) if the port is taken
+```
+
+Open the app at **http://127.0.0.1:3000** and set `FRONTEND_URL=http://127.0.0.1:3000` in `.env`:
+the browser keeps the login token per origin, so the OAuth return URL must use the same host.
+The backend URL comes from `VITE_API_BASE_URL` (default `http://127.0.0.1:8000`).
+
+| Command | What it does |
+|---|---|
+| `npm run lint` | ESLint (typescript-eslint, react-hooks, jsx-a11y) + Prettier check |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm test` / `npm run coverage` | Vitest + Testing Library + MSW (fake backend); coverage threshold 70% |
+| `npm run build` | type check + production build |
+| `npm run gen:api` | regenerate `src/api/schema.d.ts` from the backend's `/openapi.json` (backend running in development) |
+| `npm run test:e2e` | Playwright smoke test against the real backend (below) |
+| `npm run depcheck` | unused dependencies |
+
+### End-to-end smoke test
+
+Runs against the **real** backend: it creates a throwaway user `e2e-<id>@cogniseek.dev`, registers a
+temporary folder with 3 sample files, indexes it, searches, downloads a result, runs axe accessibility
+checks, logs out, then deletes the user and all of its data (`scripts/delete_e2e_user.py`, which refuses any
+other e-mail) and the temporary folder.
+
+```bash
+# backend running (uvicorn app.main:app) with its worker; then, in frontend/:
+npx playwright install chromium   # once
+npm run test:e2e                  # starts `npm run dev` unless E2E_BASE_URL is set
+```
+
+`E2E_BASE_URL` / `E2E_API_URL` point it at other URLs; the temporary folder is created under the system
+temp directory, which must lie inside the backend's `ALLOWED_LOCAL_ROOTS` (default: the home directory) -
+set `E2E_FILES_ROOT` otherwise. `E2E_PYTHON` selects the Python used for the cleanup (default: `venv`).
+
 ## Database migrations
 
 The schema is managed with Alembic (the app no longer calls `create_all`).
