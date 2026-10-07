@@ -289,11 +289,9 @@ describe("live counts", () => {
     renderApp({ route: "/search" });
 
     await screen.findByText("System Indexing Insights");
-    await waitFor(() => expect(statsCalls).toBeGreaterThanOrEqual(2), { timeout: 4000 });
+    await waitFor(() => expect(statsCalls).toBeGreaterThanOrEqual(2));
 
     status = "completed";
-    await waitFor(() => expect(screen.queryByText(/results may be incomplete/)).not.toBeInTheDocument(), {
-      timeout: 4000,
-    });
-  }, 15_000);
+    await waitFor(() => expect(screen.queryByText(/results may be incomplete/)).not.toBeInTheDocument());
+  });
 });

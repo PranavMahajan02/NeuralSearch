@@ -121,13 +121,19 @@ describe("search", () => {
   });
 
   it("aborts the superseded request and never shows an out-of-order response", async () => {
+    // The old response is held by a gate and released only AFTER the new one is on screen:
+    // the order is forced, not left to timing.
     let slowAborted = false;
+    let oldArrived = false;
+    let releaseOld = () => {};
+    const gate = new Promise<void>((resolve) => (releaseOld = resolve));
     server.use(
       http.post(api("/search/"), async ({ request }) => {
         const body = (await request.json()) as SearchRequest;
         if (body.query === "old") {
           request.signal.addEventListener("abort", () => (slowAborted = true));
-          await delay(300); // arrives AFTER the newer query's response
+          await gate;
+          oldArrived = true;
           return HttpResponse.json(searchResponse([makeResult({ file: "old.pdf", source_id: "old" })]));
         }
         return HttpResponse.json(searchResponse([makeResult({ file: "new.pdf", source_id: "new" })]));
@@ -140,11 +146,14 @@ describe("search", () => {
     await user.type(box, "new{Enter}");
 
     expect(await screen.findByRole("heading", { name: "new.pdf" })).toBeInTheDocument();
-    await delay(400);
+    await waitFor(() => expect(slowAborted).toBe(true)); // the superseded fetch was cancelled
+
+    releaseOld(); // the old response now "arrives" late
+    await waitFor(() => expect(oldArrived).toBe(true));
+    await delay(50);
 
     expect(screen.queryByRole("heading", { name: "old.pdf" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "new.pdf" })).toBeInTheDocument();
-    expect(slowAborted).toBe(true);
   });
 
   it("loads more results with offset/limit", async () => {

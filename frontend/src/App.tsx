@@ -66,11 +66,20 @@ export function AppRoutes() {
   );
 }
 
-export function Providers({ client, children }: { client: QueryClient; children: React.ReactNode }) {
+export function Providers({
+  client,
+  children,
+  reducedMotion = "user",
+}: {
+  client: QueryClient;
+  children: React.ReactNode;
+  /** Tests pass "always": nothing may wait on an animation. */
+  reducedMotion?: "user" | "always";
+}) {
   return (
     <QueryClientProvider client={client}>
       {/* Animations follow the OS "reduce motion" setting. */}
-      <MotionConfig reducedMotion="user">
+      <MotionConfig reducedMotion={reducedMotion}>
         <ThemeProvider>
           <ToastProvider>
             <AuthProvider>{children}</AuthProvider>

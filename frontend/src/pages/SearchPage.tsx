@@ -15,11 +15,10 @@ import { useDebounced } from "../hooks/useDebounced";
 import { useRecentSearches } from "../hooks/useRecentSearches";
 import { useSearch } from "../hooks/useSearch";
 import { priorityProgress } from "../lib/indexing";
+import { timing } from "../lib/timing";
 
 const TYPES: SearchType[] = ["all", "document", "image", "audio", "video"];
 const PLATFORMS: SearchPlatform[] = ["all", "local", "google_drive", "github"];
-
-export const FILTER_DEBOUNCE_MS = 250;
 
 function pick<T extends string>(value: string | null, allowed: readonly T[], fallback: T): T {
   return allowed.includes(value as T) ? (value as T) : fallback;
@@ -55,9 +54,10 @@ export function SearchPage() {
   }
 
   // Debounce a primitive key (an object literal would be a new value every render).
-  const [debouncedType, debouncedPlatform] = useDebounced(`${type}|${platform}`, FILTER_DEBOUNCE_MS).split(
-    "|",
-  ) as [SearchType, SearchPlatform];
+  const [debouncedType, debouncedPlatform] = useDebounced(
+    `${type}|${platform}`,
+    timing.filterDebounceMs,
+  ).split("|") as [SearchType, SearchPlatform];
   const search = useSearch({ query, type: debouncedType, platform: debouncedPlatform });
 
   const update = (next: Partial<{ q: string; type: SearchType; platform: SearchPlatform }>) => {
