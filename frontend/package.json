@@ -14,7 +14,7 @@
     "coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "gen:api": "node scripts/gen-api.mjs",
-    "depcheck": "depcheck --ignores=@types/*,tailwindcss,@vitest/coverage-v8,jsdom,prettier,eslint-config-prettier,@eslint/js,globals,typescript"
+    "depcheck": "depcheck --ignores=@types/*,tailwindcss,@vitest/coverage-v8,jsdom,prettier,eslint-config-prettier,@eslint/js,globals,typescript,openapi-typescript"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.1",
