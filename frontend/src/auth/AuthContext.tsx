@@ -13,6 +13,8 @@ interface AuthValue {
   user: User | null;
   /** "" when nobody is logged in. Query keys are scoped by it. */
   userId: string;
+  /** True after a 401 ended the session (until the next login). */
+  sessionExpired: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -23,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [token, setTokenState] = useState<string | null>(() => getToken());
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const profile = useQuery({
     queryKey: ["profile", token],
@@ -36,8 +39,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     onUnauthorized(() => {
       setTokenState(null);
+      setSessionExpired(true);
       queryClient.clear();
-      navigate("/login", { replace: true, state: { expired: true } });
+      navigate("/login", { replace: true });
     });
     return () => onUnauthorized(() => undefined);
   }, [navigate, queryClient]);
@@ -47,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { access_token } = await api.login(email, password);
       setToken(access_token);
       queryClient.clear();
+      setSessionExpired(false);
       setTokenState(access_token);
     },
     [queryClient],
@@ -69,8 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const status: AuthStatus =
       token === null || profile.isError ? "anonymous" : user ? "authenticated" : "checking";
 
-    return { status, user, userId: user?.id ?? "", login, logout };
-  }, [token, profile.data, profile.isError, login, logout]);
+    return { status, user, userId: user?.id ?? "", sessionExpired, login, logout };
+  }, [token, profile.data, profile.isError, sessionExpired, login, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
