@@ -141,6 +141,24 @@ queries:
   - {query: laptop keyboard, negative: true, visual: true}
   - {query: soccer ball, negative: true, visual: true}
 
+  # ---------------- CODE, semantic-only (Phase 6, A1) ----------------
+  # Descriptions of what a code file does; no query word matches its path.
+  # Reported as their own subset: MiniLM is weak on code (see phase6-code-gate.md).
+  - {query: shortest path algorithm on a weighted network, modality: code, code: true, expected: [useDijkstra.ts]}
+  - {query: equipment upkeep scheduling for company property, modality: code, code: true, expected: [maintenance_service.py]}
+  - {query: move equipment from one team to another, modality: code, code: true, expected: [transfer_service.py]}
+  - {query: reserve a room or resource for a time slot, modality: code, code: true, expected: [booking_service.py]}
+  - {query: api key and project identifier for the cloud database, modality: code, code: true, expected: [firebase-config.js]}
+  - {query: browser toolbar window showing if a product review is genuine, modality: code, code: true, expected: [popup.js]}
+  - {query: traffic jam forecast, modality: code, code: true, expected: [predict-congestion.ts]}
+  - {query: turn the edge list text into nodes and links, modality: code, code: true, expected: [graphParser.ts]}
+  - {query: noisy or combination of semantic filename and content signals, modality: code, code: true, expected: [ranking.py]}
+  - {query: issue an access token when a user signs in, modality: code, code: true, expected: [auth.py]}
+  - {query: write vectors and remove stale chunks, modality: code, code: true, expected: [index_store.py]}
+  - {query: synthetic fake reviews from a language model, modality: code, code: true, expected: [generate_ai_reviews.py]}
+  - {query: fit a classifier that detects fake reviews, modality: code, code: true, expected: [train_model.py]}
+  - {query: record who changed which asset and when, modality: code, code: true, expected: [audit_service.py]}
+
   # ---------------- negatives: should return nothing ----------------
   - query: xqzv wplk qqq
     negative: true

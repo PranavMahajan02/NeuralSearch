@@ -120,6 +120,9 @@ def run(base_url: str, headers: dict, queries: list, limit: int, include_self: b
         if item.get("visual"):
             record["visual"] = True
 
+        if item.get("code"):
+            record["code"] = True
+
         if item.get("negative"):
             record["negative"] = True
             record["false_positives"] = len(results)
@@ -139,7 +142,8 @@ def run(base_url: str, headers: dict, queries: list, limit: int, include_self: b
 
     aggregate = summarize(per_query, latencies)
     aggregate["visual_only"] = summarize([r for r in per_query if r.get("visual")], [])
-    aggregate["non_visual"] = summarize([r for r in per_query if not r.get("visual")], [])
+    aggregate["non_visual"] = summarize([r for r in per_query if not r.get("visual") and not r.get("code")], [])
+    aggregate["code"] = summarize([r for r in per_query if r.get("code")], [])
 
     return {"aggregate": aggregate, "per_query": per_query}
 
@@ -181,7 +185,8 @@ def print_report(report: dict, label: str):
             print(f"{r['query'][:40]:40} {r['precision_at_5']:>5.2f} {r['recall_at_10']:>5.2f} {rank!s:>5} {r['returned']:>4} {r['latency_s']*1000:>6.0f}")
 
     for name, a in (("non-visual", report["aggregate"].get("non_visual")),
-                    ("visual-only", report["aggregate"].get("visual_only"))):
+                    ("visual-only", report["aggregate"].get("visual_only")),
+                    ("code", report["aggregate"].get("code"))):
         if a:
             print(f"{name:12} P@5 {a['precision_at_5']:.3f} | R@10 {a['recall_at_10']:.3f} | MRR {a['mrr']:.3f} | "
                   f"negatives FP {a['negative_false_positives']} ({a['negative_queries_with_results']}/{a['negative_queries']})")

@@ -22,6 +22,7 @@ The thresholds below were chosen on the evaluation set (tests/eval) and the
 margin distributions measured on the owner's data; see docs/eval.
 """
 
+import os
 import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -29,6 +30,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 import numpy as np
 from rapidfuzz import fuzz
 
+from app.config.file_types import CODE_EXTENSIONS
 from app.search.normalize import normalize_name, normalize_text, query_terms, tokens
 
 
@@ -38,6 +40,12 @@ from app.search.normalize import normalize_name, normalize_text, query_terms, to
 TEXT_MARGIN_FLOOR = 0.10        # semantic signal starts here
 TEXT_MARGIN_FULL = 0.60         # ... and saturates here
 TEXT_MARGIN_EVIDENCE = 0.35     # alone enough to return a result
+# Code/config files (Phase 6, docs/eval/phase6-code-gate.md): MiniLM separates
+# them poorly. Irrelevant code candidates: p99 0.351, max 0.502 over 33
+# negative queries; the target file of 14 descriptive code queries: 0.18-0.45.
+# Set above the irrelevant max, so code files need a name or content match in
+# practice; the semantic signal still ranks them.
+TEXT_MARGIN_EVIDENCE_CODE = 0.52
 
 # CLIP image margin (cosine - neutral baseline), measured on 33 image queries
 # (Phase 5, docs/eval): relevant images median 0.044, p10 0.012; irrelevant
@@ -225,6 +233,13 @@ def image_zscores(candidates) -> Dict[Tuple[str, str], float]:
     return {c.key: float((c.clip_margin - mean) / std) for c in images}
 
 
+def text_evidence_threshold(candidate) -> float:
+
+    extension = os.path.splitext(candidate.file or "")[1].lower()
+
+    return TEXT_MARGIN_EVIDENCE_CODE if extension in CODE_EXTENSIONS else TEXT_MARGIN_EVIDENCE
+
+
 def name_for_matching(candidate) -> str:
     """The normalized file name; for repository files also the folders inside
     the repo ('extension/manifest.json' -> 'extension manifest'), which name a
@@ -259,7 +274,8 @@ def score_candidates(candidates, query: str) -> List[Scored]:
 
         # --- semantic -------------------------------------------------------
         semantic_text = _scale(c.text_margin, TEXT_MARGIN_FLOOR, TEXT_MARGIN_FULL)
-        evidence = c.text_margin is not None and c.text_margin >= TEXT_MARGIN_EVIDENCE
+        text_evidence = text_evidence_threshold(c)
+        evidence = c.text_margin is not None and c.text_margin >= text_evidence
         semantic = semantic_text
         visual = False
 
@@ -301,7 +317,7 @@ def score_candidates(candidates, query: str) -> List[Scored]:
             reasons.append(CONTENT_FIELD.get(c.file_type, "content"))
         if visual:
             reasons.append("visual")
-        if c.text_margin is not None and c.text_margin >= TEXT_MARGIN_EVIDENCE:
+        if c.text_margin is not None and c.text_margin >= text_evidence:
             reasons.append("semantic")
 
         results.append(Scored(

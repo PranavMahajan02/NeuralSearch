@@ -497,3 +497,16 @@ def test_repository_folders_count_as_name_words():
     scored = score_candidates([manifest], "chrome extension manifest")
 
     assert [s.candidate.file for s in scored] == ["manifest.json"] and "filename" in scored[0].reasons
+
+
+@pytest.mark.parametrize("file, returned", [("notes.pdf", True), ("chart.tsx", False), ("deploy.yaml", False)])
+def test_code_files_need_a_higher_semantic_margin(file, returned):
+
+    from app.search.retrieval import Candidate
+    from app.search.ranking import TEXT_MARGIN_EVIDENCE, TEXT_MARGIN_EVIDENCE_CODE, score_candidates
+
+    margin = (TEXT_MARGIN_EVIDENCE + TEXT_MARGIN_EVIDENCE_CODE) / 2
+    candidate = Candidate(platform="github", source_id=f"me/r:{file}", file=file, path=file,
+                          file_type="document", text_margin=margin)
+
+    assert bool(score_candidates([candidate], "kubernetes helm deployment")) is returned
