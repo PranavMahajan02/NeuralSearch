@@ -106,6 +106,7 @@ class Job(BaseModel):
     id: str
     platform: str
     status: JobStatus
+    priority: int = 0
     total_files: int
     processed_files: int
     succeeded_files: int

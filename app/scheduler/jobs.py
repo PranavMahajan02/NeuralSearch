@@ -106,7 +106,8 @@ def enqueue_jobs(db: Session, user_id, priority_platform: str, platforms: List[s
 # ----------------------------------------------------------------------
 
 def claim_next_job(db: Session) -> Optional[IndexingJob]:
-    """Atomically move the oldest queued job to running.
+    """Atomically move the next queued job to running: highest priority
+    first ("Index next"), then the oldest.
 
     FOR UPDATE SKIP LOCKED: a second worker (or process) skips the row this
     one is claiming instead of blocking on it or claiming it twice.
@@ -115,7 +116,7 @@ def claim_next_job(db: Session) -> Optional[IndexingJob]:
     job = (
         db.query(IndexingJob)
         .filter(IndexingJob.status == "queued")
-        .order_by(IndexingJob.created_at, IndexingJob.id)
+        .order_by(IndexingJob.priority.desc(), IndexingJob.created_at, IndexingJob.id)
         .with_for_update(skip_locked=True)
         .first()
     )
@@ -307,6 +308,32 @@ def latest_jobs_per_platform(db: Session, user_id) -> List[IndexingJob]:
     )
 
 
+class JobNotQueued(Exception):
+    pass
+
+
+def prioritize_job(db: Session, job: IndexingJob) -> IndexingJob:
+    """Make a QUEUED job the user's next one (priority above their other queued jobs)."""
+
+    locked = db.get(IndexingJob, job.id, with_for_update=True)
+
+    if locked is None or locked.status != "queued":
+        db.rollback()
+        raise JobNotQueued()
+
+    top = (
+        db.query(func.max(IndexingJob.priority))
+        .filter(IndexingJob.user_id == locked.user_id, IndexingJob.status == "queued")
+        .scalar()
+    ) or 0
+
+    locked.priority = top + 1
+    db.commit()
+    db.refresh(locked)
+
+    return locked
+
+
 def recent_jobs(db: Session, user_id, platform: str, limit: int) -> List[IndexingJob]:
     """The user's last `limit` jobs on one platform, newest first."""
 
@@ -365,6 +392,7 @@ def serialize_job(job: IndexingJob) -> dict:
         "id": str(job.id),
         "platform": job.platform,
         "status": job.status,
+        "priority": job.priority or 0,
         "total_files": total,
         "processed_files": processed,
         "succeeded_files": job.succeeded_files or 0,
