@@ -68,6 +68,12 @@ class Settings(BaseSettings):
 
     # Connectors
     MAX_DOWNLOAD_MB: int = 200
+    # Per-file indexing limits: text beyond them is truncated (ledger note).
+    MAX_TEXT_CHARS_PER_FILE: int = 2_000_000
+    MAX_CHUNKS_PER_FILE: int = 2000
+    # Points per Qdrant upsert request (one huge request exceeds Qdrant's
+    # 32 MB request limit and the connection is dropped).
+    QDRANT_UPSERT_BATCH: int = 256
     GITHUB_INCLUDE_FORKS: bool = False
     GITHUB_INCLUDE_ARCHIVED: bool = False
 

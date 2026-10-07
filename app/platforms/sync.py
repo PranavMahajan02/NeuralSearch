@@ -1,7 +1,8 @@
 """The sync loop shared by the cloud connectors (Google Drive, GitHub).
 
 1. The connector lists REMOTE METADATA only (id, name, version, size).
-2. Unsupported types and files over MAX_DOWNLOAD_MB are recorded in the
+2. Excluded (generated) files, unsupported types and files over
+   MAX_DOWNLOAD_MB are recorded in the
    ledger with their version and counted as skipped - never downloaded.
 3. index_store.needs_index(user, platform, source_id, version) decides what
    to fetch: unchanged files are skipped without downloading (BUG-05).
@@ -19,7 +20,7 @@ from pathlib import Path
 from typing import Callable, List, Optional
 
 from app.core.config import settings
-from app.platforms.indexing import process_files
+from app.platforms.indexing import EXCLUDED_REASON, is_excluded, process_files
 from app.services import index_store
 from app.services.index_store import FileMeta
 
@@ -75,6 +76,11 @@ def sync_remote(ctx, platform: str, files: List[RemoteFile], listing_complete: b
 
         if not index_store.needs_index(meta.user_id, platform, meta.source_id, meta.version):
             result.unchanged += 1
+            continue
+
+        if is_excluded(meta.file_name):
+            index_store.record_status(meta, "excluded", error=EXCLUDED_REASON)
+            result.skipped += 1
             continue
 
         if meta.file_type == "unsupported":

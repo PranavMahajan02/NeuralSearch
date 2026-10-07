@@ -20,6 +20,7 @@ from qdrant_client.models import (
 )
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.database.db import SessionLocal
 from app.database.models import IndexedFile, LEDGER_SKIP_STATUSES
 from app.vectorstore.client import get_client
@@ -97,6 +98,43 @@ def _point_struct(meta: FileMeta, point: IndexPoint) -> PointStruct:
     )
 
 
+class Points(list):
+    """A builder's points plus an optional ledger note (e.g. 'truncated: ...')."""
+
+    def __init__(self, items=(), note: Optional[str] = None):
+
+        super().__init__(items)
+        self.note = note
+
+
+class VectorStoreWriteError(Exception):
+    """Qdrant rejected or dropped a write. The message is shown to the user;
+    the raw exception is only logged."""
+
+    user_facing = True
+
+
+_TOO_LARGE_HINTS = ("10053", "10054", "aborted", "reset", "413", "too large", "payload")
+
+
+def _write_failed(action: str, error: Exception) -> VectorStoreWriteError:
+
+    logger.error("Qdrant %s failed: %r", action, error, exc_info=(type(error), error, error.__traceback__))
+
+    text = f"{type(error).__name__} {error}".lower()
+    reason = "request too large" if any(h in text for h in _TOO_LARGE_HINTS) else "vector store unavailable"
+
+    return VectorStoreWriteError(f"Could not save vectors ({reason})")
+
+
+def _batches(items: List, size: int):
+
+    size = max(1, int(size))
+
+    for start in range(0, len(items), size):
+        yield items[start:start + size]
+
+
 def _source_filter(user_id, platform: str, source_id: str, **extra) -> Filter:
 
     return user_filter(str(user_id), platform, source_id=source_id, **extra)
@@ -113,6 +151,10 @@ def upsert_file(meta: FileMeta, points: List[IndexPoint], session_factory=Sessio
     the old chunk 0..n-1 in place), and only then are leftover chunks with
     chunk_index >= n deleted. A concurrent search sees old or new chunks,
     never an empty file.
+
+    Points are sent in batches of QDRANT_UPSERT_BATCH. If any batch fails
+    nothing is pruned, the ledger keeps the previous version and records
+    'failed' (the file is retried next run), and VectorStoreWriteError is raised.
     """
 
     client = get_client()
@@ -121,12 +163,18 @@ def upsert_file(meta: FileMeta, points: List[IndexPoint], session_factory=Sessio
     for point in points:
         by_type.setdefault(point.type, []).append(point)
 
-    for point_type, group in by_type.items():
-        client.upsert(
-            collection_name=collection_for_type(point_type),
-            points=[_point_struct(meta, p) for p in group],
-            wait=True
-        )
+    try:
+        for point_type, group in by_type.items():
+            for batch in _batches(group, settings.QDRANT_UPSERT_BATCH):
+                client.upsert(
+                    collection_name=collection_for_type(point_type),
+                    points=[_point_struct(meta, p) for p in batch],
+                    wait=True
+                )
+    except Exception as error:
+        failure = _write_failed("upsert", error)
+        _record_failure(meta, str(failure), session_factory)
+        raise failure from None
 
     # Prune: per type, everything at or beyond the new chunk count.
     for point_type in _types_for(meta.file_type):
@@ -148,7 +196,19 @@ def upsert_file(meta: FileMeta, points: List[IndexPoint], session_factory=Sessio
 
     status = "indexed" if points else "no_content"
 
-    return _record(meta, status=status, chunk_count=len(points), session_factory=session_factory)
+    return _record(meta, status=status, chunk_count=len(points),
+                   error=getattr(points, "note", None), session_factory=session_factory)
+
+
+def _record_failure(meta: FileMeta, message: str, session_factory) -> None:
+    """status 'failed' with the PREVIOUS version kept, so the file is retried."""
+
+    with session_factory() as db:
+        row = _get_row(db, meta.user_id, meta.platform, meta.source_id)
+        previous = row.version if row is not None else None
+
+    _record(FileMeta(**{**meta.__dict__, "version": previous}), status="failed", chunk_count=None,
+            error=message, session_factory=session_factory)
 
 
 def record_status(meta: FileMeta, status: str, error: Optional[str] = None, session_factory=SessionLocal) -> IndexedFile:

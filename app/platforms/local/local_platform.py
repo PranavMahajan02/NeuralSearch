@@ -3,7 +3,7 @@ from pathlib import Path
 
 from app.platforms.base_platform import BasePlatform
 from app.platforms.errors import PlatformPreconditionError
-from app.platforms.indexing import is_supported, process_files
+from app.platforms.indexing import EXCLUDED_REASON, is_excluded, is_supported, process_files
 from app.database.db import SessionLocal
 from app.database.local_storage_service import get_local_folders
 
@@ -45,7 +45,11 @@ class LocalPlatform(BasePlatform):
 
         supported, skipped = self.scan(folders)
 
-        ctx.add_skipped(skipped)
+        excluded = [path for path in supported if is_excluded(path)]
+        supported = [path for path in supported if not is_excluded(path)]
+        record_excluded(ctx.user_id, excluded)
+
+        ctx.add_skipped(skipped + len(excluded))
         ctx.set_total(len(supported))
 
         process_files(
@@ -94,6 +98,18 @@ class LocalPlatform(BasePlatform):
     def list_files(self):
 
         return self.scan(self.folders)[0]
+
+
+def record_excluded(user_id, paths) -> None:
+    """Ledger rows for excluded files, so they are not reconsidered while unchanged."""
+
+    from app.services import index_store
+    from app.services.indexing_pipeline import local_meta
+
+    for path in paths:
+        meta = local_meta(user_id, path)
+        if index_store.needs_index(meta.user_id, "local", meta.source_id, meta.version):
+            index_store.record_status(meta, "excluded", error=EXCLUDED_REASON)
 
 
 def sync_deleted_sources(user_id, folders) -> int:
