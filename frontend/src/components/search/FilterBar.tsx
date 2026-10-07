@@ -1,3 +1,5 @@
+import { ListFilter } from "lucide-react";
+
 import type { SearchPlatform, SearchType } from "../../api/types";
 import { PLATFORM_LABEL, TYPE_LABEL } from "../../lib/platforms";
 
@@ -11,19 +13,20 @@ interface FilterBarProps {
   onPlatformChange: (platform: SearchPlatform) => void;
 }
 
-/** Type chips + platform select. Changing either re-runs the search on the server. */
+/** Type chips + platform dropdown. Changing either re-runs the search on the server. */
 export function FilterBar({ type, platform, onTypeChange, onPlatformChange }: FilterBarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2">
+      <ListFilter aria-hidden="true" className="h-3.5 w-3.5 text-slate-500" />
       <fieldset className="flex flex-wrap gap-1.5">
         <legend className="sr-only">File type</legend>
         {TYPES.map((value) => (
           <label
             key={value}
-            className={`cursor-pointer rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-blue-600 ${
+            className={`cursor-pointer select-none rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors duration-150 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-blue-600 ${
               type === value
-                ? "bg-blue-700 text-white ring-blue-700"
-                : "bg-white text-slate-700 ring-slate-300 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700"
+                ? "border-blue-600 bg-blue-600 text-white"
+                : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white"
             }`}
           >
             <input
@@ -38,16 +41,16 @@ export function FilterBar({ type, platform, onTypeChange, onPlatformChange }: Fi
           </label>
         ))}
       </fieldset>
-      <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+      <label className="ml-auto flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
         Platform
         <select
           value={platform}
           onChange={(event) => onPlatformChange(event.target.value as SearchPlatform)}
-          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-900"
+          className="cursor-pointer rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
         >
           {PLATFORMS.map((value) => (
             <option key={value} value={value}>
-              {value === "all" ? "All platforms" : PLATFORM_LABEL[value]}
+              {value === "all" ? "All Channels" : PLATFORM_LABEL[value]}
             </option>
           ))}
         </select>

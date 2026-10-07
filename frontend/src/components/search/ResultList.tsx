@@ -14,11 +14,11 @@ type SearchState = ReturnType<typeof useSearch>;
 
 export function ResultSkeletons() {
   return (
-    <div aria-busy="true" aria-label="Loading results" className="space-y-3">
+    <div aria-busy="true" aria-label="Loading results" className="mx-auto max-w-3xl space-y-3">
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"
+          className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"
         >
           <Skeleton className="h-4 w-1/3" />
           <Skeleton className="mt-3 h-3 w-2/3" />
@@ -49,7 +49,7 @@ export function ResultList({ search, query, filtered, onClearFilters }: ResultLi
     return (
       <div
         role="alert"
-        className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-rose-950 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-100"
+        className="mx-auto max-w-3xl rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-950 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-100"
       >
         <div className="flex items-start gap-3">
           <AlertTriangle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
@@ -78,10 +78,12 @@ export function ResultList({ search, query, filtered, onClearFilters }: ResultLi
 
   if (total === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center dark:border-slate-700">
-        <SearchX aria-hidden="true" className="mx-auto h-8 w-8 text-slate-500" />
-        <p className="mt-3 font-semibold">No results for “{query}”</p>
-        <ul className="mt-2 space-y-1 text-sm text-slate-600 dark:text-slate-400">
+      <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white py-16 text-center dark:border-slate-800 dark:bg-slate-900">
+        <SearchX aria-hidden="true" className="mx-auto mb-3 h-10 w-10 text-rose-500" />
+        <p className="font-display text-sm font-medium text-slate-800 dark:text-slate-100">
+          No results for “{query}”
+        </p>
+        <ul className="mx-auto mt-2 max-w-sm space-y-1 text-xs text-slate-600 dark:text-slate-400">
           <li>Check the spelling, or try fewer or more general words.</li>
           <li>Describe what an image shows (e.g. “dog on a beach”).</li>
           <li>Make sure the platform holding the file has been indexed.</li>
@@ -96,9 +98,10 @@ export function ResultList({ search, query, filtered, onClearFilters }: ResultLi
   }
 
   return (
-    <section aria-label="Search results" className="space-y-3">
-      <p className="text-sm text-slate-600 dark:text-slate-400" aria-live="polite">
-        {total === 1 ? "1 result" : `${total} results`} · showing {results.length}
+    <section aria-label="Search results" className="mx-auto max-w-3xl space-y-3 pt-2">
+      <p className="px-1 text-xs font-medium text-slate-600 dark:text-slate-400" aria-live="polite">
+        Discovered {total === 1 ? "1 matching result" : `${total} matching results`} · showing{" "}
+        {results.length}
         {search.isFetching && !search.isFetchingNextPage && <Spinner className="ml-2 align-middle" />}
       </p>
       <ol className="space-y-3">

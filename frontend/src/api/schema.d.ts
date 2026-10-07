@@ -136,6 +136,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/index/jobs/{job_id}/prioritize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Prioritize
+         * @description "Index next": run this queued job before the user's other queued jobs.
+         */
+        post: operations["prioritize_index_jobs__job_id__prioritize_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/index/jobs/{job_id}/cancel": {
         parameters: {
             query?: never;
@@ -334,6 +354,46 @@ export interface paths {
         get: operations["profile_auth_profile_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/onboarding/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Onboarding Complete
+         * @description The user started indexing from the onboarding flow.
+         */
+        post: operations["onboarding_complete_auth_onboarding_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/onboarding/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Onboarding Skip
+         * @description The user chose "Skip for now"; they manage platforms from the Platforms page.
+         */
+        post: operations["onboarding_skip_auth_onboarding_skip_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -732,6 +792,11 @@ export interface components {
              * @enum {string}
              */
             status: "queued" | "running" | "completed" | "completed_with_errors" | "failed" | "cancelled";
+            /**
+             * Priority
+             * @default 0
+             */
+            priority: number;
             /** Total Files */
             total_files: number;
             /** Processed Files */
@@ -792,6 +857,11 @@ export interface components {
              * @enum {string}
              */
             status: "queued" | "running" | "completed" | "completed_with_errors" | "failed" | "cancelled";
+            /**
+             * Priority
+             * @default 0
+             */
+            priority: number;
             /** Total Files */
             total_files: number;
             /** Processed Files */
@@ -1048,6 +1118,11 @@ export interface components {
              * Format: email
              */
             email: string;
+            /**
+             * Onboarding Completed
+             * @default false
+             */
+            onboarding_completed: boolean;
         };
         /** ValidationError */
         ValidationError: {
@@ -1261,6 +1336,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobErrorsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    prioritize_index_jobs__job_id__prioritize_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Job"];
                 };
             };
             /** @description Validation Error */
@@ -1586,6 +1692,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+        };
+    };
+    onboarding_complete_auth_onboarding_complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    onboarding_skip_auth_onboarding_skip_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

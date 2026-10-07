@@ -1,32 +1,44 @@
-import { Cloud, FileText, FolderOpen, Github, Image, Music, Video, type LucideIcon } from "lucide-react";
+import { Database, FileText, Github, HardDrive, Image, Music, Play, type LucideIcon } from "lucide-react";
 
 import type { PlatformName } from "../api/types";
 
 export const PLATFORM_LABEL: Record<string, string> = {
-  local: "Local storage",
+  local: "Local Storage",
   google_drive: "Google Drive",
   github: "GitHub",
 };
 
+// Original CogniSeek platform marks.
 export const PLATFORM_ICON: Record<string, LucideIcon> = {
-  local: FolderOpen,
-  google_drive: Cloud,
+  local: Database,
+  google_drive: HardDrive,
   github: Github,
 };
 
+export const PLATFORM_COLOR: Record<string, string> = {
+  local: "text-indigo-500 dark:text-indigo-400",
+  google_drive: "text-blue-500 dark:text-blue-400",
+  github: "text-slate-800 dark:text-slate-200",
+};
+
 export const PLATFORM_BADGE: Record<string, string> = {
-  local:
-    "bg-indigo-50 text-indigo-800 ring-indigo-200 dark:bg-indigo-950 dark:text-indigo-200 dark:ring-indigo-800",
-  google_drive: "bg-sky-50 text-sky-800 ring-sky-200 dark:bg-sky-950 dark:text-sky-200 dark:ring-sky-800",
-  github:
-    "bg-slate-100 text-slate-800 ring-slate-300 dark:bg-slate-800 dark:text-slate-100 dark:ring-slate-600",
+  local: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+  google_drive: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+  github: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
 };
 
 export const TYPE_ICON: Record<string, LucideIcon> = {
   document: FileText,
   image: Image,
   audio: Music,
-  video: Video,
+  video: Play,
+};
+
+export const TYPE_COLOR: Record<string, string> = {
+  document: "text-blue-500",
+  image: "text-emerald-500",
+  audio: "text-amber-500",
+  video: "text-purple-500",
 };
 
 export const TYPE_LABEL: Record<string, string> = {

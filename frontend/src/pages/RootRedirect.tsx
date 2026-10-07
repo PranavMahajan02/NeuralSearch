@@ -1,21 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Navigate, useLocation } from "react-router-dom";
 
-import * as api from "../api/endpoints";
 import { invalidateIndexState } from "../api/queries";
 import { useAuth } from "../auth/AuthContext";
-import { FullPageSpinner } from "../components/common/Spinner";
 import { useToast } from "../components/common/Toast";
 import { readOAuthReturn } from "../hooks/useOAuthReturn";
 
 /**
  * "/" decides where to go:
- * - back from an OAuth provider (?github=… / ?google_drive=…): show the result, go to Platforms;
- * - nothing indexed yet: the welcome page; otherwise: search.
+ * - onboarding not finished: the onboarding (an OAuth return resumes it at step 1, with the toast);
+ * - back from an OAuth provider afterwards: Platforms, with the toast;
+ * - otherwise: the dashboard.
  */
 export function RootRedirect() {
-  const { userId } = useAuth();
+  const { user, userId } = useAuth();
   const location = useLocation();
   const queryClient = useQueryClient();
   const { notify } = useToast();
@@ -30,15 +29,7 @@ export function RootRedirect() {
     void invalidateIndexState(queryClient, userId);
   }, [oauth, notify, queryClient, userId]);
 
-  const state = useQuery({
-    queryKey: ["user", userId, "login-state"],
-    queryFn: api.getLoginState,
-    enabled: !oauth,
-  });
+  if (!user?.onboarding_completed) return <Navigate to="/onboarding" replace />;
 
-  if (oauth) return <Navigate to="/platforms" replace />;
-
-  if (state.isPending) return <FullPageSpinner label="Loading…" />;
-
-  return <Navigate to={state.data?.has_indexed ? "/search" : "/welcome"} replace />;
+  return <Navigate to={oauth ? "/platforms" : "/search"} replace />;
 }

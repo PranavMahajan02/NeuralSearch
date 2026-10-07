@@ -32,11 +32,11 @@ describe("indexing center", () => {
     );
     const { user } = renderApp({ route: "/indexing" });
 
-    const card = (await screen.findByRole("heading", { name: "Local storage" })).closest("section")!;
+    const card = (await screen.findByRole("heading", { name: "Local Storage" })).closest("section")!;
     const scope = within(card);
     expect(scope.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "25");
     expect(scope.getByText("10 of 40 files (25%)")).toBeInTheDocument();
-    expect(scope.getByText("C:\\docs\\big.pdf")).toBeInTheDocument();
+    expect(scope.getByText("Current file: C:\\docs\\big.pdf")).toBeInTheDocument();
     expect(scope.getByText("Downloaded").nextSibling).toHaveTextContent("4");
     expect(scope.getByText("Running")).toBeInTheDocument();
 
@@ -77,7 +77,7 @@ describe("indexing center", () => {
     const scope = within(card);
     expect(scope.getByRole("alert")).toHaveTextContent("permission missing");
 
-    await user.click(scope.getByRole("button", { name: "Show 2 file errors" }));
+    await user.click(scope.getByRole("button", { name: "View errors (2)" }));
     expect(await scope.findByText("Could not save vectors (request too large)")).toBeInTheDocument();
 
     expect(scope.getByText("Last 2 runs")).toBeInTheDocument();

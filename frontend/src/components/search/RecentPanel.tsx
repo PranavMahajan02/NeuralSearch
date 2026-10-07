@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Clock, History } from "lucide-react";
 
 import * as api from "../../api/endpoints";
-import { keys } from "../../api/queries";
+import { keys, useWhileIndexing } from "../../api/queries";
 import { useAuth } from "../../auth/AuthContext";
 import { useOpenFile } from "../../hooks/useOpenFile";
 import { formatDateTime, formatRelative } from "../../lib/format";
@@ -27,10 +27,10 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-3xs dark:border-slate-800/80 dark:bg-slate-900">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Icon aria-hidden="true" className="h-4 w-4" />
+        <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+          <Icon aria-hidden="true" className="h-4 w-4 text-blue-600 dark:text-blue-400" />
           {title}
         </h2>
         {action}
@@ -44,9 +44,11 @@ function Panel({
 export function RecentPanel({ searches, onSearch, onClearSearches }: RecentPanelProps) {
   const { userId } = useAuth();
   const { open } = useOpenFile();
+  const whileIndexing = useWhileIndexing(userId);
   const recent = useQuery({
     queryKey: keys.recent(userId),
     queryFn: ({ signal }) => api.getRecentFiles(signal),
+    refetchInterval: whileIndexing,
   });
 
   return (

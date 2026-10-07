@@ -27,14 +27,14 @@ describe("search", () => {
     const scope = within(card);
 
     expect(scope.getByText(/Strong/)).toHaveTextContent("Strong · 82%");
-    expect(scope.getByText("Local storage")).toBeInTheDocument();
+    expect(scope.getByText("Local Storage")).toBeInTheDocument();
     expect(scope.getByText("C:\\docs\\java notes.pdf")).toBeInTheDocument();
     expect(scope.getByText("2.0 KB")).toBeInTheDocument();
     expect(scope.getByText(/Modified/)).toBeInTheDocument();
     // Highlight from the API offsets [12, 16) of "Notes about Java streams".
     expect(card.querySelector("mark")).toHaveTextContent("Java");
     expect(scope.getByRole("list", { name: "Why it matched" })).toHaveTextContent("File nameText");
-    expect(screen.getByText(/1 result/)).toBeInTheDocument();
+    expect(screen.getByText(/1 matching result/)).toBeInTheDocument();
   });
 
   it("shows unknown metadata as a dash, never a made-up value", async () => {
@@ -46,8 +46,8 @@ describe("search", () => {
     renderApp({ route: "/search?q=java" });
 
     const card = (await screen.findByRole("heading", { name: "java notes.pdf" })).closest("article")!;
-    expect(within(card).getByText("—")).toBeInTheDocument();
-    expect(within(card).getByText("Modified —")).toBeInTheDocument();
+    // Size and Last Modified are both unknown: shown as dashes, never invented.
+    expect(within(card).getAllByText("—")).toHaveLength(2);
   });
 
   it("shows an empty state with suggestions", async () => {
@@ -162,11 +162,11 @@ describe("search", () => {
     );
     const { user } = renderApp({ route: "/search?q=files" });
 
-    expect(await screen.findByText(/25 results · showing 20/)).toBeInTheDocument();
+    expect(await screen.findByText(/25 matching results · showing 20/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Load more (5 left)" }));
 
     expect(await screen.findByRole("heading", { name: "file 24.pdf" })).toBeInTheDocument();
-    expect(screen.getByText(/25 results · showing 25/)).toBeInTheDocument();
+    expect(screen.getByText(/25 matching results · showing 25/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Load more/ })).not.toBeInTheDocument();
     expect(searches.bodies.map((b) => [b.offset, b.limit])).toEqual([
       [0, 20],
@@ -183,7 +183,7 @@ describe("search", () => {
     await user.clear(screen.getByRole("combobox", { name: "Search your files" }));
     await user.type(screen.getByRole("combobox", { name: "Search your files" }), " {Enter}");
     // Back to the start page (no query): the recent search is listed.
-    await user.click(screen.getByRole("link", { name: "Search" }));
+    await user.click(screen.getAllByRole("link", { name: "Dashboard" })[0]);
     expect(await screen.findByRole("button", { name: "java" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Clear" }));
