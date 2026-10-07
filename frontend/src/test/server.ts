@@ -20,6 +20,7 @@ export const USER: User = {
   id: "11111111-1111-1111-1111-111111111111",
   name: "Test User",
   email: "test@example.com",
+  onboarding_completed: true,
 };
 
 export function makeStats(overrides: Partial<DashboardStats> = {}): DashboardStats {
@@ -91,6 +92,7 @@ export function makeJob(overrides: Partial<JobWithHistory> = {}): JobWithHistory
     id: "job-1",
     platform: "local",
     status: "completed",
+    priority: 0,
     total_files: 10,
     processed_files: 10,
     succeeded_files: 9,

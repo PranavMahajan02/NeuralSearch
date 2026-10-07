@@ -13,12 +13,15 @@ export function PlatformsPage() {
   const jobOf = (platform: string) => jobs.data?.find((job) => job.platform === platform);
 
   return (
-    <div className="space-y-6">
-      <p className="text-sm text-slate-600 dark:text-slate-300">
-        {connected} of {supported} platforms connected. Connect a platform, then index it to make its files
-        searchable.
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+      <h2 className="mb-2 font-display text-lg font-bold text-slate-800 dark:text-slate-100">
+        Unified Platforms Integration
+      </h2>
+      <p className="text-xs text-slate-600 dark:text-slate-400">
+        {connected} of {supported} platforms connected. Manage connections, re-index, or link local folders.
       </p>
-      <div className="grid gap-4 lg:grid-cols-2">
+
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
         <CloudPlatformCard
           platform="google_drive"
           connected={drive.data?.connected}
@@ -35,8 +38,10 @@ export function PlatformsPage() {
           job={jobOf("github")}
           statusError={github.isError ? github.error.message : undefined}
         />
+        <div className="md:col-span-2">
+          <LocalFoldersCard detail={detail?.local} job={jobOf("local")} />
+        </div>
       </div>
-      <LocalFoldersCard detail={detail?.local} job={jobOf("local")} />
     </div>
   );
 }

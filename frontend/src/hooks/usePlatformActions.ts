@@ -60,5 +60,12 @@ export function usePlatformActions() {
     onSettled: refresh,
   });
 
-  return { startIndexing, connect, disconnect, cancelJob };
+  const prioritize = useMutation({
+    mutationFn: (jobId: string) => api.prioritizeJob(jobId),
+    onSuccess: (job) => notify(`${platformLabel(job.platform)} will be indexed next.`, "success"),
+    onError: (error) => notify(message(error, "Could not move the job."), "error"),
+    onSettled: refresh,
+  });
+
+  return { startIndexing, connect, disconnect, cancelJob, prioritize };
 }

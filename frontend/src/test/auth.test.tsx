@@ -17,9 +17,10 @@ describe("login / logout", () => {
     );
     const { user } = renderApp({ route: "/login", loggedIn: false });
 
-    await user.type(screen.getByLabelText("Email"), "test@example.com");
+    await user.click(screen.getByRole("button", { name: "Sign In with Email" }));
+    await user.type(await screen.findByLabelText("Email"), "test@example.com");
     await user.type(screen.getByLabelText("Password"), "secret123");
-    await user.click(screen.getByRole("button", { name: "Log in" }));
+    await user.click(screen.getByRole("button", { name: "Sign In" }));
 
     await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/search"));
     expect(body).toEqual({ email: "test@example.com", password: "secret123" });
@@ -35,9 +36,10 @@ describe("login / logout", () => {
     );
     const { user } = renderApp({ route: "/login", loggedIn: false });
 
-    await user.type(screen.getByLabelText("Email"), "test@example.com");
+    await user.click(screen.getByRole("button", { name: "Sign In with Email" }));
+    await user.type(await screen.findByLabelText("Email"), "test@example.com");
     await user.type(screen.getByLabelText("Password"), "wrong-pass1");
-    await user.click(screen.getByRole("button", { name: "Log in" }));
+    await user.click(screen.getByRole("button", { name: "Sign In" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Invalid email or password.");
     expect(screen.getByTestId("location")).toHaveTextContent("/login");
@@ -54,11 +56,11 @@ describe("login / logout", () => {
     );
     const { user } = renderApp({ route: "/login", loggedIn: false });
 
-    await user.click(screen.getByRole("button", { name: "Create an account" }));
-    await user.type(screen.getByLabelText("Name"), "New");
-    await user.type(screen.getByLabelText("Email"), "new@example.com");
+    await user.click(screen.getByRole("button", { name: "Create Account" }));
+    await user.type(await screen.findByLabelText("Full Name"), "New");
+    await user.type(await screen.findByLabelText("Email"), "new@example.com");
     await user.type(screen.getByLabelText("Password"), "abcdefgh");
-    await user.click(screen.getByRole("button", { name: "Create account" }));
+    await user.click(screen.getByRole("button", { name: "Create Account" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Password must contain at least one letter and one digit.",

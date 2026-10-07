@@ -17,6 +17,8 @@ interface AuthValue {
   sessionExpired: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Onboarding finished or skipped: update the cached profile. */
+  markOnboarded: () => void;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -69,13 +71,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     navigate("/login", { replace: true });
   }, [navigate, queryClient]);
 
+  const markOnboarded = useCallback(() => {
+    queryClient.setQueryData<User>(["profile", token], (old) =>
+      old ? { ...old, onboarding_completed: true } : old,
+    );
+  }, [queryClient, token]);
+
   const value = useMemo<AuthValue>(() => {
     const user = token && profile.data ? profile.data : null;
     const status: AuthStatus =
       token === null || profile.isError ? "anonymous" : user ? "authenticated" : "checking";
 
-    return { status, user, userId: user?.id ?? "", sessionExpired, login, logout };
-  }, [token, profile.data, profile.isError, sessionExpired, login, logout]);
+    return { status, user, userId: user?.id ?? "", sessionExpired, login, logout, markOnboarded };
+  }, [token, profile.data, profile.isError, sessionExpired, login, logout, markOnboarded]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

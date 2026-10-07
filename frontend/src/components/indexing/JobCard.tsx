@@ -1,19 +1,20 @@
 import { useState } from "react";
+import { motion } from "motion/react";
 
 import type { Job, JobWithHistory, PlatformName } from "../../api/types";
 import { isActiveJob } from "../../api/types";
 import { usePlatformActions } from "../../hooks/usePlatformActions";
-import { formatDateTime, formatDuration } from "../../lib/format";
-import { PLATFORM_ICON, platformLabel } from "../../lib/platforms";
-import { JobStatusBadge } from "../common/Badges";
-import { Button } from "../common/Button";
+import { formatDuration } from "../../lib/format";
+import { platformLabel } from "../../lib/platforms";
+import { JobStatusBadge, PlatformLogo } from "../common/Badges";
 import { JobErrors } from "./JobErrors";
+import { JobHistory } from "./JobHistory";
 
-function Counter({ label, value }: { label: string; value: number }) {
+function Counter({ label, value }: { label: string; value: number | string }) {
   return (
     <div>
-      <dt className="text-xs text-slate-600 dark:text-slate-400">{label}</dt>
-      <dd className="text-lg font-semibold">{value}</dd>
+      <dt className="text-[10px] text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className="font-mono text-base font-semibold text-slate-800 dark:text-slate-100">{value}</dd>
     </div>
   );
 }
@@ -30,104 +31,87 @@ function ProgressBar({ job }: { job: Job }) {
         aria-valuemax={100}
         aria-valuenow={known ? job.progress : undefined}
         aria-valuetext={known ? `${job.processed_files} of ${job.total_files} files` : "Listing files"}
-        className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"
+        className="h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
       >
-        <div
-          className={`h-full bg-blue-700 transition-[width] ${known ? "" : "w-1/3 animate-pulse"}`}
-          style={known ? { width: `${job.progress}%` } : undefined}
+        <motion.div
+          className={`h-full rounded-full bg-blue-600 ${known ? "" : "w-1/3 animate-pulse"}`}
+          animate={known ? { width: `${job.progress}%` } : undefined}
+          transition={{ duration: 0.8, ease: "easeOut" }}
         />
       </div>
-      <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+      <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-300">
         {known ? `${job.processed_files} of ${job.total_files} files (${job.progress}%)` : "Listing files…"}
       </p>
     </div>
   );
 }
 
-function History({ jobs }: { jobs: Job[] }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm">
-        <caption className="sr-only">Recent runs</caption>
-        <thead className="text-xs text-slate-600 dark:text-slate-400">
-          <tr>
-            <th scope="col" className="py-1 pr-3 font-medium">
-              Started
-            </th>
-            <th scope="col" className="py-1 pr-3 font-medium">
-              Status
-            </th>
-            <th scope="col" className="py-1 pr-3 font-medium">
-              Indexed
-            </th>
-            <th scope="col" className="py-1 pr-3 font-medium">
-              Failed
-            </th>
-            <th scope="col" className="py-1 pr-3 font-medium">
-              Skipped
-            </th>
-            <th scope="col" className="py-1 font-medium">
-              Duration
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {jobs.map((job) => (
-            <tr key={job.id} className="border-t border-slate-200 dark:border-slate-800">
-              <td className="py-1.5 pr-3 whitespace-nowrap">
-                {formatDateTime(job.started_at ?? job.created_at)}
-              </td>
-              <td className="py-1.5 pr-3">
-                <JobStatusBadge status={job.status} />
-              </td>
-              <td className="py-1.5 pr-3">{job.succeeded_files}</td>
-              <td className="py-1.5 pr-3">{job.failed_files}</td>
-              <td className="py-1.5 pr-3">{job.skipped_files}</td>
-              <td className="py-1.5 whitespace-nowrap">{formatDuration(job.started_at, job.completed_at)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+const SMALL =
+  "cursor-pointer rounded-lg px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-all";
+
+interface Props {
+  platform: PlatformName;
+  job: JobWithHistory | undefined;
+  /** 1-based queue position when the job is queued. */
+  position: number | null;
 }
 
-export function JobCard({ platform, job }: { platform: PlatformName; job: JobWithHistory | undefined }) {
-  const { cancelJob } = usePlatformActions();
+export function JobCard({ platform, job, position }: Props) {
+  const { cancelJob, prioritize } = usePlatformActions();
   const [showErrors, setShowErrors] = useState(false);
-  const Icon = PLATFORM_ICON[platform];
   const active = job ? isActiveJob(job) : false;
 
   return (
     <section
       aria-labelledby={`job-${platform}`}
-      className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"
+      className={`space-y-4 rounded-xl border p-4 ${
+        job?.status === "running"
+          ? "border-blue-200 bg-blue-50/40 dark:border-blue-900/60 dark:bg-blue-950/20"
+          : "border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/40"
+      }`}
     >
       <div className="flex flex-wrap items-center gap-3">
-        <Icon aria-hidden="true" className="h-5 w-5" />
-        <h2 id={`job-${platform}`} className="flex-1 text-base font-semibold">
-          {platformLabel(platform)}
-        </h2>
-        {job && <JobStatusBadge status={job.status} />}
+        <PlatformLogo platform={platform} className="h-8 w-8" />
+        <div className="min-w-0 flex-1">
+          <h3
+            id={`job-${platform}`}
+            className="font-display text-base font-bold text-slate-800 dark:text-slate-100"
+          >
+            {platformLabel(platform)}
+          </h3>
+          <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+            {!job ? "Never indexed." : job.status === "running" ? "Scanning, extracting and indexing…" : null}
+          </p>
+        </div>
+        {job && <JobStatusBadge status={job.status} suffix={position ? ` (#${position})` : ""} />}
+        {job?.status === "queued" && position !== null && position > 1 && (
+          <button
+            type="button"
+            disabled={prioritize.isPending}
+            onClick={() => prioritize.mutate(job.id)}
+            className={`${SMALL} bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-700`}
+          >
+            Index next
+          </button>
+        )}
         {job && active && (
-          <Button
-            variant="danger"
+          <button
+            type="button"
             disabled={job.cancel_requested || cancelJob.isPending}
             onClick={() => cancelJob.mutate(job.id)}
+            className={`${SMALL} bg-rose-50 text-rose-700 hover:bg-rose-100 disabled:bg-slate-200 disabled:text-slate-700 dark:bg-rose-950/30 dark:text-rose-300`}
           >
             {job.cancel_requested ? "Cancelling…" : "Cancel"}
-          </Button>
+          </button>
         )}
       </div>
 
-      {!job ? (
-        <p className="text-sm text-slate-600 dark:text-slate-400">Never indexed.</p>
-      ) : (
+      {job && (
         <>
           {job.status === "running" && <ProgressBar job={job} />}
           {job.status === "running" && job.current_file && (
-            <p className="break-all text-sm text-slate-700 dark:text-slate-300">
-              <span className="font-medium">Current file:</span> {job.current_file}
+            <p className="break-all text-xs text-slate-600 dark:text-slate-400">
+              Current file: {job.current_file}
             </p>
           )}
           <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
@@ -135,38 +119,30 @@ export function JobCard({ platform, job }: { platform: PlatformName; job: JobWit
             <Counter label="Failed" value={job.failed_files} />
             <Counter label="Skipped" value={job.skipped_files} />
             <Counter label="Downloaded" value={job.downloaded_files} />
-            <div>
-              <dt className="text-xs text-slate-600 dark:text-slate-400">Duration</dt>
-              <dd className="text-lg font-semibold">{formatDuration(job.started_at, job.completed_at)}</dd>
-            </div>
+            <Counter label="Duration" value={formatDuration(job.started_at, job.completed_at)} />
           </dl>
           {job.error_message && (
             <p
               role="alert"
-              className="rounded-lg bg-rose-50 p-3 text-sm text-rose-950 dark:bg-rose-950 dark:text-rose-100"
+              className="rounded-lg border border-rose-100 bg-rose-50 p-3 text-xs text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-100"
             >
               {job.error_message}
             </p>
           )}
           {job.failed_files > 0 && (
             <div className="space-y-2">
-              <Button variant="ghost" aria-expanded={showErrors} onClick={() => setShowErrors((v) => !v)}>
-                {showErrors ? "Hide" : "Show"} {job.failed_files} file error
-                {job.failed_files === 1 ? "" : "s"}
-              </Button>
+              <button
+                type="button"
+                aria-expanded={showErrors}
+                onClick={() => setShowErrors((v) => !v)}
+                className="text-xs font-semibold text-blue-700 hover:underline dark:text-blue-400"
+              >
+                {showErrors ? "Hide errors" : `View errors (${job.failed_files})`}
+              </button>
               {showErrors && <JobErrors jobId={job.id} />}
             </div>
           )}
-          {job.history && job.history.length > 0 && (
-            <details className="text-sm">
-              <summary className="cursor-pointer font-medium">
-                {job.history.length === 1 ? "Last run" : `Last ${job.history.length} runs`}
-              </summary>
-              <div className="mt-2">
-                <History jobs={job.history} />
-              </div>
-            </details>
-          )}
+          <JobHistory jobs={job.history ?? []} />
         </>
       )}
     </section>

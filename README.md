@@ -22,18 +22,21 @@ Features:
 
 ## Screenshots
 
-Captured from a demo account whose index holds only sample notes and stock photos
-(`frontend/e2e/screenshots.ts`).
+Captured by `frontend/e2e/screenshots.ts`, which walks a throwaway demo account (sample notes and
+stock photos only) through the real flow and deletes it afterwards.
 
-| Search home (real counts, recently indexed) | Document query (highlighted passage) |
-|---|---|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Document search](docs/screenshots/search-document.png) |
-| **Visual query "dog"** (no word of the query in the file name) | **No results** |
-| ![Visual search](docs/screenshots/search-visual-dog.png) | ![Empty result](docs/screenshots/search-empty.png) |
-| **Platforms** | **Indexing** |
-| ![Platforms](docs/screenshots/platforms.png) | ![Indexing](docs/screenshots/indexing.png) |
+| Sign in | Onboarding 1: connect platforms | Onboarding 2: choose the priority platform |
+|---|---|---|
+| ![Login](docs/screenshots/login.png) | ![Onboarding step 1](docs/screenshots/onboarding-step1.png) | ![Onboarding step 2](docs/screenshots/onboarding-step2.png) |
+| **Dashboard while the priority platform indexes** | **Indexing Center (running)** | **Indexing Center (done, dark)** |
+| ![Priority banner](docs/screenshots/dashboard-banner.png) | ![Indexing running](docs/screenshots/indexing-center-running.png) | ![Indexing dark](docs/screenshots/indexing-center-dark.png) |
+| **Dashboard** | **Document query (highlighted passage)** | **Visual query "dog" (no query word in the file name)** |
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Document search](docs/screenshots/search-document.png) | ![Visual search](docs/screenshots/search-visual-dog.png) |
+| **No results** | **Platforms** | **Platforms (dark)** |
+| ![Empty result](docs/screenshots/search-empty.png) | ![Platforms](docs/screenshots/platforms.png) | ![Platforms dark](docs/screenshots/platforms-dark.png) |
 
-Mobile (375 px): ![Mobile](docs/screenshots/mobile-search.png)
+Also: [visual query in dark mode](docs/screenshots/search-visual-dog-dark.png),
+[mobile (375 px, dark)](docs/screenshots/mobile-dashboard-dark.png), [Indexing Center (light)](docs/screenshots/indexing-center.png).
 
 ## Frontend
 
@@ -71,6 +74,10 @@ other e-mail) and the temporary folder.
 npx playwright install chromium   # once
 npm run test:e2e                  # starts `npm run dev` unless E2E_BASE_URL is set
 ```
+
+The test registers a new user, so it also covers onboarding: step 1 (add the folder), step 2 (Local
+Storage as the priority platform), the dashboard banner, then search and download; axe runs on the
+login, onboarding, dashboard, indexing and platforms pages, in light and dark mode.
 
 `E2E_BASE_URL` / `E2E_API_URL` point it at other URLs; the temporary folder is created under the system
 temp directory, which must lie inside the backend's `ALLOWED_LOCAL_ROOTS` (default: the home directory) -
@@ -115,6 +122,19 @@ the frontend (`/?google_drive=connected` or `/?github=connected`).
 
 Disconnecting revokes the grant at Google/GitHub; choose whether to also delete the files
 already indexed from that platform.
+
+## Excluded files
+
+Generated and noise files are never indexed by any connector: `INDEX_EXCLUDE_GLOBS` in `.env`
+(comma-separated base-name globs, case-insensitive; default
+`*.log,*.lock,*.min.js,*.map,*_log.txt,project_files.txt,package-lock.json,yarn.lock,poetry.lock`).
+Matches are recorded as `excluded` and counted as skipped. To remove files indexed before a pattern
+was added:
+
+```bash
+python scripts/purge_excluded.py --dry-run   # counts per user and platform
+python scripts/purge_excluded.py             # delete them (vectors + ledger rows)
+```
 
 ## Known limitations
 

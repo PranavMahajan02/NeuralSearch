@@ -39,6 +39,12 @@ export const logout = () => apiJson<unknown>("/auth/logout", { method: "POST" })
 
 export const getLoginState = () => apiJson<LoginStateResponse>("/auth/login-state");
 
+export const completeOnboarding = () =>
+  apiJson<{ onboarding_completed: boolean }>("/auth/onboarding/complete", { method: "POST" });
+
+export const skipOnboarding = () =>
+  apiJson<{ onboarding_completed: boolean }>("/auth/onboarding/skip", { method: "POST" });
+
 // ---- search ----------------------------------------------------------------------
 
 export const searchFiles = (body: SearchRequest, signal?: AbortSignal) =>
@@ -77,6 +83,9 @@ export const startIndexing = (priority: PlatformName, platforms: PlatformName[])
     method: "POST",
     json: { priority_platform: priority, platforms },
   });
+
+export const prioritizeJob = (jobId: string) =>
+  apiJson<Job>(`/index/jobs/${encodeURIComponent(jobId)}/prioritize`, { method: "POST" });
 
 export const cancelJob = (jobId: string) =>
   apiJson<Job>(`/index/jobs/${encodeURIComponent(jobId)}/cancel`, { method: "POST" });

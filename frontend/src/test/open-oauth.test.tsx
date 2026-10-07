@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 
 import { renderApp } from "./render";
-import { api, makeResult, makeStats, searchResponse, server } from "./server";
+import { USER, api, makeResult, makeStats, searchResponse, server } from "./server";
 
 describe("open a result", () => {
   it("opens cloud files in a new tab with noopener", async () => {
@@ -78,7 +78,7 @@ describe("open a result", () => {
   it("opens the details modal, traps focus and closes on Escape", async () => {
     const { user } = renderApp({ route: "/search?q=java" });
 
-    const title = await screen.findByRole("button", { name: "java notes.pdf" });
+    const title = await screen.findByRole("button", { name: "View details of java notes.pdf" });
     await user.click(title);
 
     const dialog = screen.getByRole("dialog", { name: "java notes.pdf" });
@@ -111,29 +111,58 @@ describe("OAuth return", () => {
     );
   });
 
-  it("sends a first-time user to the welcome page", async () => {
+  it("sends a user who has not finished onboarding to step 1", async () => {
     server.use(
-      http.get(api("/auth/login-state"), () => HttpResponse.json({ has_indexed: false, platforms: [] })),
+      http.get(api("/auth/profile"), () => HttpResponse.json({ ...USER, onboarding_completed: false })),
     );
     renderApp({ route: "/" });
 
-    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/welcome"));
-    expect(await screen.findByRole("heading", { name: /Welcome/ })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/onboarding"));
+    expect(await screen.findByRole("heading", { name: "Connect Your Platforms" })).toBeInTheDocument();
+  });
+
+  it("resumes onboarding at step 1 after the OAuth return, with the toast", async () => {
+    server.use(
+      http.get(api("/auth/profile"), () => HttpResponse.json({ ...USER, onboarding_completed: false })),
+    );
+    renderApp({ route: "/?google_drive=connected" });
+
+    expect(await screen.findByText("Google Drive connected.")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(/^\/onboarding$/));
+    expect(await screen.findByText(/Step 1 of 2/)).toBeInTheDocument();
   });
 });
 
 describe("connection count", () => {
-  it("is the same number everywhere, from /dashboard/stats", async () => {
+  it("is the same number everywhere and always out of 3", async () => {
     server.use(
       http.get(api("/dashboard/stats"), () => HttpResponse.json(makeStats({ connected_platforms: 2 }))),
     );
     const { user } = renderApp({ route: "/search" });
 
-    expect(await screen.findByText("2 / 3")).toBeInTheDocument();
-    expect(screen.getAllByTestId("connection-count")[0]).toHaveTextContent("Platforms connected: 2 / 3");
+    expect(await screen.findByText("2 / 3")).toBeInTheDocument(); // insights card
+    expect(screen.getByTestId("connection-count")).toHaveTextContent("2 / 3 Connected"); // header pill
 
-    await user.click(screen.getByRole("link", { name: "Platforms" }));
+    await user.click(screen.getAllByRole("link", { name: "Platforms" })[0]);
     expect(await screen.findByText(/2 of 3 platforms connected/)).toBeInTheDocument();
-    expect(screen.getAllByTestId("connection-count")[0]).toHaveTextContent("Platforms connected: 2 / 3");
+    expect(screen.getByTestId("connection-count")).toHaveTextContent("2 / 3 Connected");
+
+    await user.click(screen.getAllByRole("link", { name: "Indexing Center" })[0]);
+    expect(await screen.findByText("Connected Portals")).toBeInTheDocument();
+    expect(screen.getByText("Connected Portals").nextSibling).toHaveTextContent("2 / 3");
+    expect(document.body).not.toHaveTextContent("/ 4");
+  });
+
+  it("has only Dashboard, Platforms and Indexing Center in the navigation", async () => {
+    renderApp({ route: "/search" });
+
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    const labels = Array.from(nav.querySelectorAll("a")).map((a) =>
+      a.textContent?.replace(/\d+ active/, "").trim(),
+    );
+    expect(labels).toEqual(["Dashboard", "Platforms", "Indexing Center"]);
+    expect(document.body).not.toHaveTextContent(
+      /Documents Only|Images Only|Audio Only|Video Only|Google Photos/,
+    );
   });
 });

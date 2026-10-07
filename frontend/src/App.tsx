@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
+import { MotionConfig } from "motion/react";
 
 import { createQueryClient } from "./api/queries";
 import { AuthProvider } from "./auth/AuthContext";
@@ -13,7 +14,8 @@ import { LoginPage } from "./pages/LoginPage";
 import { PlatformsPage } from "./pages/PlatformsPage";
 import { RootRedirect } from "./pages/RootRedirect";
 import { SearchPage } from "./pages/SearchPage";
-import { WelcomePage } from "./pages/WelcomePage";
+import { OnboardingPage } from "./pages/OnboardingPage";
+import { ThemeProvider } from "./hooks/useTheme";
 
 function NotFound() {
   return (
@@ -40,6 +42,14 @@ export function AppRoutes() {
           }
         />
         <Route
+          path="/onboarding"
+          element={
+            <RequireAuth>
+              <OnboardingPage />
+            </RequireAuth>
+          }
+        />
+        <Route
           element={
             <RequireAuth>
               <AppShell />
@@ -49,7 +59,6 @@ export function AppRoutes() {
           <Route path="/search" element={<SearchPage />} />
           <Route path="/platforms" element={<PlatformsPage />} />
           <Route path="/indexing" element={<IndexingPage />} />
-          <Route path="/welcome" element={<WelcomePage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
@@ -60,9 +69,14 @@ export function AppRoutes() {
 export function Providers({ client, children }: { client: QueryClient; children: React.ReactNode }) {
   return (
     <QueryClientProvider client={client}>
-      <ToastProvider>
-        <AuthProvider>{children}</AuthProvider>
-      </ToastProvider>
+      {/* Animations follow the OS "reduce motion" setting. */}
+      <MotionConfig reducedMotion="user">
+        <ThemeProvider>
+          <ToastProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </ToastProvider>
+        </ThemeProvider>
+      </MotionConfig>
     </QueryClientProvider>
   );
 }

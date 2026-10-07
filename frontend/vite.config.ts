@@ -12,6 +12,18 @@ export default defineConfig({
     port: Number(process.env.VITE_PORT || 3000),
     strictPort: true,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Long-lived vendor chunks: app changes don't invalidate them.
+        manualChunks: {
+          react: ["react", "react-dom", "react-router-dom"],
+          query: ["@tanstack/react-query"],
+          motion: ["motion"],
+        },
+      },
+    },
+  },
   preview: {
     host: "127.0.0.1",
     port: 4173,

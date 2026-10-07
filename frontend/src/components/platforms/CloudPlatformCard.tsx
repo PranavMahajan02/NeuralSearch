@@ -1,15 +1,14 @@
 import { useState } from "react";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 import type { CloudPlatform } from "../../api/endpoints";
 import type { JobWithHistory, PlatformDetail } from "../../api/types";
 import { isActiveJob } from "../../api/types";
 import { usePlatformActions } from "../../hooks/usePlatformActions";
 import { formatDateTime, formatRelative } from "../../lib/format";
-import { PLATFORM_ICON, platformLabel } from "../../lib/platforms";
-import { Button } from "../common/Button";
+import { platformLabel } from "../../lib/platforms";
+import { PlatformLogo } from "../common/Badges";
 import { ConfirmDialog } from "../common/ConfirmDialog";
-import { Skeleton } from "../common/Spinner";
 
 interface CloudPlatformCardProps {
   platform: CloudPlatform;
@@ -29,6 +28,9 @@ export function reconnectReason(
   return /reconnect|expired|permission/i.test(job.error_message) ? job.error_message : null;
 }
 
+export const SMALL_BUTTON =
+  "cursor-pointer rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all active:scale-97";
+
 export function CloudPlatformCard({
   platform,
   connected,
@@ -39,47 +41,86 @@ export function CloudPlatformCard({
 }: CloudPlatformCardProps) {
   const { connect, disconnect, startIndexing } = usePlatformActions();
   const [confirming, setConfirming] = useState(false);
-  const Icon = PLATFORM_ICON[platform];
   const label = platformLabel(platform);
   const reconnect = reconnectReason(connected, job);
   const indexing = job ? isActiveJob(job) : false;
+  const status = indexing ? "🟡 Indexing..." : connected ? "🟢 Connected" : "⚪ Not Connected";
 
   return (
     <section
       aria-labelledby={`${platform}-title`}
-      className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"
+      className={`flex flex-col gap-4 rounded-xl border p-4 transition-all ${
+        connected
+          ? "border-blue-200 bg-slate-50/50 dark:border-blue-900/60 dark:bg-slate-950/40"
+          : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900"
+      }`}
     >
-      <div className="flex items-center gap-3">
-        <Icon aria-hidden="true" className="h-6 w-6" />
-        <h2 id={`${platform}-title`} className="flex-1 text-base font-semibold">
-          {label}
-        </h2>
-        {connected === undefined ? (
-          <Skeleton className="h-5 w-20" />
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="rounded-lg border border-slate-100 bg-white p-2 dark:border-slate-800 dark:bg-slate-900">
+            <PlatformLogo platform={platform} className="h-6 w-6" />
+          </div>
+          <div className="min-w-0">
+            <h2
+              id={`${platform}-title`}
+              className="truncate text-xs font-bold text-slate-800 dark:text-slate-100"
+            >
+              {label}
+            </h2>
+            <span className="mt-0.5 block text-[10px] text-slate-500 dark:text-slate-400">
+              {connected === undefined ? "Checking…" : status}
+            </span>
+          </div>
+        </div>
+
+        {connected ? (
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              disabled={indexing || startIndexing.isPending}
+              onClick={() => startIndexing.mutate({ priority: platform, platforms: [platform] })}
+              className={`${SMALL_BUTTON} bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-700`}
+            >
+              {indexing ? "Indexing…" : "Re-index"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirming(true)}
+              className={`${SMALL_BUTTON} bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-300`}
+            >
+              Disconnect
+            </button>
+          </div>
         ) : (
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-              connected
-                ? "bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
-                : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-            }`}
+          <button
+            type="button"
+            disabled={connect.isPending || connected === undefined}
+            onClick={() => connect.mutate(platform)}
+            className={`${SMALL_BUTTON} bg-slate-900 text-white hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white`}
           >
-            {connected ? "Connected" : "Not connected"}
-          </span>
+            {reconnect ? "Reconnect" : "Connect"}
+          </button>
         )}
       </div>
 
       {statusError && (
-        <p className="text-sm text-rose-700 dark:text-rose-300">Status unavailable: {statusError}</p>
+        <p className="text-xs text-rose-700 dark:text-rose-300">Status unavailable: {statusError}</p>
       )}
 
-      <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
-        <dt className="text-slate-600 dark:text-slate-400">Account</dt>
-        <dd className="truncate">{connected && account ? account : "—"}</dd>
-        <dt className="text-slate-600 dark:text-slate-400">Indexed files</dt>
-        <dd>{detail?.indexed_files ?? 0}</dd>
-        <dt className="text-slate-600 dark:text-slate-400">Last indexed</dt>
-        <dd title={formatDateTime(detail?.last_indexed_at)}>
+      <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 border-t border-slate-100 pt-3 text-xs dark:border-slate-800">
+        <dt className="text-slate-500 dark:text-slate-400">Account</dt>
+        <dd className="truncate font-semibold text-slate-700 dark:text-slate-300">
+          {connected && account ? account : "—"}
+        </dd>
+        <dt className="text-slate-500 dark:text-slate-400">Indexed files</dt>
+        <dd className="font-mono font-semibold text-slate-700 dark:text-slate-300">
+          {detail?.indexed_files ?? 0}
+        </dd>
+        <dt className="text-slate-500 dark:text-slate-400">Last indexed</dt>
+        <dd
+          className="font-mono font-semibold text-slate-700 dark:text-slate-300"
+          title={formatDateTime(detail?.last_indexed_at)}
+        >
           {detail?.last_indexed_at ? formatRelative(detail.last_indexed_at) : "Never"}
         </dd>
       </dl>
@@ -87,36 +128,12 @@ export function CloudPlatformCard({
       {reconnect && (
         <div
           role="alert"
-          className="flex gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-100"
+          className="flex gap-2 rounded-lg border border-amber-100 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100"
         >
           <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
           <p>{reconnect}</p>
         </div>
       )}
-
-      <div className="mt-auto flex flex-wrap gap-2">
-        {connected ? (
-          <>
-            <Button
-              variant="primary"
-              disabled={indexing || startIndexing.isPending}
-              onClick={() => startIndexing.mutate({ priority: platform, platforms: [platform] })}
-            >
-              <RefreshCw aria-hidden="true" className="h-4 w-4" />
-              {indexing ? "Indexing…" : "Re-index"}
-            </Button>
-            <Button onClick={() => setConfirming(true)}>Disconnect</Button>
-          </>
-        ) : (
-          <Button
-            variant="primary"
-            disabled={connect.isPending || connected === undefined}
-            onClick={() => connect.mutate(platform)}
-          >
-            {reconnect ? "Reconnect" : `Connect ${label}`}
-          </Button>
-        )}
-      </div>
 
       {confirming && (
         <ConfirmDialog

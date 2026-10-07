@@ -1,10 +1,10 @@
 // TanStack Query setup: one client, query keys scoped by user, shared queries.
-import { QueryClient, useQuery } from "@tanstack/react-query";
+import { QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthContext";
 import { ApiError } from "./client";
 import * as api from "./endpoints";
-import { isActiveJob } from "./types";
+import { isActiveJob, type JobWithHistory } from "./types";
 
 export function createQueryClient(): QueryClient {
   return new QueryClient({
@@ -54,11 +54,25 @@ export function useJobs() {
   });
 }
 
+export const LIVE_COUNTS_POLL_MS = 3000;
+
+/** Refetch every 3 s while a job runs (files become searchable one by one), otherwise not at all. */
+export function useWhileIndexing(userId: string): () => number | false {
+  const client = useQueryClient();
+  return () =>
+    client.getQueryData<JobWithHistory[]>(keys.jobs(userId))?.some(isActiveJob) ? LIVE_COUNTS_POLL_MS : false;
+}
+
 /** Dashboard stats: counts, last indexed time and THE connection count. */
 export function useStats() {
   const { userId } = useAuth();
+  const whileIndexing = useWhileIndexing(userId);
 
-  return useQuery({ queryKey: keys.stats(userId), queryFn: ({ signal }) => api.getStats(signal) });
+  return useQuery({
+    queryKey: keys.stats(userId),
+    queryFn: ({ signal }) => api.getStats(signal),
+    refetchInterval: whileIndexing,
+  });
 }
 
 /** "2 / 3 connected": the only place the connection count is computed (by the backend). */
