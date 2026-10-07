@@ -7,6 +7,7 @@ from app.services.dashboard_service import (
     get_dashboard_platforms,
     get_recent_files
 )
+from app.models import response_models as rm
 
 
 router = APIRouter(
@@ -15,7 +16,7 @@ router = APIRouter(
 )
 
 
-@router.get("/stats")
+@router.get("/stats", response_model=rm.DashboardStats, response_model_exclude_unset=True)
 def dashboard_stats(
     current_user=Depends(get_current_user)
 ):
@@ -25,7 +26,7 @@ def dashboard_stats(
     )
 
 
-@router.get("/recent")
+@router.get("/recent", response_model=rm.RecentResponse)
 def dashboard_recent(
     current_user=Depends(get_current_user)
 ):
@@ -33,7 +34,7 @@ def dashboard_recent(
     return {"files": get_recent_files(current_user["id"])}
 
 
-@router.get("/platforms")
+@router.get("/platforms", response_model=dict[str, rm.PlatformDetail], response_model_exclude_unset=True)
 def dashboard_platforms(
     current_user=Depends(get_current_user)
 ):

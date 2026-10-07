@@ -29,6 +29,7 @@ from app.platforms.github.github_credentials import (
 
 from app.database.platform_connection_service import get_platform_connection
 from app.platforms.github.github_service import GitHubClient, get_user
+from app.models import response_models as rm
 
 
 logger = logging.getLogger("cogniseek.github")
@@ -48,7 +49,7 @@ def _frontend_redirect(**params) -> RedirectResponse:
     )
 
 
-@router.get("/connect")
+@router.get("/connect", response_model=rm.ConnectResponse, response_model_exclude_unset=True)
 def connect_github(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -132,7 +133,7 @@ def github_callback(
     return _frontend_redirect(github="connected")
 
 
-@router.get("/status")
+@router.get("/status", response_model=rm.GithubStatus)
 def github_status(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -147,7 +148,7 @@ def github_status(
     }
 
 
-@router.post("/disconnect")
+@router.post("/disconnect", response_model=rm.DisconnectResponse)
 def disconnect(
     current_user=Depends(get_current_user),
     purge: bool = False,
