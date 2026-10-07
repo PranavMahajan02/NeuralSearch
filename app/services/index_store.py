@@ -47,6 +47,9 @@ class FileMeta:
     repo: Optional[str] = None
     default_branch: Optional[str] = None     # GitHub
     web_view_link: Optional[str] = None      # Google Drive
+    size_bytes: Optional[int] = None
+    modified_at: Optional[datetime] = None   # naive UTC
+    mime_type: Optional[str] = None
 
 
 @dataclass
@@ -245,6 +248,12 @@ def _record(meta: FileMeta, status: str, chunk_count, error=None, session_factor
         row.repo = meta.repo
         row.default_branch = meta.default_branch
         row.web_view_link = meta.web_view_link
+        if meta.size_bytes is not None:
+            row.size_bytes = meta.size_bytes
+        if meta.modified_at is not None:
+            row.modified_at = meta.modified_at
+        if meta.mime_type is not None:
+            row.mime_type = meta.mime_type
         row.updated_at = now
 
         if chunk_count is not None:

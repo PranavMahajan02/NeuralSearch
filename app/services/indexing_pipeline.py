@@ -3,7 +3,9 @@
 Replaces process_uploaded_file / index_file and the old file-based indexes.
 """
 
+import mimetypes
 import os
+from datetime import datetime, timezone
 from typing import Optional
 
 from app.config.file_types import file_type_for
@@ -39,9 +41,29 @@ def github_source_id(owner: str, repo: str, path: str) -> str:
     return f"{owner}/{repo}:{path}"
 
 
+def guess_mime(name: str) -> Optional[str]:
+
+    return mimetypes.guess_type(name or "")[0]
+
+
+def parse_rfc3339(value: Optional[str]) -> Optional[datetime]:
+    """'2026-10-06T15:25:53.000Z' -> naive UTC datetime (None if absent/invalid)."""
+
+    if not value:
+        return None
+
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+    return parsed.astimezone(timezone.utc).replace(tzinfo=None) if parsed.tzinfo else parsed
+
+
 def local_meta(user_id, path: str) -> FileMeta:
 
     real = os.path.realpath(path)
+    stat = os.stat(real)
 
     return FileMeta(
         user_id=str(user_id),
@@ -50,7 +72,10 @@ def local_meta(user_id, path: str) -> FileMeta:
         file_name=os.path.basename(real),
         display_path=real,
         file_type=file_type_for(real) or "unsupported",
-        version=repr(os.path.getmtime(real))
+        version=repr(stat.st_mtime),
+        size_bytes=stat.st_size,
+        modified_at=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).replace(tzinfo=None),
+        mime_type=guess_mime(real)
     )
 
 
@@ -70,7 +95,10 @@ def drive_meta(user_id, file: dict, extension: str) -> FileMeta:
         display_path=file["name"],
         file_type=file_type_for(f"x{extension}") or "unsupported",
         version=version,
-        web_view_link=file.get("webViewLink")
+        web_view_link=file.get("webViewLink"),
+        size_bytes=int(file["size"]) if str(file.get("size") or "").isdigit() else None,
+        modified_at=parse_rfc3339(file.get("modifiedTime")),
+        mime_type=file.get("mimeType") or guess_mime(f"x{extension}")
     )
 
 
@@ -88,7 +116,9 @@ def github_meta(user_id, owner: str, repo: str, file: dict, default_branch: Opti
         version=file.get("sha"),
         owner=owner,
         repo=repo,
-        default_branch=default_branch
+        default_branch=default_branch,
+        size_bytes=file.get("size"),
+        mime_type=guess_mime(path)
     )
 
 
