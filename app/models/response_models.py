@@ -18,6 +18,8 @@ class MatchInfo(BaseModel):
     snippet: str
     # [start, end) character offsets into `snippet` of the matched terms.
     highlights: List[List[int]]
+    # Videos matched on what a frame shows: that frame's time in seconds.
+    frame_time_s: Optional[int] = None
 
 
 class SearchResult(BaseModel):

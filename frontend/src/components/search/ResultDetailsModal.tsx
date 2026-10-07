@@ -1,6 +1,6 @@
 import type { SearchResult } from "../../api/types";
 import { formatBytes, formatDateTime, relevance } from "../../lib/format";
-import { REASON_LABEL, platformLabel } from "../../lib/platforms";
+import { platformLabel, reasonLabel } from "../../lib/platforms";
 import { Modal } from "../common/Modal";
 import { Highlighted } from "./Highlighted";
 
@@ -21,7 +21,10 @@ export function ResultDetailsModal({ result, opening, onOpen, onClose }: Props) 
     ["File Size", formatBytes(result.file_size)],
     ["Last Modified", formatDateTime(result.modified_at)],
     ["Relevance", `${percent}%`],
-    ["Matched On", result.match.reasons.map((r) => REASON_LABEL[r] ?? r).join(", ") || "—"],
+    [
+      "Matched On",
+      result.match.reasons.map((r) => reasonLabel(r, result.match.frame_time_s)).join(", ") || "—",
+    ],
   ];
 
   if (result.repo) rows.splice(1, 0, ["Repository", `${result.owner}/${result.repo}`]);

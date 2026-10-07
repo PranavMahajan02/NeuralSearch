@@ -159,6 +159,33 @@ queries:
   - {query: fit a classifier that detects fake reviews, modality: code, code: true, expected: [train_model.py]}
   - {query: record who changed which asset and when, modality: code, code: true, expected: [audit_service.py]}
 
+  # ---------------- VISUAL-ONLY video (Phase 6C) ----------------
+  # Things seen in the frames; no content word occurs in the video's file name
+  # or transcript (checked against the indexed transcript chunks).
+  - {query: polar bear cubs in the snow, modality: video, visual_video: true, expected: ["vidssave.com 7 Minutes of The Cutest Baby Animals You've Ever Seen _ Nat Geo 720p.mp4"]}
+  - {query: penguins, modality: video, visual_video: true, expected: ["vidssave.com 7 Minutes of The Cutest Baby Animals You've Ever Seen _ Nat Geo 720p.mp4"]}
+  - {query: chimpanzee in a tree, modality: video, visual_video: true, expected: ["vidssave.com 7 Minutes of The Cutest Baby Animals You've Ever Seen _ Nat Geo 720p.mp4"]}
+  - {query: meerkat, modality: video, visual_video: true, expected: ["vidssave.com 7 Minutes of The Cutest Baby Animals You've Ever Seen _ Nat Geo 720p.mp4"]}
+  - {query: sea lion pups on rocks, modality: video, visual_video: true, expected: ["vidssave.com 7 Minutes of The Cutest Baby Animals You've Ever Seen _ Nat Geo 720p.mp4"]}
+  - {query: lake reflecting mountains, modality: video, visual_video: true, expected: [vidssave.com Forest Bathing _ Shinrin-Yoku _ Healing in Nature _ Short Documentary 720P.mp4]}
+  - {query: glass skyscrapers, modality: video, visual_video: true, expected: [vidssave.com Forest Bathing _ Shinrin-Yoku _ Healing in Nature _ Short Documentary 720P.mp4]}
+  - {query: swans on a pond, modality: video, visual_video: true, expected: [vidssave.com Forest Bathing _ Shinrin-Yoku _ Healing in Nature _ Short Documentary 720P.mp4]}
+  - {query: misty valley, modality: video, visual_video: true, expected: [vidssave.com Forest Bathing _ Shinrin-Yoku _ Healing in Nature _ Short Documentary 720P.mp4]}
+  - {query: cheering audience in the dark, modality: video, visual_video: true, expected: [vidssave.com How Data Centers in Space Could Change AI 480P.mp4]}
+  - {query: welding workshop, modality: video, visual_video: true, expected: [vidssave.com How Data Centers in Space Could Change AI 480P.mp4]}
+  - {query: laboratory clean room, modality: video, visual_video: true, expected: [vidssave.com How Data Centers in Space Could Change AI 480P.mp4]}
+  - {query: podcast studio with microphones, modality: video, visual_video: true, expected: ["vidssave.com How Champions Train Their Minds to Win _ Raj shamani _ #rajshamani 480P.mp4"]}
+  - {query: grey haired woman, modality: video, visual_video: true, expected: ["vidssave.com How Champions Train Their Minds to Win _ Raj shamani _ #rajshamani 480P.mp4"]}
+  - {query: sepia archive footage, modality: video, visual_video: true, expected: ["vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4"]}
+  - {query: mushroom cloud explosion, modality: video, visual_video: true, expected: ["vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4"]}
+  - {query: postage stamp, modality: video, visual_video: true, expected: ["vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4"]}
+  - {query: leaders shaking hands, modality: video, visual_video: true, expected: ["vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4"]}
+
+  # visual-video negatives: absent from every frame
+  - {query: underwater coral reef, negative: true, visual_video: true}
+  - {query: ferris wheel, negative: true, visual_video: true}
+  - {query: grand piano keyboard, negative: true, visual_video: true}
+
   # ---------------- negatives: should return nothing ----------------
   - query: xqzv wplk qqq
     negative: true
@@ -166,7 +193,7 @@ queries:
   - query: submarine volcano eruption
     negative: true
 
-  - query: kubernetes helm chart deployment
+  - query: bowling alley
     negative: true
 
   - query: basketball tournament scores
@@ -194,3 +221,6 @@ retired:
   - {query: 'TURING MACHINE', expected: ['Turing Machine_Notes.pdf']}
   - {query: 'how should a project report be formatted', expected: ['Annexure 6_Project report format - guidelines_SKP.docx', 'TechForGood2026_Report_Template.docx']}
   - {query: 'software engineering assignment', expected: ['Assignment No 01 SE.pdf', 'SE ASSIGNMENT 2.pdf']}
+  # Retired 2026-10-07 (Phase 6C): no longer a negative - the owner's GitHub repo "UI"
+  # (src/data/mockFiles.ts, an old frontend copy) really contains this text.
+  - {query: 'kubernetes helm chart deployment', expected: []}

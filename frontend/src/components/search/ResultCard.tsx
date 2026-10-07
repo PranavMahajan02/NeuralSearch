@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 
 import type { SearchResult } from "../../api/types";
 import { formatBytes, formatDate, relevance } from "../../lib/format";
-import { REASON_LABEL } from "../../lib/platforms";
+import { reasonLabel } from "../../lib/platforms";
 import { PlatformBadge, TypeIcon } from "../common/Badges";
 import { Spinner } from "../common/Spinner";
 import { Highlighted } from "./Highlighted";
@@ -28,7 +28,7 @@ export function RelevanceBadge({ score }: { score: number }) {
   );
 }
 
-export function ReasonChips({ reasons }: { reasons: string[] }) {
+export function ReasonChips({ reasons, frameTimeS }: { reasons: string[]; frameTimeS?: number | null }) {
   if (!reasons.length) return null;
 
   return (
@@ -38,7 +38,7 @@ export function ReasonChips({ reasons }: { reasons: string[] }) {
           key={reason}
           className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
         >
-          {REASON_LABEL[reason] ?? reason}
+          {reasonLabel(reason, frameTimeS)}
         </li>
       ))}
     </ul>
@@ -102,7 +102,7 @@ export function ResultCard({ result, opening, onOpen, onDetails }: ResultCardPro
           </strong>
         </span>
         <span className="ml-auto">
-          <ReasonChips reasons={match.reasons} />
+          <ReasonChips reasons={match.reasons} frameTimeS={match.frame_time_s} />
         </span>
       </div>
 

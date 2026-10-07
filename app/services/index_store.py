@@ -82,6 +82,11 @@ def _payload(meta: FileMeta, point: IndexPoint) -> dict:
     if point.frame_number is not None:
         payload["frame_number"] = point.frame_number
 
+    # Extra per-point fields (video frames: frame_time_s, null_mean, null_std).
+    for key, value in (point.extra or {}).items():
+        if value is not None:
+            payload[key] = value
+
     if meta.platform == "github":
         payload["owner"] = meta.owner
         payload["repo"] = meta.repo

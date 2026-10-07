@@ -583,3 +583,97 @@ def test_dashboard_stats_give_one_connection_count_and_per_platform_detail(clien
     drive = stats["platforms"]["google_drive"]
     assert drive["indexed_files"] == 1 and drive["last_indexed_at"].endswith("Z")
     assert stats["platforms"]["github"] == {"connected": False, "indexed_files": 0, "last_indexed_at": None}
+
+
+# ---------------------------------------------------------------------------
+# Phase 6C: video frames as evidence on their own
+# ---------------------------------------------------------------------------
+
+def video(file, frame_margin, null_mean=-0.01, null_std=0.01, frame_time=160):
+
+    from app.search.retrieval import Candidate
+
+    return Candidate(platform="google_drive", source_id=f"V-{file}", file=file, path=file, file_type="video",
+                     clip_margin=frame_margin, frame_number=frame_time // 5, frame_time_s=frame_time,
+                     frame_null_mean=null_mean, frame_null_std=null_std)
+
+
+def test_strong_frame_evidence_alone_returns_the_video_with_its_frame_time():
+
+    from app.search.ranking import VIDEO_FRAME_Z_EVIDENCE, score_candidates
+
+    # z = (margin - null_mean) / null_std, just above the evidence threshold
+    margin = -0.01 + (VIDEO_FRAME_Z_EVIDENCE + 0.5) * 0.01
+    scored = score_candidates([video("nature documentary.mp4", margin)], "polar bear cubs in the snow")
+
+    assert [s.candidate.file for s in scored] == ["nature documentary.mp4"]
+    assert scored[0].name == 0 and scored[0].content == 0           # no name, no transcript
+    assert scored[0].reasons == ["visual"]
+    assert scored[0].match["frame_time_s"] == 160
+
+
+def test_weak_frame_evidence_only_boosts_and_never_returns_a_video_alone():
+
+    from app.search.ranking import VIDEO_FRAME_Z_EVIDENCE, score_candidates
+
+    margin = -0.01 + (VIDEO_FRAME_Z_EVIDENCE - 1) * 0.01
+    assert score_candidates([video("nature documentary.mp4", margin)], "polar bear cubs") == []
+    # A video without a stored null (not backfilled) is never returned on frames alone.
+    assert score_candidates([video("old.mp4", 0.5, null_mean=None, null_std=None)], "polar bear") == []
+
+
+def test_the_same_margin_means_less_on_a_video_whose_footage_matches_everything():
+
+    from app.search.ranking import frame_z
+
+    generic = video("b.mp4", 0.06, null_mean=0.02, null_std=0.01)   # high null: generic footage
+    specific = video("a.mp4", 0.06, null_mean=-0.02, null_std=0.01)
+    assert frame_z(specific) > frame_z(generic)
+
+
+def test_null_stats_and_frame_timestamps():
+
+    import numpy as np
+
+    from app.search.frame_null import FRAME_INTERVAL_S, format_timestamp, frame_time_s, null_stats
+
+    rng = np.random.default_rng(0)
+    mean, std = null_stats(rng.normal(size=(20, 512)).tolist())
+    assert mean is not None and std >= 1e-3
+    assert null_stats([]) == (None, None)
+    assert frame_time_s(32) == 32 * FRAME_INTERVAL_S == 160
+    assert (format_timestamp(160), format_timestamp(3725), format_timestamp(None)) == ("2:40", "1:02:05", None)
+
+
+def test_indexed_frames_store_their_time_and_the_video_null(client, user, local_root, monkeypatch):
+
+    from pathlib import Path as P
+
+    import app.services.indexers.video_indexer as video_indexer
+    from app.vectorstore.client import get_client
+    from app.vectorstore.config import collection_for_type
+
+    folder = local_root / "videos-6c"
+    folder.mkdir()
+
+    def fake_frames(path, output_folder):
+        P(output_folder).mkdir(parents=True)
+        out = []
+        for i, text in enumerate(["polar bear on snow", "penguins on ice", "a meerkat"]):
+            frame = P(output_folder) / f"frame_{i}.jpg"
+            frame.write_text(text)
+            out.append(str(frame))
+        return out
+
+    monkeypatch.setattr(video_indexer, "extract_video_transcript", lambda path: "")
+    monkeypatch.setattr(video_indexer, "extract_frames", fake_frames)
+    clip = folder / "clip.mp4"
+    clip.write_bytes(b"\x00")
+
+    assert index_local_file(user["id"], str(clip)) == "indexed"
+
+    points, _ = get_client().scroll(collection_for_type("video_frame"), limit=10, with_payload=True)
+    mine = sorted((p.payload for p in points if p.payload["file"] == "clip.mp4"), key=lambda p: p["frame_number"])
+    assert [p["frame_time_s"] for p in mine] == [0, 5, 10]
+    assert all(p["null_mean"] is not None and p["null_std"] > 0 for p in mine)
+    assert len({p["null_mean"] for p in mine}) == 1   # one null per video

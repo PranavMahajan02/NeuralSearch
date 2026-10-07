@@ -146,6 +146,12 @@ python scripts/purge_excluded.py             # delete them (vectors + ledger row
 - **Visual image search** returns an image on visual similarity alone only when the CLIP match is clear
   (about 70% of relevant images in the evaluation; see `docs/eval/phase5-clip-gate.md`).
   Photos of documents (screenshots, scanned forms) are found through their OCR text and file name, not visually.
+- **Video frames** are sampled once every 5 seconds (12 frames per minute). A video is returned on
+  what its frames show only when the best frame stands out clearly from that video's own baseline
+  (about half of the visual-only video queries in the evaluation; `docs/eval/phase6c-video-gate.md`);
+  short or background details (a stream behind a person) are missed. Indexing cost on this machine:
+  decoding ≈ 12 s per video-minute plus CLIP ≈ 140 ms per frame (≈ 1.7 s per video-minute). Halving
+  the interval would double the CLIP time and the frame storage for a modest recall gain.
 - **Typos** are tolerated in single words ("jva" → "java"), but a typo plus an unmatched word
   ("jva notes") may return nothing.
 - **Evaluation:** 1 false positive remains on the negative set — "elephant" returns a Java document whose
