@@ -22,6 +22,7 @@ from app.scheduler.jobs import (
     serialize_job
 )
 from app.scheduler.worker import notify_worker
+from app.models import response_models as rm
 
 
 router = APIRouter(
@@ -45,7 +46,7 @@ def health():
     }
 
 
-@router.post("/")
+@router.post("/", response_model=rm.IndexQueuedResponse)
 def index(
     request: IndexRequest,
     current_user=Depends(get_current_user),
@@ -76,7 +77,7 @@ def index(
     }
 
 
-@router.get("/jobs")
+@router.get("/jobs", response_model=list[rm.JobWithHistory], response_model_exclude_unset=True)
 def get_jobs(
     history: int = Query(0, ge=0, le=20, description="Also return the last N jobs per platform."),
     current_user=Depends(get_current_user),
@@ -116,7 +117,7 @@ def _owned_job(db: Session, user_id, job_id: uuid.UUID):
     return job
 
 
-@router.get("/jobs/{job_id}/errors")
+@router.get("/jobs/{job_id}/errors", response_model=rm.JobErrorsResponse)
 def get_job_errors(
     job_id: uuid.UUID,
     current_user=Depends(get_current_user),
@@ -139,7 +140,7 @@ def get_job_errors(
     }
 
 
-@router.post("/jobs/{job_id}/cancel")
+@router.post("/jobs/{job_id}/cancel", response_model=rm.Job)
 def cancel_job(
     job_id: uuid.UUID,
     current_user=Depends(get_current_user),

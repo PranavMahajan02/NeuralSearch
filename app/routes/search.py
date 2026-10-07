@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.core.errors import AppError
 from app.models.request_models import SearchRequest
 from app.services.search_service import search, suggestions
+from app.models import response_models as rm
 
 
 router = APIRouter(
@@ -23,7 +24,7 @@ def health():
     }
 
 
-@router.get("/suggestions")
+@router.get("/suggestions", response_model=rm.SuggestionsResponse)
 def search_suggestions(
     prefix: str = Query("", max_length=200),
     current_user=Depends(get_current_user)
@@ -33,7 +34,7 @@ def search_suggestions(
     return {"prefix": prefix, "suggestions": suggestions(current_user["id"], prefix)}
 
 
-@router.post("/")
+@router.post("/", response_model=rm.SearchResponse, response_model_exclude_unset=True)
 def search_files(
     request: SearchRequest,
     debug: bool = Query(False, description="Include score components (development only)."),

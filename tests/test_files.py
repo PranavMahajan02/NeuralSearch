@@ -414,3 +414,24 @@ def test_legacy_folder_outside_allowed_roots_grants_nothing(client, user, db, tm
 
     response = client.get("/files/local", params={"path": str(outside / "f.txt")}, headers=user["headers"])
     assert response.status_code == 404
+
+
+def test_folder_responses_say_whether_the_native_picker_exists(client, user, monkeypatch):
+
+    from app.core.config import settings
+
+    assert client.get("/platforms/local/folders", headers=user["headers"]).json()["picker_available"] is True
+
+    monkeypatch.setattr(settings, "ENV", "production")
+    assert client.get("/platforms/local/folders", headers=user["headers"]).json()["picker_available"] is False
+
+
+def test_openapi_documents_the_response_models(app):
+
+    paths = app.openapi()["paths"]
+
+    for path, method in [("/search/", "post"), ("/search/suggestions", "get"), ("/dashboard/stats", "get"),
+                         ("/dashboard/recent", "get"), ("/index/jobs", "get"), ("/open/", "post"),
+                         ("/platforms/local/folders", "get")]:
+        schema = paths[path][method]["responses"]["200"]["content"]["application/json"]["schema"]
+        assert schema, (path, method)
