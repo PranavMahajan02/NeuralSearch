@@ -1,20 +1,15 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# CogniSeek frontend
 
-# Run and deploy your AI Studio app
+React 19 + TypeScript + Vite + Tailwind. See the main [README](../README.md#frontend) for commands,
+tests and the end-to-end smoke test.
 
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/0c6c39b9-c878-473b-88e2-f4c05c0d5b77
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```
+src/
+  api/          client.ts (fetch + errors), schema.d.ts (generated), types.ts, endpoints.ts, queries.ts
+  auth/         AuthContext (token, profile, 401 handling), RequireAuth
+  components/   common/ (Modal, Toast, Button, …), layout/AppShell, search/, platforms/, indexing/
+  hooks/        useSearch, useOpenFile, usePlatformActions, useRecentSearches, …
+  pages/        Login, Search, Platforms, Indexing, Welcome, RootRedirect
+  test/         MSW server, render helpers, *.test.tsx
+e2e/            Playwright smoke test, screenshot script
+```
