@@ -17,6 +17,8 @@ from app.scheduler.jobs import (
     indexed_platforms,
     job_errors,
     latest_jobs_per_platform,
+    prioritize_job,
+    JobNotQueued,
     recent_jobs,
     request_cancel,
     serialize_job
@@ -138,6 +140,22 @@ def get_job_errors(
             for error in job_errors(db, job.id)
         ]
     }
+
+
+@router.post("/jobs/{job_id}/prioritize", response_model=rm.Job)
+def prioritize(
+    job_id: uuid.UUID,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """"Index next": run this queued job before the user's other queued jobs."""
+
+    try:
+        job = prioritize_job(db, _owned_job(db, current_user["id"], job_id))
+    except JobNotQueued:
+        raise AppError(409, "Only a queued job can be moved to the front.", code="job_not_queued")
+
+    return serialize_job(job)
 
 
 @router.post("/jobs/{job_id}/cancel", response_model=rm.Job)

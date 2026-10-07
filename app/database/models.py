@@ -51,6 +51,14 @@ class User(Base):
 
     password_hash = Column(Text)
 
+    # False until the user finishes or skips the first-run onboarding.
+    onboarding_completed = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false")
+    )
+
     # Bumped on logout; tokens carrying an older "tv" claim are rejected.
     token_version = Column(
         Integer,
@@ -177,6 +185,9 @@ class IndexingJob(Base):
         String(50),
         nullable=False
     )
+
+    # Higher runs first (Indexing Center "Index next"); ties: oldest first.
+    priority = Column(Integer, nullable=False, default=0, server_default=text("0"))
 
     status = Column(
         String(30),

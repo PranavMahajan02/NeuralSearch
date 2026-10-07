@@ -69,6 +69,10 @@ class Settings(BaseSettings):
     # Connectors
     MAX_DOWNLOAD_MB: int = 200
     # Per-file indexing limits: text beyond them is truncated (ledger note).
+    # Generated/noise files never indexed (base-name globs, case-insensitive).
+    INDEX_EXCLUDE_GLOBS: str = (
+        "*.log,*.lock,*.min.js,*.map,*_log.txt,project_files.txt,package-lock.json,yarn.lock,poetry.lock"
+    )
     MAX_TEXT_CHARS_PER_FILE: int = 2_000_000
     MAX_CHUNKS_PER_FILE: int = 2000
     # Points per Qdrant upsert request (one huge request exceeds Qdrant's
