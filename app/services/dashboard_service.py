@@ -24,23 +24,13 @@ def get_dashboard_stats(user_id):
 
     with SessionLocal() as db:
 
+        # ONE query (one snapshot) for every count and timestamp: separate queries
+        # could see a file indexed in between ("0 files, last indexed just now").
         rows = (
-            db.query(IndexedFile.platform, IndexedFile.file_type, IndexedFile.status, func.count())
+            db.query(IndexedFile.platform, IndexedFile.file_type, IndexedFile.status,
+                     func.count(), func.max(IndexedFile.indexed_at))
             .filter(IndexedFile.user_id == user_id)
             .group_by(IndexedFile.platform, IndexedFile.file_type, IndexedFile.status)
-            .all()
-        )
-
-        last_indexed = (
-            db.query(func.max(IndexedFile.indexed_at))
-            .filter(IndexedFile.user_id == user_id, IndexedFile.status == "indexed")
-            .scalar()
-        )
-
-        last_by_platform = dict(
-            db.query(IndexedFile.platform, func.max(IndexedFile.indexed_at))
-            .filter(IndexedFile.user_id == user_id, IndexedFile.status == "indexed")
-            .group_by(IndexedFile.platform)
             .all()
         )
 
@@ -58,12 +48,17 @@ def get_dashboard_stats(user_id):
     by_platform = {platform: 0 for platform in PLATFORMS}
     by_status = {"indexed": 0, "no_content": 0, "failed": 0, "unsupported": 0, "too_large": 0, "excluded": 0}
 
-    for platform, file_type, status, count in rows:
+    last_by_platform = {}
+
+    for platform, file_type, status, count, newest in rows:
         by_status[status] = by_status.get(status, 0) + count
         if status == "indexed":
+            if newest and (platform not in last_by_platform or newest > last_by_platform[platform]):
+                last_by_platform[platform] = newest
             by_type[file_type] = by_type.get(file_type, 0) + count
             by_platform[platform] = by_platform.get(platform, 0) + count
 
+    last_indexed = max(last_by_platform.values(), default=None)
     connected = len(connections & {"google_drive", "github"}) + (1 if folders else 0)
 
     return {
