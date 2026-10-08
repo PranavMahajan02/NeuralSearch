@@ -81,6 +81,12 @@ async function expectNoSeriousA11yViolations(page: Page) {
 test("new user: onboarding, priority = local, dashboard banner, search, download, delete account", async ({
   page,
 }) => {
+  // Behind Caddy the strict CSP applies: any blocked script/style/font fails the test.
+  const cspViolations: string[] = [];
+  page.on("console", (message) => {
+    if (/Content Security Policy/i.test(message.text())) cspViolations.push(message.text());
+  });
+
   // Log in through the UI (the original sign-in card).
   await page.goto("/login");
   await expectNoSeriousA11yViolations(page);
@@ -155,4 +161,5 @@ test("new user: onboarding, priority = local, dashboard banner, search, download
 
   const relogin = await page.request.post(`${API}/auth/login`, { data: { email, password } });
   expect(relogin.status()).toBe(401);
+  expect(cspViolations).toEqual([]);
 });
