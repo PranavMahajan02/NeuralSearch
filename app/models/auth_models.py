@@ -81,6 +81,7 @@ class UserResponse(BaseModel):
     id: UUID
     name: str
     email: EmailStr
+    onboarding_completed: bool = False
 
 
 class TokenResponse(BaseModel):

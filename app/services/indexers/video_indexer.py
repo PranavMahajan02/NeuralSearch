@@ -12,6 +12,7 @@ from typing import List
 
 from app.ai.embedder import embed_clip_image, embed_texts
 from app.core.config import settings
+from app.search.frame_null import frame_time_s, null_stats
 from app.services.index_store import IndexPoint
 from app.services.indexers.document_indexer import chunk_text
 
@@ -51,14 +52,20 @@ def build_video_points(path: str, temp_dir=None) -> List[IndexPoint]:
     frames_dir = Path(temp_dir or settings.TEMP_DIR) / f"frames-{uuid.uuid4().hex}"
 
     try:
-        for number, frame_path in enumerate(extract_frames(path, str(frames_dir))):
+        vectors = [embed_clip_image(frame_path) for frame_path in extract_frames(path, str(frames_dir))]
+
+        # Per-video null (app/search/frame_null.py): stored on every frame point.
+        null_mean, null_std = null_stats(vectors)
+
+        for number, vector in enumerate(vectors):
             points.append(
                 IndexPoint(
                     type="video_frame",
-                    vector=embed_clip_image(frame_path),
+                    vector=vector,
                     chunk_index=number,
                     chunk=f"Frame {number}",
-                    frame_number=number
+                    frame_number=number,
+                    extra={"frame_time_s": frame_time_s(number), "null_mean": null_mean, "null_std": null_std},
                 )
             )
     finally:

@@ -3,6 +3,7 @@ from sqlalchemy import (
     String,
     Boolean,
     Integer,
+    BigInteger,
     DateTime,
     Text,
     ForeignKey,
@@ -49,6 +50,14 @@ class User(Base):
     full_name = Column(String(255))
 
     password_hash = Column(Text)
+
+    # False until the user finishes or skips the first-run onboarding.
+    onboarding_completed = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false")
+    )
 
     # Bumped on logout; tokens carrying an older "tv" claim are rejected.
     token_version = Column(
@@ -176,6 +185,9 @@ class IndexingJob(Base):
         String(50),
         nullable=False
     )
+
+    # Higher runs first (Indexing Center "Index next"); ties: oldest first.
+    priority = Column(Integer, nullable=False, default=0, server_default=text("0"))
 
     status = Column(
         String(30),
@@ -370,6 +382,10 @@ class IndexedFile(Base):
     version = Column(Text)
 
     status = Column(String(20), nullable=False)
+    # File metadata (Phase 6); NULL until the file is indexed again.
+    size_bytes = Column(BigInteger)
+    modified_at = Column(DateTime)
+    mime_type = Column(Text)
 
     chunk_count = Column(Integer, nullable=False, default=0, server_default=text("0"))
 

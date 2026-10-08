@@ -22,6 +22,7 @@ The thresholds below were chosen on the evaluation set (tests/eval) and the
 margin distributions measured on the owner's data; see docs/eval.
 """
 
+import os
 import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -29,6 +30,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 import numpy as np
 from rapidfuzz import fuzz
 
+from app.config.file_types import CODE_EXTENSIONS
 from app.search.normalize import normalize_name, normalize_text, query_terms, tokens
 
 
@@ -38,6 +40,12 @@ from app.search.normalize import normalize_name, normalize_text, query_terms, to
 TEXT_MARGIN_FLOOR = 0.10        # semantic signal starts here
 TEXT_MARGIN_FULL = 0.60         # ... and saturates here
 TEXT_MARGIN_EVIDENCE = 0.35     # alone enough to return a result
+# Code/config files (Phase 6, docs/eval/phase6-code-gate.md): MiniLM separates
+# them poorly. Irrelevant code candidates: p99 0.351, max 0.502 over 33
+# negative queries; the target file of 14 descriptive code queries: 0.18-0.45.
+# Set above the irrelevant max, so code files need a name or content match in
+# practice; the semantic signal still ranks them.
+TEXT_MARGIN_EVIDENCE_CODE = 0.52
 
 # CLIP image margin (cosine - neutral baseline), measured on 33 image queries
 # (Phase 5, docs/eval): relevant images median 0.044, p10 0.012; irrelevant
@@ -61,6 +69,21 @@ _OCR_WORD = re.compile(r"[^\W\d_]{2,}", re.UNICODE)
 FRAME_MARGIN_FLOOR = 0.03
 FRAME_MARGIN_FULL = 0.15
 FRAME_WEIGHT = 0.5
+
+# Video frames as evidence on their own (Phase 6C, docs/eval/phase6c-video-gate.md):
+# z = (best-frame margin - the video's null mean) / null std. 18 visual-only video
+# queries vs 367 negative (query, video) pairs: positives median 5.03, the
+# negatives' max 5.27 -> 5.3 passes 9/18 positives and no negative.
+VIDEO_FRAME_Z_EVIDENCE = 5.3
+
+# "Possible visual matches" (a separate, low-confidence tier; never in results/total).
+# Floors approved from docs/eval/phase6d-possible-tier.md: ~0.27 non-matching
+# items per query for each tier, capped at POSSIBLE_LIMIT together.
+POSSIBLE_VIDEO_Z_FLOOR = 3.0
+POSSIBLE_IMAGE_MARGIN_FLOOR = 0.015
+POSSIBLE_LIMIT = 3
+VIDEO_FRAME_Z_FLOOR = 3.0
+VIDEO_FRAME_Z_FULL = 9.0
 
 # Lexical evidence.
 NAME_EVIDENCE = 0.5             # half of the query terms in the file name
@@ -225,6 +248,13 @@ def image_zscores(candidates) -> Dict[Tuple[str, str], float]:
     return {c.key: float((c.clip_margin - mean) / std) for c in images}
 
 
+def text_evidence_threshold(candidate) -> float:
+
+    extension = os.path.splitext(candidate.file or "")[1].lower()
+
+    return TEXT_MARGIN_EVIDENCE_CODE if extension in CODE_EXTENSIONS else TEXT_MARGIN_EVIDENCE
+
+
 def name_for_matching(candidate) -> str:
     """The normalized file name; for repository files also the folders inside
     the repo ('extension/manifest.json' -> 'extension manifest'), which name a
@@ -237,6 +267,15 @@ def name_for_matching(candidate) -> str:
         name = " ".join([normalize_name(folder) for folder in folders] + [name]).strip()
 
     return name
+
+
+def frame_z(candidate) -> Optional[float]:
+    """Best retrieved frame vs this video's null distribution (None without frames or null)."""
+
+    if candidate.clip_margin is None or candidate.frame_null_mean is None or not candidate.frame_null_std:
+        return None
+
+    return (candidate.clip_margin - candidate.frame_null_mean) / candidate.frame_null_std
 
 
 def is_document_photo(candidate) -> bool:
@@ -259,7 +298,8 @@ def score_candidates(candidates, query: str) -> List[Scored]:
 
         # --- semantic -------------------------------------------------------
         semantic_text = _scale(c.text_margin, TEXT_MARGIN_FLOOR, TEXT_MARGIN_FULL)
-        evidence = c.text_margin is not None and c.text_margin >= TEXT_MARGIN_EVIDENCE
+        text_evidence = text_evidence_threshold(c)
+        evidence = c.text_margin is not None and c.text_margin >= text_evidence
         semantic = semantic_text
         visual = False
 
@@ -274,6 +314,10 @@ def score_candidates(candidates, query: str) -> List[Scored]:
         elif c.file_type == "video":
             frame = FRAME_WEIGHT * _scale(c.clip_margin, FRAME_MARGIN_FLOOR, FRAME_MARGIN_FULL)
             semantic = 1 - (1 - semantic) * (1 - frame)
+            z = frame_z(c)
+            if z is not None and z >= VIDEO_FRAME_Z_EVIDENCE:
+                semantic = max(semantic, _scale(z, VIDEO_FRAME_Z_FLOOR, VIDEO_FRAME_Z_FULL))
+                evidence = visual = True
 
         # --- name -----------------------------------------------------------
         name_text = name_for_matching(c)
@@ -301,17 +345,61 @@ def score_candidates(candidates, query: str) -> List[Scored]:
             reasons.append(CONTENT_FIELD.get(c.file_type, "content"))
         if visual:
             reasons.append("visual")
-        if c.text_margin is not None and c.text_margin >= TEXT_MARGIN_EVIDENCE:
+        if c.text_margin is not None and c.text_margin >= text_evidence:
             reasons.append("semantic")
+
+        match = _match(c, chunks, name_words, content_words, reasons)
+        if visual and c.file_type == "video" and c.frame_time_s is not None:
+            match["frame_time_s"] = c.frame_time_s   # "Looks similar (frame at mm:ss)"
 
         results.append(Scored(
             candidate=c, score=round(float(score), 4), semantic=semantic, name=name, content=content,
-            reasons=reasons, match=_match(c, chunks, name_words, content_words, reasons)
+            reasons=reasons, match=match
         ))
 
     results.sort(key=lambda r: r.score, reverse=True)
 
     return results
+
+
+def possible_visual_matches(candidates, returned_keys, limit: int = POSSIBLE_LIMIT) -> List[Scored]:
+    """Images/videos just below the visual evidence gates: video floor <= z < threshold,
+    image floor <= CLIP margin < threshold (document photos excluded, as in the gate).
+    Only candidates that are not already results; best `limit` by score; match.confidence="low"."""
+
+    possible = []
+
+    for c in candidates:
+
+        if c.key in returned_keys:
+            continue
+
+        if c.file_type == "video":
+            z = frame_z(c)
+            if z is None or not POSSIBLE_VIDEO_Z_FLOOR <= z < VIDEO_FRAME_Z_EVIDENCE:
+                continue
+            semantic = _scale(z, VIDEO_FRAME_Z_FLOOR, VIDEO_FRAME_Z_FULL)
+
+        elif c.file_type == "image":
+            m = c.clip_margin
+            if m is None or not POSSIBLE_IMAGE_MARGIN_FLOOR <= m < IMAGE_MARGIN_EVIDENCE or is_document_photo(c):
+                continue
+            semantic = _scale(m, IMAGE_MARGIN_FLOOR, IMAGE_MARGIN_FULL)
+
+        else:
+            continue
+
+        match = {"reasons": ["visual"], "field": "filename", "snippet": c.file,
+                 "highlights": [], "confidence": "low"}
+        if c.file_type == "video" and c.frame_time_s is not None:
+            match["frame_time_s"] = c.frame_time_s
+
+        possible.append(Scored(candidate=c, score=round(float(W_SEMANTIC * semantic), 4), semantic=semantic,
+                               name=0.0, content=0.0, reasons=["visual"], match=match))
+
+    possible.sort(key=lambda r: r.score, reverse=True)
+
+    return possible[:limit]
 
 
 def _match(c, chunks, name_words, content_words, reasons) -> Dict:

@@ -7,6 +7,8 @@ from app.database.db import get_db
 
 from app.auth.auth_dependency import get_current_user
 
+from app.core.config import settings
+from app.models import response_models as rm
 from app.models.request_models import FolderRequest
 from app.core.local_folders import normalize_folder, validate_local_folder
 from app.platforms.local.local_platform import sync_deleted_sources as purge_unregistered_local_sources
@@ -17,13 +19,20 @@ from app.database.local_storage_service import (
     remove_local_folder
 )
 
+
+def picker_available() -> bool:
+    """The tkinter folder picker is mounted only in development (app/main.py)."""
+
+    return settings.ENV == "development"
+
+
 router = APIRouter(
     prefix="/platforms/local",
     tags=["Local Platform"]
 )
 
 
-@router.get("/folders")
+@router.get("/folders", response_model=rm.FoldersResponse, response_model_exclude_unset=True)
 def get_folders(
 
     current_user=Depends(get_current_user),
@@ -42,6 +51,8 @@ def get_folders(
 
     return {
 
+        "picker_available": picker_available(),
+
         "folders": [
 
             folder.folder_path
@@ -53,7 +64,7 @@ def get_folders(
     }
 
 
-@router.post("/folders")
+@router.post("/folders", response_model=rm.FoldersResponse, response_model_exclude_unset=True)
 def add_folder(
 
     request: FolderRequest,
@@ -86,6 +97,8 @@ def add_folder(
 
         "status": "success",
 
+        "picker_available": picker_available(),
+
         "folders": [
 
             folder.folder_path
@@ -97,7 +110,7 @@ def add_folder(
     }
 
 
-@router.delete("/folders")
+@router.delete("/folders", response_model=rm.FoldersResponse, response_model_exclude_unset=True)
 def delete_folder(
 
     request: FolderRequest,
@@ -137,6 +150,8 @@ def delete_folder(
 
         "status": "success",
         "purged_files": purged,
+
+        "picker_available": picker_available(),
 
         "folders": [
 

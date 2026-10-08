@@ -54,5 +54,6 @@ def get_current_user(
     return {
         "id": str(user.id),
         "name": user.full_name,
-        "email": user.email
+        "email": user.email,
+        "onboarding_completed": bool(user.onboarding_completed)
     }

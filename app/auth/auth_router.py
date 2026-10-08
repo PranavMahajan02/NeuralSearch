@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
@@ -97,8 +99,40 @@ def profile(
     return {
         "id": current_user["id"],
         "name": current_user["name"],
-        "email": current_user["email"]
+        "email": current_user["email"],
+        "onboarding_completed": current_user["onboarding_completed"]
     }
+
+
+def _finish_onboarding(db: Session, user_id) -> dict:
+
+    from app.database.models import User
+
+    user = db.get(User, uuid.UUID(str(user_id)))
+    user.onboarding_completed = True
+    db.commit()
+
+    return {"onboarding_completed": True}
+
+
+@router.post("/onboarding/complete")
+def onboarding_complete(
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """The user started indexing from the onboarding flow."""
+
+    return _finish_onboarding(db, current_user["id"])
+
+
+@router.post("/onboarding/skip")
+def onboarding_skip(
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """The user chose "Skip for now"; they manage platforms from the Platforms page."""
+
+    return _finish_onboarding(db, current_user["id"])
 
 
 @router.post("/logout")

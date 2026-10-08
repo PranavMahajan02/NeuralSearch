@@ -12,14 +12,27 @@ SUPPORTED_EXTENSIONS = frozenset(ext.lower() for ext in DOCUMENTS + IMAGES + AUD
 T = TypeVar("T")
 
 
-# Generated/noise files, skipped by every connector (ledger status 'excluded').
-EXCLUDED_SUFFIXES = (".log", ".lock", ".min.js", ".map")
 EXCLUDED_REASON = "excluded"
 
 
-def is_excluded(name: str) -> bool:
+def exclude_globs() -> list:
+    """settings.INDEX_EXCLUDE_GLOBS as a lower-case list (generated/noise files)."""
 
-    return (name or "").lower().endswith(EXCLUDED_SUFFIXES)
+    from app.core.config import settings
+
+    return [g.strip().lower() for g in settings.INDEX_EXCLUDE_GLOBS.split(",") if g.strip()]
+
+
+def is_excluded(name: str) -> bool:
+    """True when the file's base name matches one of INDEX_EXCLUDE_GLOBS
+    (case-insensitive). Excluded files are recorded as 'excluded' and never
+    downloaded or indexed, by every connector."""
+
+    import fnmatch
+
+    base = os.path.basename((name or "").replace("\\", "/")).lower()
+
+    return any(fnmatch.fnmatchcase(base, glob) for glob in exclude_globs())
 
 
 def is_supported(name: str) -> bool:

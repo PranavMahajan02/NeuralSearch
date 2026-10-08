@@ -20,6 +20,7 @@ from app.platforms.google_drive.google_drive_credentials import (
 )
 from app.platforms.oauth_state import InvalidOAuthState, consume_oauth_state_row, create_oauth_state
 from app.services.index_store import purge_platform
+from app.models import response_models as rm
 
 
 logger = logging.getLogger("cogniseek.google_drive")
@@ -43,7 +44,7 @@ def _connection(db: Session, user_id):
     return connection if connection is not None and connection.connected else None
 
 
-@router.get("/connect")
+@router.get("/connect", response_model=rm.ConnectResponse, response_model_exclude_unset=True)
 def connect_google_drive(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -132,7 +133,7 @@ def google_drive_callback(
     return _frontend_redirect(google_drive="connected")
 
 
-@router.get("/status")
+@router.get("/status", response_model=rm.DriveStatus)
 def google_drive_status(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -146,7 +147,7 @@ def google_drive_status(
     }
 
 
-@router.post("/disconnect")
+@router.post("/disconnect", response_model=rm.DisconnectResponse)
 def disconnect_google_drive(
     current_user=Depends(get_current_user),
     purge: bool = False,

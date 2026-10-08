@@ -1,0 +1,158 @@
+import { useState } from "react";
+import { AlertTriangle, SearchX } from "lucide-react";
+
+import { ApiError } from "../../api/client";
+import type { SearchResult } from "../../api/types";
+import { useOpenFile } from "../../hooks/useOpenFile";
+import type { useSearch } from "../../hooks/useSearch";
+import { Button } from "../common/Button";
+import { Skeleton, Spinner } from "../common/Spinner";
+import { PossibleMatches } from "./PossibleMatches";
+import { ResultCard } from "./ResultCard";
+import { ResultDetailsModal } from "./ResultDetailsModal";
+
+type SearchState = ReturnType<typeof useSearch>;
+
+export function ResultSkeletons() {
+  return (
+    <div aria-busy="true" aria-label="Loading results" className="mx-auto max-w-3xl space-y-3">
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"
+        >
+          <Skeleton className="h-4 w-1/3" />
+          <Skeleton className="mt-3 h-3 w-2/3" />
+          <Skeleton className="mt-2 h-3 w-1/2" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+interface ResultListProps {
+  search: SearchState;
+  query: string;
+  filtered: boolean;
+  onClearFilters: () => void;
+}
+
+export function ResultList({ search, query, filtered, onClearFilters }: ResultListProps) {
+  const { open, busyId } = useOpenFile();
+  const [details, setDetails] = useState<SearchResult | null>(null);
+
+  if (search.isPending) return <ResultSkeletons />;
+
+  if (search.isError) {
+    const error = search.error;
+    const message = error instanceof ApiError ? error.message : "Search failed.";
+
+    return (
+      <div
+        role="alert"
+        className="mx-auto max-w-3xl rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-950 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-100"
+      >
+        <div className="flex items-start gap-3">
+          <AlertTriangle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
+          <div className="space-y-3">
+            <p className="font-semibold">The search could not be completed.</p>
+            <p className="text-sm">{message}</p>
+            <Button onClick={() => void search.refetch()}>Retry</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const pages = search.data.pages;
+  const total = pages[0]?.total ?? 0;
+  // The backend may return the same file on two pages if the index changed between them.
+  const seen = new Set<string>();
+  const results = pages
+    .flatMap((page) => page.results)
+    .filter((r) => {
+      const key = `${r.platform}:${r.source_id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+  const possible = pages[0]?.possible_matches ?? [];
+  const detailsModal = details && (
+    <ResultDetailsModal
+      result={details}
+      opening={busyId === details.source_id}
+      onOpen={(r) => void open(r)}
+      onClose={() => setDetails(null)}
+    />
+  );
+  const possibleSection = (
+    <PossibleMatches
+      matches={possible}
+      noConfidentResults={total === 0}
+      openingId={busyId}
+      onOpen={(r) => void open(r)}
+      onDetails={setDetails}
+    />
+  );
+
+  if (total === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white py-16 text-center dark:border-slate-800 dark:bg-slate-900">
+          <SearchX aria-hidden="true" className="mx-auto mb-3 h-10 w-10 text-rose-500" />
+          <p className="font-display text-sm font-medium text-slate-800 dark:text-slate-100">
+            No results for “{query}”
+          </p>
+          <ul className="mx-auto mt-2 max-w-sm space-y-1 text-xs text-slate-600 dark:text-slate-400">
+            <li>Check the spelling, or try fewer or more general words.</li>
+            <li>Describe what an image shows (e.g. “dog on a beach”).</li>
+            <li>Make sure the platform holding the file has been indexed.</li>
+          </ul>
+          {filtered && (
+            <Button className="mt-4" onClick={onClearFilters}>
+              Search all types and platforms
+            </Button>
+          )}
+        </div>
+        {possibleSection}
+        {detailsModal}
+      </div>
+    );
+  }
+
+  return (
+    <section aria-label="Search results" className="mx-auto max-w-3xl space-y-3 pt-2">
+      <p className="px-1 text-xs font-medium text-slate-600 dark:text-slate-400" aria-live="polite">
+        Discovered {total === 1 ? "1 matching result" : `${total} matching results`} · showing{" "}
+        {results.length}
+        {search.isFetching && !search.isFetchingNextPage && <Spinner className="ml-2 align-middle" />}
+      </p>
+      <ol className="space-y-3">
+        {results.map((result) => (
+          <li key={`${result.platform}:${result.source_id}`}>
+            <ResultCard
+              result={result}
+              opening={busyId === result.source_id}
+              onOpen={(r) => void open(r)}
+              onDetails={setDetails}
+            />
+          </li>
+        ))}
+      </ol>
+      {search.hasNextPage && (
+        <div className="flex justify-center pt-2">
+          <Button onClick={() => void search.fetchNextPage()} disabled={search.isFetchingNextPage}>
+            {search.isFetchingNextPage ? (
+              <Spinner label="Loading…" />
+            ) : (
+              `Load more (${total - results.length} left)`
+            )}
+          </Button>
+        </div>
+      )}
+      {possibleSection}
+      {detailsModal}
+    </section>
+  );
+}
