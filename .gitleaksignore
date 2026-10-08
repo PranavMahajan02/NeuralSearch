@@ -1,0 +1,2 @@
+# Fake JWT used to test log redaction (tests/test_observability.py, commit 624fbd0); not a real secret.
+624fbd0f47b4a39c8b2e820a1d868b70c7fc6f64:tests/test_observability.py:jwt:74
