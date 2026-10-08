@@ -180,6 +180,9 @@ describe("resilience", () => {
       Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
       window.dispatchEvent(new Event("online"));
     });
+    // Going online refetches the (still failing) health check: let that request
+    // settle before the test ends, or its network error outlives the test.
+    expect(await screen.findByText("The CogniSeek server is not reachable. Retrying…")).toBeInTheDocument();
   });
 
   it("toggles the theme", async () => {
