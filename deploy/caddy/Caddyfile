@@ -1,0 +1,87 @@
+# CogniSeek public entry point (the only container with published ports).
+#
+#   DOMAIN unset / "localhost"  -> HTTPS with Caddy's internal CA (TLS=internal)
+#   DOMAIN=search.example.com   -> Let's Encrypt: set TLS to your e-mail address
+#                                  (ports 80/443 must be reachable from the internet)
+#
+# /api/* is proxied to the backend with the /api prefix stripped; everything else
+# is the single-page app. /api/metrics is never proxied (internal scrape only).
+{
+	# Admin API off: nothing may reconfigure the proxy at runtime.
+	admin off
+}
+
+(security_headers) {
+	header {
+		# Strict CSP: the built app has no inline scripts or styles and loads
+		# nothing from third parties (fonts are self-hosted).
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
+		-Server
+	}
+}
+
+{$DOMAIN:localhost} {
+	import security_headers
+
+	# HSTS only with a real certificate: never pin browsers to a self-signed localhost.
+	@public_domain expression `"{$DOMAIN:localhost}" != "localhost"`
+	header @public_domain Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+	# "internal" (self-signed, localhost) or an e-mail address (Let's Encrypt account).
+	tls {$TLS:internal}
+
+	encode zstd gzip
+
+	request_body {
+		# Uploads are capped by the backend (MAX_UPLOAD_MB); this is the outer bound.
+		max_size 110MB
+	}
+
+	handle /api/metrics* {
+		respond "Not found" 404
+	}
+
+	handle_path /api/* {
+		reverse_proxy backend:8000 {
+			header_up X-Request-ID {http.request.uuid}
+			# Indexing-heavy endpoints can be slow; searches stay well below this.
+			transport http {
+				read_timeout 300s
+			}
+		}
+	}
+
+	handle {
+		root * /srv
+		# Hashed assets are immutable; index.html must always be revalidated.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		@html not path /assets/*
+		header @html Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+
+	log {
+		output stdout
+		# Never log query strings (OAuth code/state) or auth headers.
+		format filter {
+			wrap json
+			fields {
+				request>uri query {
+					delete code
+					delete state
+					delete token
+				}
+				request>headers>Authorization delete
+				request>headers>Cookie delete
+			}
+		}
+	}
+}

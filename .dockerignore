@@ -1,0 +1,25 @@
+# Build context hygiene: secrets, data and local environments never enter an image.
+.git
+.env
+.env.*
+!.env.example
+credentials/
+data/
+backups/
+temp/
+temp_frames/
+venv/
+paddle_env/
+florence_env/
+PaddleOCR/
+**/__pycache__/
+**/*.pyc
+*.pkl
+log.txt
+docs/
+tests/
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
