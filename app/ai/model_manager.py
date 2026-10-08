@@ -110,7 +110,9 @@ class ModelManager:
             with self._load_lock:
                 if self._ocr_model is None:
                     # On Windows, torch must load its DLLs before paddle's,
-                    # otherwise a later `import torch` fails (WinError 127).
+                    # otherwise a later `import torch` fails (WinError 127). On Linux,
+                    # importing paddleocr first segfaults in zlib (inflateReset2) - also
+                    # avoided by loading torch first.
                     import torch  # noqa: F401
                     from paddleocr import PaddleOCR
                     logger.info("Loading PaddleOCR...")

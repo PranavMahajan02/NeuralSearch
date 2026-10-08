@@ -1,0 +1,7 @@
+# Files executed or parsed inside Linux containers must keep LF endings even on
+# a Windows checkout (core.autocrlf=true would otherwise break the shebang).
+*.sh            text eol=lf
+Caddyfile       text eol=lf
+Dockerfile      text eol=lf
+*.yml           text eol=lf
+*.sql           text eol=lf
