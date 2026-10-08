@@ -240,7 +240,10 @@ def test_result_shape_match_object_and_no_debug_fields(client, user):
 
     result = results(client, user, "volcano eruption")["results"][0]
 
-    assert set(result) == {"platform", "source_id", "type", "file", "display_path", "path", "score", "match"}
+    assert set(result) == {"platform", "source_id", "type", "file", "display_path", "path", "score", "match",
+                           "file_size", "modified_at", "mime_type", "extension"}
+    # Not indexed through a connector here: metadata is unknown (null), the extension is derived.
+    assert (result["file_size"], result["modified_at"], result["extension"]) == (None, None, "docx")
     match = result["match"]
     assert set(match) == {"reasons", "field", "snippet", "highlights"}
     assert "filename" in match["reasons"] and "content" in match["reasons"]
@@ -497,3 +500,272 @@ def test_repository_folders_count_as_name_words():
     scored = score_candidates([manifest], "chrome extension manifest")
 
     assert [s.candidate.file for s in scored] == ["manifest.json"] and "filename" in scored[0].reasons
+
+
+@pytest.mark.parametrize("file, returned", [("notes.pdf", True), ("chart.tsx", False), ("deploy.yaml", False)])
+def test_code_files_need_a_higher_semantic_margin(file, returned):
+
+    from app.search.retrieval import Candidate
+    from app.search.ranking import TEXT_MARGIN_EVIDENCE, TEXT_MARGIN_EVIDENCE_CODE, score_candidates
+
+    margin = (TEXT_MARGIN_EVIDENCE + TEXT_MARGIN_EVIDENCE_CODE) / 2
+    candidate = Candidate(platform="github", source_id=f"me/r:{file}", file=file, path=file,
+                          file_type="document", text_margin=margin)
+
+    assert bool(score_candidates([candidate], "kubernetes helm deployment")) is returned
+
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: result metadata, suggestions, recent files, job history
+# ---------------------------------------------------------------------------
+
+def test_local_results_carry_size_modified_time_and_mime(client, user, folder):
+
+    path = write(folder / "volcano notes.txt", "volcano eruption ash cloud")
+    index_local_file(user["id"], str(path))
+
+    result = results(client, user, "volcano notes")["results"][0]
+
+    assert result["file_size"] == path.stat().st_size
+    assert result["modified_at"].endswith("Z") and result["modified_at"][:4].isdigit()
+    assert (result["mime_type"], result["extension"]) == ("text/plain", "txt")
+
+
+def test_suggestions_are_prefix_first_and_scoped_to_the_user(client, user, make_user):
+
+    other = make_user()
+    for name in ("Quantum notes.pdf", "quantum physics.docx", "notes quantum.txt", "Turing.pdf"):
+        add_point(user, "google_drive", f"S-{name}", name, "document", "document", "text")
+    add_point(other, "google_drive", "S-x", "quantum secret.pdf", "document", "document", "text")
+
+    response = client.get("/search/suggestions", params={"prefix": "quan"}, headers=user["headers"])
+    assert response.status_code == 200
+    names = [s["file"] for s in response.json()["suggestions"]]
+
+    assert names[:2] == ["Quantum notes.pdf", "quantum physics.docx"]
+    assert "notes quantum.txt" in names and "Turing.pdf" not in names
+    assert "quantum secret.pdf" not in names
+
+    assert client.get("/search/suggestions", params={"prefix": "q"}, headers=user["headers"]).json()["suggestions"] == []
+    assert client.get("/search/suggestions", params={"prefix": "quan"}).status_code == 401
+
+
+def test_suggestion_prefix_wildcards_are_literal(client, user):
+
+    add_point(user, "google_drive", "S-a", "abc.pdf", "document", "document", "text")
+
+    response = client.get("/search/suggestions", params={"prefix": "%%"}, headers=user["headers"])
+
+    assert response.json()["suggestions"] == []
+
+
+def test_recent_files_are_the_last_eight_indexed_for_the_user(client, user, make_user):
+
+    other = make_user()
+    for i in range(10):
+        add_point(user, "google_drive", f"R-{i}", f"file {i}.pdf", "document", "document", "text")
+    add_point(other, "google_drive", "R-x", "not mine.pdf", "document", "document", "text")
+
+    files = client.get("/dashboard/recent", headers=user["headers"]).json()["files"]
+
+    assert [f["file"] for f in files] == [f"file {i}.pdf" for i in range(9, 1, -1)]
+    assert client.get("/dashboard/recent").status_code == 401
+
+
+def test_dashboard_stats_give_one_connection_count_and_per_platform_detail(client, user):
+
+    add_point(user, "google_drive", "P-1", "a.pdf", "document", "document", "text")
+
+    stats = client.get("/dashboard/stats", headers=user["headers"]).json()
+
+    assert (stats["connected_platforms"], stats["supported_platforms"]) == (0, 3)
+    drive = stats["platforms"]["google_drive"]
+    assert drive["indexed_files"] == 1 and drive["last_indexed_at"].endswith("Z")
+    assert stats["platforms"]["github"] == {"connected": False, "indexed_files": 0, "last_indexed_at": None}
+
+
+# ---------------------------------------------------------------------------
+# Phase 6C: video frames as evidence on their own
+# ---------------------------------------------------------------------------
+
+def video(file, frame_margin, null_mean=-0.01, null_std=0.01, frame_time=160):
+
+    from app.search.retrieval import Candidate
+
+    return Candidate(platform="google_drive", source_id=f"V-{file}", file=file, path=file, file_type="video",
+                     clip_margin=frame_margin, frame_number=frame_time // 5, frame_time_s=frame_time,
+                     frame_null_mean=null_mean, frame_null_std=null_std)
+
+
+def test_strong_frame_evidence_alone_returns_the_video_with_its_frame_time():
+
+    from app.search.ranking import VIDEO_FRAME_Z_EVIDENCE, score_candidates
+
+    # z = (margin - null_mean) / null_std, just above the evidence threshold
+    margin = -0.01 + (VIDEO_FRAME_Z_EVIDENCE + 0.5) * 0.01
+    scored = score_candidates([video("nature documentary.mp4", margin)], "polar bear cubs in the snow")
+
+    assert [s.candidate.file for s in scored] == ["nature documentary.mp4"]
+    assert scored[0].name == 0 and scored[0].content == 0           # no name, no transcript
+    assert scored[0].reasons == ["visual"]
+    assert scored[0].match["frame_time_s"] == 160
+
+
+def test_weak_frame_evidence_only_boosts_and_never_returns_a_video_alone():
+
+    from app.search.ranking import VIDEO_FRAME_Z_EVIDENCE, score_candidates
+
+    margin = -0.01 + (VIDEO_FRAME_Z_EVIDENCE - 1) * 0.01
+    assert score_candidates([video("nature documentary.mp4", margin)], "polar bear cubs") == []
+    # A video without a stored null (not backfilled) is never returned on frames alone.
+    assert score_candidates([video("old.mp4", 0.5, null_mean=None, null_std=None)], "polar bear") == []
+
+
+def test_the_same_margin_means_less_on_a_video_whose_footage_matches_everything():
+
+    from app.search.ranking import frame_z
+
+    generic = video("b.mp4", 0.06, null_mean=0.02, null_std=0.01)   # high null: generic footage
+    specific = video("a.mp4", 0.06, null_mean=-0.02, null_std=0.01)
+    assert frame_z(specific) > frame_z(generic)
+
+
+def test_null_stats_and_frame_timestamps():
+
+    import numpy as np
+
+    from app.search.frame_null import FRAME_INTERVAL_S, format_timestamp, frame_time_s, null_stats
+
+    rng = np.random.default_rng(0)
+    mean, std = null_stats(rng.normal(size=(20, 512)).tolist())
+    assert mean is not None and std >= 1e-3
+    assert null_stats([]) == (None, None)
+    assert frame_time_s(32) == 32 * FRAME_INTERVAL_S == 160
+    assert (format_timestamp(160), format_timestamp(3725), format_timestamp(None)) == ("2:40", "1:02:05", None)
+
+
+def test_indexed_frames_store_their_time_and_the_video_null(client, user, local_root, monkeypatch):
+
+    from pathlib import Path as P
+
+    import app.services.indexers.video_indexer as video_indexer
+    from app.vectorstore.client import get_client
+    from app.vectorstore.config import collection_for_type
+
+    folder = local_root / "videos-6c"
+    folder.mkdir()
+
+    def fake_frames(path, output_folder):
+        P(output_folder).mkdir(parents=True)
+        out = []
+        for i, text in enumerate(["polar bear on snow", "penguins on ice", "a meerkat"]):
+            frame = P(output_folder) / f"frame_{i}.jpg"
+            frame.write_text(text)
+            out.append(str(frame))
+        return out
+
+    monkeypatch.setattr(video_indexer, "extract_video_transcript", lambda path: "")
+    monkeypatch.setattr(video_indexer, "extract_frames", fake_frames)
+    clip = folder / "clip.mp4"
+    clip.write_bytes(b"\x00")
+
+    assert index_local_file(user["id"], str(clip)) == "indexed"
+
+    points, _ = get_client().scroll(collection_for_type("video_frame"), limit=10, with_payload=True)
+    mine = sorted((p.payload for p in points if p.payload["file"] == "clip.mp4"), key=lambda p: p["frame_number"])
+    assert [p["frame_time_s"] for p in mine] == [0, 5, 10]
+    assert all(p["null_mean"] is not None and p["null_std"] > 0 for p in mine)
+    assert len({p["null_mean"] for p in mine}) == 1   # one null per video
+
+
+# ---------------------------------------------------------------------------
+# Phase 6D: "possible visual matches" (low-confidence tier)
+# ---------------------------------------------------------------------------
+
+def z_video(file, z, frame_time=20):
+    # null mean 0, std 0.01 -> z = margin / 0.01
+    return video(file, z * 0.01, null_mean=0.0, null_std=0.01, frame_time=frame_time)
+
+
+@pytest.mark.parametrize("z, possible", [(2.99, False), (3.0, True), (4.5, True), (5.29, True), (5.3, False)])
+def test_video_tier_boundaries(z, possible):
+
+    from app.search.ranking import possible_visual_matches, score_candidates
+
+    c = z_video("forest.mp4", z)
+    returned = {s.candidate.key for s in score_candidates([c], "river")}
+    tier = possible_visual_matches([c], returned)
+
+    assert (len(tier) == 1) is possible
+    if possible:
+        assert tier[0].match["confidence"] == "low" and tier[0].match["frame_time_s"] == 20
+    if z >= 5.3:
+        assert returned  # a confident result, never also "possible"
+
+
+@pytest.mark.parametrize("margin, possible", [(0.0149, False), (0.015, True), (0.0299, True), (0.03, False)])
+def test_image_tier_boundaries(margin, possible):
+
+    from app.search.ranking import possible_visual_matches, score_candidates
+
+    c = image("IMG_1.webp", margin)
+    returned = {s.candidate.key for s in score_candidates([c], "dog")}
+
+    assert (len(possible_visual_matches([c], returned)) == 1) is possible
+
+
+def test_document_photos_never_enter_the_tier():
+
+    from app.search.ranking import possible_visual_matches
+
+    page = " ".join(["candidate roll number examination centre subject"] * 5)
+    assert possible_visual_matches([image("scan.jpeg", 0.02, ocr=page)], set()) == []
+
+
+def test_tier_is_capped_at_three_and_sorted_by_score():
+
+    from app.search.ranking import possible_visual_matches
+
+    candidates = [z_video(f"v{i}.mp4", 3.0 + i * 0.4) for i in range(5)] + [image("a.webp", 0.016)]
+    tier = possible_visual_matches(candidates, set())
+
+    # Same score scale as confident results: an image at margin 0.016 (0.128) outranks a video at z 3.8 (0.107).
+    assert [t.candidate.file for t in tier] == ["v4.mp4", "v3.mp4", "a.webp"]
+    assert [t.score for t in tier] == sorted((t.score for t in tier), reverse=True)
+
+
+def possible_api(client, user, monkeypatch, search_type="all", offset=0):
+
+    import app.services.search_service as service
+
+    candidates = [z_video("forest.mp4", 3.5), z_video("space.mp4", 4.0), image("lake.webp", 0.02),
+                  image("dog.webp", 0.06)]   # dog.webp passes the gate: a confident result
+    monkeypatch.setattr(service, "retrieve", lambda *a, **k: {c.key: c for c in candidates})
+
+    response = client.post("/search/", json={"query": "river", "search_type": search_type, "offset": offset},
+                           headers=user["headers"])
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_api_possible_matches_are_separate_and_never_counted(client, user, monkeypatch):
+
+    body = possible_api(client, user, monkeypatch)
+
+    assert [r["file"] for r in body["results"]] == ["dog.webp"] and body["total"] == 1
+    assert [r["file"] for r in body["possible_matches"]] == ["lake.webp", "space.mp4", "forest.mp4"]
+    assert all(r["match"]["confidence"] == "low" for r in body["possible_matches"])
+    assert "confidence" not in body["results"][0]["match"]
+    assert body["possible_matches"][1]["match"]["frame_time_s"] == 20
+
+
+@pytest.mark.parametrize("search_type, expected", [("document", 0), ("audio", 0), ("video", 3), ("image", 3)])
+def test_api_possible_matches_only_for_visual_search_types(client, user, monkeypatch, search_type, expected):
+
+    assert len(possible_api(client, user, monkeypatch, search_type)["possible_matches"]) == expected
+
+
+def test_api_possible_matches_only_with_the_first_page(client, user, monkeypatch):
+
+    assert possible_api(client, user, monkeypatch, offset=20)["possible_matches"] == []

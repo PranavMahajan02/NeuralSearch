@@ -12,21 +12,26 @@ PLATFORMS = ("local", "google_drive", "github")
 TYPES = ("document", "image", "audio", "video")
 
 
+def _platform_detail(platform, by_platform, last_by_platform):
+
+    last = last_by_platform.get(platform)
+
+    return {"indexed_files": by_platform.get(platform, 0),
+            "last_indexed_at": last.isoformat() + "Z" if last else None}
+
+
 def get_dashboard_stats(user_id):
 
     with SessionLocal() as db:
 
+        # ONE query (one snapshot) for every count and timestamp: separate queries
+        # could see a file indexed in between ("0 files, last indexed just now").
         rows = (
-            db.query(IndexedFile.platform, IndexedFile.file_type, IndexedFile.status, func.count())
+            db.query(IndexedFile.platform, IndexedFile.file_type, IndexedFile.status,
+                     func.count(), func.max(IndexedFile.indexed_at))
             .filter(IndexedFile.user_id == user_id)
             .group_by(IndexedFile.platform, IndexedFile.file_type, IndexedFile.status)
             .all()
-        )
-
-        last_indexed = (
-            db.query(func.max(IndexedFile.indexed_at))
-            .filter(IndexedFile.user_id == user_id, IndexedFile.status == "indexed")
-            .scalar()
         )
 
         connections = {
@@ -41,14 +46,19 @@ def get_dashboard_stats(user_id):
 
     by_type = {file_type: 0 for file_type in TYPES}
     by_platform = {platform: 0 for platform in PLATFORMS}
-    by_status = {"indexed": 0, "no_content": 0, "failed": 0, "unsupported": 0}
+    by_status = {"indexed": 0, "no_content": 0, "failed": 0, "unsupported": 0, "too_large": 0, "excluded": 0}
 
-    for platform, file_type, status, count in rows:
+    last_by_platform = {}
+
+    for platform, file_type, status, count, newest in rows:
         by_status[status] = by_status.get(status, 0) + count
         if status == "indexed":
+            if newest and (platform not in last_by_platform or newest > last_by_platform[platform]):
+                last_by_platform[platform] = newest
             by_type[file_type] = by_type.get(file_type, 0) + count
             by_platform[platform] = by_platform.get(platform, 0) + count
 
+    last_indexed = max(last_by_platform.values(), default=None)
     connected = len(connections & {"google_drive", "github"}) + (1 if folders else 0)
 
     return {
@@ -63,12 +73,41 @@ def get_dashboard_stats(user_id):
         "last_indexed_at": last_indexed,
         "connected_platforms": connected,
         "ready_platforms": sum(1 for count in by_platform.values() if count > 0),
+        "supported_platforms": len(PLATFORMS),
         "platforms": {
-            "google_drive": {"connected": "google_drive" in connections},
-            "github": {"connected": "github" in connections},
-            "local": {"connected": len(folders) > 0, "folders": folders}
+            "google_drive": {"connected": "google_drive" in connections,
+                             **_platform_detail("google_drive", by_platform, last_by_platform)},
+            "github": {"connected": "github" in connections,
+                       **_platform_detail("github", by_platform, last_by_platform)},
+            "local": {"connected": len(folders) > 0, "folders": folders,
+                      **_platform_detail("local", by_platform, last_by_platform)}
         }
     }
+
+
+def get_recent_files(user_id, limit: int = 8):
+    """The last `limit` files indexed for this user (newest first)."""
+
+    with SessionLocal() as db:
+        rows = (
+            db.query(IndexedFile)
+            .filter(IndexedFile.user_id == user_id, IndexedFile.status == "indexed")
+            .order_by(IndexedFile.indexed_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+    return [
+        {
+            "platform": row.platform,
+            "source_id": row.source_id,
+            "file": row.file_name,
+            "display_path": row.display_path,
+            "type": row.file_type,
+            "indexed_at": row.indexed_at.isoformat() + "Z" if row.indexed_at else None,
+        }
+        for row in rows
+    ]
 
 
 def get_dashboard_platforms(user_id):

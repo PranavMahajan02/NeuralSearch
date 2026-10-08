@@ -1,22 +1,32 @@
-import tailwindcss from '@tailwindcss/vite';
-import react from '@vitejs/plugin-react';
-import path from 'path';
-import {defineConfig} from 'vite';
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 
-export default defineConfig(() => {
-  return {
-    plugins: [react(), tailwindcss()],
-    resolve: {
-      alias: {
-        '@': path.resolve(__dirname, '.'),
+// The dev server binds 127.0.0.1:3000 and FAILS if the port is taken
+// (strictPort) instead of silently moving to another port, which would break
+// CORS and the OAuth return URL.
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  server: {
+    host: process.env.VITE_HOST || "127.0.0.1",
+    port: Number(process.env.VITE_PORT || 3000),
+    strictPort: true,
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        // Long-lived vendor chunks: app changes don't invalidate them.
+        manualChunks: {
+          react: ["react", "react-dom", "react-router-dom"],
+          query: ["@tanstack/react-query"],
+          motion: ["motion"],
+        },
       },
     },
-    server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
-    },
-  };
+  },
+  preview: {
+    host: "127.0.0.1",
+    port: 4173,
+    strictPort: true,
+  },
 });

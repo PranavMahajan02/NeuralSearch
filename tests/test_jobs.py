@@ -692,3 +692,29 @@ def test_never_indexed_platform_is_not_indexed(client, user):
 
     assert jobs_of(client, user)["github"]["indexed"] is False
     assert client.get("/auth/login-state", headers=user["headers"]).json()["has_indexed"] is False
+
+
+def test_jobs_history_returns_the_last_n_jobs_per_platform(client, user, make_user):
+
+    from datetime import datetime, timedelta
+
+    from app.database.db import SessionLocal
+
+    base = datetime(2026, 1, 1)
+    other = make_user()
+
+    with SessionLocal() as session:
+        for i in range(4):
+            session.add(IndexingJob(user_id=user["id"], platform="github", status="completed",
+                                    total_files=i, created_at=base + timedelta(minutes=i)))
+        session.add(IndexingJob(user_id=other["id"], platform="github", status="failed", created_at=base))
+        session.commit()
+
+    plain = client.get("/index/jobs", headers=user["headers"]).json()
+    assert "history" not in plain[0]
+
+    jobs = client.get("/index/jobs?history=3", headers=user["headers"]).json()
+    github = next(job for job in jobs if job["platform"] == "github")
+
+    assert [job["total_files"] for job in github["history"]] == [3, 2, 1]
+    assert client.get("/index/jobs?history=99", headers=user["headers"]).status_code == 422

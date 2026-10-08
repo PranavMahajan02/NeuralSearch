@@ -117,7 +117,7 @@ class GitHubPlatform(BasePlatform):
 
                 meta = github_meta(
                     ctx.user_id, owner, name,
-                    {"path": entry.path, "sha": entry.sha},
+                    {"path": entry.path, "sha": entry.sha, "size": entry.size},
                     default_branch=branch
                 )
 
