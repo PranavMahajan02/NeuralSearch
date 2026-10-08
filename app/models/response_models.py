@@ -20,6 +20,8 @@ class MatchInfo(BaseModel):
     highlights: List[List[int]]
     # Videos matched on what a frame shows: that frame's time in seconds.
     frame_time_s: Optional[int] = None
+    # "low" for possible_matches (below the visual evidence threshold).
+    confidence: Optional[str] = None
 
 
 class SearchResult(BaseModel):
@@ -48,6 +50,8 @@ class SearchResponse(BaseModel):
     offset: int
     total: int
     results: List[SearchResult]
+    # Low-confidence visual matches: never in results, never counted in total.
+    possible_matches: List[SearchResult] = []
 
 
 class Suggestion(BaseModel):

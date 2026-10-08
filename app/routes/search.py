@@ -62,5 +62,6 @@ def search_files(
         "limit": request.limit,
         "offset": request.offset,
         "total": found["total"],
-        "results": found["results"]
+        "results": found["results"],
+        "possible_matches": found["possible_matches"]
     }

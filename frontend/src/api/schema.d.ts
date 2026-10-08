@@ -926,6 +926,8 @@ export interface components {
             highlights: number[][];
             /** Frame Time S */
             frame_time_s?: number | null;
+            /** Confidence */
+            confidence?: string | null;
         };
         /** OpenRequest */
         OpenRequest: {
@@ -1043,6 +1045,11 @@ export interface components {
             total: number;
             /** Results */
             results: components["schemas"]["SearchResult"][];
+            /**
+             * Possible Matches
+             * @default []
+             */
+            possible_matches: components["schemas"]["SearchResult"][];
         };
         /** SearchResult */
         SearchResult: {

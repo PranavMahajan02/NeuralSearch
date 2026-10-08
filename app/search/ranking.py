@@ -75,6 +75,13 @@ FRAME_WEIGHT = 0.5
 # queries vs 367 negative (query, video) pairs: positives median 5.03, the
 # negatives' max 5.27 -> 5.3 passes 9/18 positives and no negative.
 VIDEO_FRAME_Z_EVIDENCE = 5.3
+
+# "Possible visual matches" (a separate, low-confidence tier; never in results/total).
+# Floors approved from docs/eval/phase6d-possible-tier.md: ~0.27 non-matching
+# items per query for each tier, capped at POSSIBLE_LIMIT together.
+POSSIBLE_VIDEO_Z_FLOOR = 3.0
+POSSIBLE_IMAGE_MARGIN_FLOOR = 0.015
+POSSIBLE_LIMIT = 3
 VIDEO_FRAME_Z_FLOOR = 3.0
 VIDEO_FRAME_Z_FULL = 9.0
 
@@ -353,6 +360,46 @@ def score_candidates(candidates, query: str) -> List[Scored]:
     results.sort(key=lambda r: r.score, reverse=True)
 
     return results
+
+
+def possible_visual_matches(candidates, returned_keys, limit: int = POSSIBLE_LIMIT) -> List[Scored]:
+    """Images/videos just below the visual evidence gates: video floor <= z < threshold,
+    image floor <= CLIP margin < threshold (document photos excluded, as in the gate).
+    Only candidates that are not already results; best `limit` by score; match.confidence="low"."""
+
+    possible = []
+
+    for c in candidates:
+
+        if c.key in returned_keys:
+            continue
+
+        if c.file_type == "video":
+            z = frame_z(c)
+            if z is None or not POSSIBLE_VIDEO_Z_FLOOR <= z < VIDEO_FRAME_Z_EVIDENCE:
+                continue
+            semantic = _scale(z, VIDEO_FRAME_Z_FLOOR, VIDEO_FRAME_Z_FULL)
+
+        elif c.file_type == "image":
+            m = c.clip_margin
+            if m is None or not POSSIBLE_IMAGE_MARGIN_FLOOR <= m < IMAGE_MARGIN_EVIDENCE or is_document_photo(c):
+                continue
+            semantic = _scale(m, IMAGE_MARGIN_FLOOR, IMAGE_MARGIN_FULL)
+
+        else:
+            continue
+
+        match = {"reasons": ["visual"], "field": "filename", "snippet": c.file,
+                 "highlights": [], "confidence": "low"}
+        if c.file_type == "video" and c.frame_time_s is not None:
+            match["frame_time_s"] = c.frame_time_s
+
+        possible.append(Scored(candidate=c, score=round(float(W_SEMANTIC * semantic), 4), semantic=semantic,
+                               name=0.0, content=0.0, reasons=["visual"], match=match))
+
+    possible.sort(key=lambda r: r.score, reverse=True)
+
+    return possible[:limit]
 
 
 def _match(c, chunks, name_words, content_words, reasons) -> Dict:
