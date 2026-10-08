@@ -21,6 +21,11 @@ passlib==1.7.4
 bcrypt==4.0.1
 slowapi==0.1.10              # rate limiting (app/core/rate_limit.py)
 cryptography==48.0.0          # Fernet token encryption (app/core/crypto.py)
+redis==8.1.0                  # shared rate-limit storage (app/core/rate_limit.py), /ready
+
+# Observability
+prometheus-fastapi-instrumentator==8.1.0   # GET /metrics (app/core/metrics.py)
+prometheus_client==0.26.0
 
 # Vector store
 qdrant-client==1.18.0

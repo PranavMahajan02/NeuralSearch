@@ -42,6 +42,23 @@ class Settings(BaseSettings):
     QDRANT_LOCATION: str = ""
     # Collections are <prefix>_text, _image, _audio, _video, _video_frames.
     QDRANT_COLLECTION_PREFIX: str = "cogniseek_v2"
+    # Qdrant API key (QDRANT__SERVICE__API_KEY on the server). Required in production.
+    QDRANT_API_KEY: Optional[str] = None
+
+    # Redis for shared rate-limit counters. Required in production; empty in
+    # development = in-memory counters (per process, reset on restart).
+    REDIS_URL: str = ""
+
+    # Uvicorn worker processes. Keep 1: the indexing worker runs inside the API
+    # process and the models (GPU) are loaded once per process.
+    WORKERS: int = 1
+
+    # Logs: "text" (development) or "json" (production default when empty).
+    LOG_FORMAT: Literal["", "text", "json"] = ""
+    LOG_LEVEL: str = "INFO"
+
+    # GET /metrics (Prometheus). Never proxied publicly (see deploy/Caddyfile).
+    METRICS_ENABLED: bool = True
 
     # Auth
     JWT_SECRET_KEY: Optional[str] = None
@@ -53,6 +70,9 @@ class Settings(BaseSettings):
 
     # Rate limit for /auth/login and /auth/register (slowapi syntax).
     AUTH_RATE_LIMIT: str = "5/minute"
+    # Per user (per IP when anonymous).
+    SEARCH_RATE_LIMIT: str = "60/minute"
+    OAUTH_RATE_LIMIT: str = "10/minute"
 
     # HTTP
     CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
@@ -128,6 +148,11 @@ class Settings(BaseSettings):
 
         return self.ENV == "production"
 
+    @property
+    def log_format(self) -> str:
+
+        return self.LOG_FORMAT or ("json" if self.is_production else "text")
+
     @model_validator(mode="after")
     def check_token_encryption_key(self):
 
@@ -183,6 +208,22 @@ class Settings(BaseSettings):
                 "characters. This is only allowed in development.",
                 stacklevel=2
             )
+
+        return self
+
+    @model_validator(mode="after")
+    def check_production_services(self):
+        """Production needs an authenticated Qdrant and shared rate-limit storage
+        (checked last, after the secrets)."""
+
+        if not self.is_production:
+            return self
+
+        if not self.QDRANT_LOCATION and not self.QDRANT_API_KEY:
+            raise ValueError("QDRANT_API_KEY must be set in production.")
+
+        if not self.REDIS_URL:
+            raise ValueError("REDIS_URL must be set in production (rate limits are shared and persistent).")
 
         return self
 

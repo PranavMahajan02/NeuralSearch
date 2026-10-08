@@ -25,6 +25,7 @@ from app.database.models import (
     IndexingJob,
     IndexingJobError
 )
+from app.core import metrics
 from app.core.clock import utcnow
 
 
@@ -176,6 +177,8 @@ def finalize_job(db: Session, job_id, error_message: Optional[str] = None) -> In
     job.completed_at = utcnow()
     job.heartbeat_at = job.completed_at
     job.current_file = ""
+
+    metrics.record_job(job)
 
     if status in ("completed", "completed_with_errors"):
         job.last_index_time = job.completed_at

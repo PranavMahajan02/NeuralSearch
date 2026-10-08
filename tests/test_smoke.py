@@ -99,3 +99,41 @@ def test_production_config_errors_do_not_echo_secrets(monkeypatch):
         Settings(_env_file=None)
 
     assert "supersecretpw" not in str(error.value)
+
+
+def _production_env(monkeypatch):
+
+    monkeypatch.setenv("ENV", "production")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@db:5432/x")
+    monkeypatch.setenv("JWT_SECRET_KEY", "x" * 40)
+    monkeypatch.setenv("TOKEN_ENCRYPTION_KEY", "0" * 43 + "=")
+    monkeypatch.setenv("QDRANT_LOCATION", "")
+    monkeypatch.setenv("QDRANT_API_KEY", "k" * 32)
+    monkeypatch.setenv("REDIS_URL", "redis://redis:6379/0")
+
+
+def test_production_requires_a_qdrant_api_key(monkeypatch):
+
+    _production_env(monkeypatch)
+    monkeypatch.delenv("QDRANT_API_KEY")
+
+    with pytest.raises(ValueError, match="QDRANT_API_KEY"):
+        Settings(_env_file=None)
+
+
+def test_production_requires_redis_for_rate_limits(monkeypatch):
+
+    _production_env(monkeypatch)
+    monkeypatch.delenv("REDIS_URL")
+
+    with pytest.raises(ValueError, match="REDIS_URL"):
+        Settings(_env_file=None)
+
+
+def test_production_settings_are_complete(monkeypatch):
+
+    _production_env(monkeypatch)
+
+    production = Settings(_env_file=None)
+
+    assert production.log_format == "json" and production.WORKERS == 1
