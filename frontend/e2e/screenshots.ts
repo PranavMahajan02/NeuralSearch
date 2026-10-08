@@ -4,9 +4,8 @@
 //   SHOT_BASE_URL (frontend, default http://127.0.0.1:3000), SHOT_API_URL (backend, default :8000),
 //   SHOT_FOLDER: a folder holding only non-personal sample files.
 //   Run: node --experimental-strip-types e2e/screenshots.ts   (the demo user is deleted afterwards)
-import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,12 +16,29 @@ const API = process.env.SHOT_API_URL || "http://127.0.0.1:8000";
 const FOLDER = process.env.SHOT_FOLDER;
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = join(REPO, "docs", "screenshots");
-const PYTHON =
-  [join(REPO, "venv", "Scripts", "python.exe"), join(REPO, "venv", "bin", "python")].find(existsSync) ||
-  "python";
-
 const email = `e2e-demo-${randomBytes(3).toString("hex")}@cogniseek.dev`;
 const password = `Demo-${randomBytes(9).toString("base64url")}7`;
+
+/** Clean up through the real DELETE /auth/account flow. */
+async function deleteDemoAccount() {
+  const login = await fetch(`${API}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!login.ok) return; // never created, or already gone
+  const { access_token } = (await login.json()) as { access_token: string };
+  const deleted = await fetch(`${API}/auth/account`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${access_token}` },
+    body: JSON.stringify({ password }),
+  });
+  const result = deleted.ok
+    ? "demo account deleted"
+    : `could not delete the demo account (${deleted.status})`;
+  process.stdout.write(`${result}
+`);
+}
 
 async function settle(page: Page) {
   await page.waitForLoadState("networkidle");
@@ -117,10 +133,7 @@ async function main() {
     await shot(page, "mobile-dashboard-dark");
   } finally {
     await browser.close();
-    execFileSync(PYTHON, [join(REPO, "scripts", "delete_e2e_user.py"), email], {
-      cwd: REPO,
-      stdio: "inherit",
-    });
+    await deleteDemoAccount();
   }
 }
 

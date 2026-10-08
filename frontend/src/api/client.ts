@@ -55,8 +55,18 @@ export interface RequestOptions {
   signal?: AbortSignal;
 }
 
+/** The API base as an absolute URL without a trailing slash. A relative base
+ * ("/api", used behind the reverse proxy) is resolved against the page origin. */
+export function apiBase(configured: string = API_BASE_URL): string {
+  const base = configured.replace(/\/+$/, "");
+  return /^https?:\/\//i.test(base)
+    ? base
+    : new URL(base || "/", window.location.origin).toString().replace(/\/+$/, "");
+}
+
 export function apiUrl(path: string, query?: RequestOptions["query"]): string {
-  const url = new URL(path, API_BASE_URL);
+  // Appended, not resolved: new URL("/auth/x", "https://h/api") would drop "/api".
+  const url = new URL(apiBase() + (path.startsWith("/") ? path : `/${path}`));
 
   for (const [key, value] of Object.entries(query ?? {})) {
     if (value !== undefined) url.searchParams.set(key, String(value));

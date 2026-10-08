@@ -1,23 +1,16 @@
 // End-to-end smoke test against the real backend:
 // throwaway user -> register a temp folder with 3 files -> index -> search ->
-// download -> accessibility checks -> clean up (user, index data, temp folder).
-import { execFileSync } from "node:child_process";
+// download -> accessibility checks -> delete the account in the UI (the real
+// DELETE /auth/account flow) -> clean up the temp folder.
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
 const API = process.env.E2E_API_URL || "http://127.0.0.1:8000";
-const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const PYTHON =
-  process.env.E2E_PYTHON ||
-  [join(REPO, "venv", "Scripts", "python.exe"), join(REPO, "venv", "bin", "python")].find(existsSync) ||
-  "python";
-
 const id = randomBytes(4).toString("hex");
 const email = `e2e-${id}@cogniseek.dev`;
 const password = `E2e-${randomBytes(9).toString("base64url")}7`;
@@ -44,8 +37,18 @@ test.beforeAll(async ({ request }) => {
   expect(response.ok(), await response.text()).toBe(true);
 });
 
-test.afterAll(() => {
-  execFileSync(PYTHON, [join(REPO, "scripts", "delete_e2e_user.py"), email], { cwd: REPO, stdio: "inherit" });
+test.afterAll(async ({ request }) => {
+  // Normally the test already deleted the account in the UI; if it failed earlier,
+  // delete it through the same API (a 401 at login means it is already gone).
+  const login = await request.post(`${API}/auth/login`, { data: { email, password } });
+  if (login.ok()) {
+    const { access_token } = (await login.json()) as { access_token: string };
+    const deleted = await request.delete(`${API}/auth/account`, {
+      headers: { Authorization: `Bearer ${access_token}` },
+      data: { password },
+    });
+    expect(deleted.ok(), await deleted.text()).toBe(true);
+  }
   if (folder) rmSync(folder, { recursive: true, force: true });
 });
 
@@ -66,7 +69,7 @@ async function expectNoSeriousA11yViolations(page: Page) {
   expect(serious.map(describe)).toEqual([]);
 }
 
-test("new user: onboarding, priority = local, dashboard banner, search, download, clean up", async ({
+test("new user: onboarding, priority = local, dashboard banner, search, download, delete account", async ({
   page,
 }) => {
   // Log in through the UI (the original sign-in card).
@@ -130,7 +133,17 @@ test("new user: onboarding, priority = local, dashboard banner, search, download
   await page.getByRole("link", { name: "Indexing Center" }).first().click();
   await expectNoSeriousA11yViolations(page);
 
-  // Log out.
-  await page.getByRole("button", { name: "Log out" }).first().click();
+  // Delete the account: typed confirmation + password, then signed out for good.
+  await page.getByRole("button", { name: "Account settings" }).first().click();
+  const settings = page.getByRole("dialog", { name: "Account settings" });
+  await expectNoSeriousA11yViolations(page);
+  const danger = settings.getByRole("region", { name: "Delete account" });
+  await danger.getByLabel(/Type DELETE/).fill("DELETE");
+  await danger.getByLabel("Password").fill(password);
+  await danger.getByRole("button", { name: "Delete my account" }).click();
   await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByText("Your account and all of its data were deleted.")).toBeVisible();
+
+  const relogin = await page.request.post(`${API}/auth/login`, { data: { email, password } });
+  expect(relogin.status()).toBe(401);
 });

@@ -37,6 +37,20 @@ export const getProfile = (signal?: AbortSignal) => apiJson<User>("/auth/profile
 
 export const logout = () => apiJson<unknown>("/auth/logout", { method: "POST" });
 
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  apiJson<{ status: string; message: string }>("/auth/change-password", {
+    method: "POST",
+    json: { current_password: currentPassword, new_password: newPassword },
+  });
+
+export const exportMyData = () => apiBlob("/auth/export");
+
+export const deleteAccount = (password: string) =>
+  apiJson<{ status: string; deleted_files: number }>("/auth/account", {
+    method: "DELETE",
+    json: { password },
+  });
+
 export const getLoginState = () => apiJson<LoginStateResponse>("/auth/login-state");
 
 export const completeOnboarding = () =>

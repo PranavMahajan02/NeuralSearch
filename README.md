@@ -66,8 +66,9 @@ The backend URL comes from `VITE_API_BASE_URL` (default `http://127.0.0.1:8000`)
 
 Runs against the **real** backend: it creates a throwaway user `e2e-<id>@cogniseek.dev`, registers a
 temporary folder with 3 sample files, indexes it, searches, downloads a result, runs axe accessibility
-checks, logs out, then deletes the user and all of its data (`scripts/delete_e2e_user.py`, which refuses any
-other e-mail) and the temporary folder.
+checks, then deletes the account in the UI (Account settings → Delete account, i.e. the real
+`DELETE /auth/account` flow) and the temporary folder. If the test fails earlier, `afterAll` deletes the
+account through the same API.
 
 ```bash
 # backend running (uvicorn app.main:app) with its worker; then, in frontend/:
