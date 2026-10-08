@@ -1,0 +1,53 @@
+# DEVELOPMENT infrastructure only (Postgres + Qdrant for the non-Docker backend
+# on :8000 and the Vite dev server on :3000). The full containerised deployment
+# is docker-compose.yml.
+#   docker compose -f docker-compose.dev.yml up -d
+# Credentials come from .env (see .env.example). The project name is pinned so
+# the existing volumes/containers are reused. Ports are bound to 127.0.0.1 only
+# (takes effect when the containers are recreated).
+name: omniseach-ai
+
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: cogniseek-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  qdrant:
+    image: qdrant/qdrant:v1.18.2
+    container_name: cogniseek-qdrant
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+    volumes:
+      # Same mount as the original standalone "qdrant" container.
+      - qdrant_storage:/qdrant/storage:z
+    healthcheck:
+      # The image has bash but no curl/wget.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/6333 && printf 'GET /readyz HTTP/1.0\r\n\r\n' >&3 && grep -q '200 OK' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:
+    name: omniseach-ai_postgres_data
+  qdrant_storage:
+    external: true
