@@ -86,6 +86,7 @@ services:
       args:
         TORCH_VARIANT: ${TORCH_VARIANT:-cpu}
     image: cogniseek-backend:${TORCH_VARIANT:-cpu}
+    pull_policy: build
     env_file: .env
     environment:
       ENV: production
@@ -126,6 +127,7 @@ services:
       context: .
       dockerfile: deploy/caddy/Dockerfile
     image: cogniseek-caddy
+    pull_policy: build
     environment:
       DOMAIN: ${DOMAIN:-localhost}
       TLS: ${TLS:-internal}
@@ -148,6 +150,7 @@ services:
       context: .
       dockerfile: deploy/backup/Dockerfile
     image: cogniseek-backup
+    pull_policy: build
     environment:
       BACKUP_DATABASE_URL: postgresql://postgres:${POSTGRES_SUPERUSER_PASSWORD}@postgres:5432/${POSTGRES_DB:-cogniseek}
       QDRANT_URL: http://qdrant:6333

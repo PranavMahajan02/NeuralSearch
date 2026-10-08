@@ -155,7 +155,8 @@ class Qdrant:
         request = urllib.request.Request(self.url + path, data=body, method=method, headers=dict(headers or {}))
         if self.api_key:
             request.add_header("api-key", self.api_key)
-        if body is not None and "Content-Type" not in request.headers:
+        # urllib stores header names as "Content-type": ask has_header(), not `in`.
+        if body is not None and not request.has_header("Content-type"):
             request.add_header("Content-Type", "application/json")
         with urllib.request.urlopen(request, timeout=timeout) as response:
             data = response.read()

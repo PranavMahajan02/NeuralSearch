@@ -170,3 +170,32 @@ def test_prune_keeps_the_newest(tmp_path):
 
     assert [p.name for p in removed] == ["cogniseek-20260101T000000Z.tar.enc"]
     assert len(list(tmp_path.glob("*.tar.enc"))) == 2
+
+
+def test_snapshot_upload_keeps_its_multipart_content_type(monkeypatch, tmp_path):
+
+    seen = {}
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self):
+            return b'{"result": true}'
+
+    def fake_urlopen(request, timeout):
+        seen["content_type"] = request.get_header("Content-type")
+        seen["api_key"] = request.get_header("Api-key")
+        return Response()
+
+    monkeypatch.setattr(backup.urllib.request, "urlopen", fake_urlopen)
+    snapshot = tmp_path / "x.snapshot"
+    snapshot.write_bytes(b"snap")
+
+    restore.upload_snapshot(backup.Qdrant("http://qdrant:6333", "k"), "restorecheck_text", snapshot)
+
+    assert seen["content_type"].startswith("multipart/form-data; boundary=")
+    assert seen["api_key"] == "k"
