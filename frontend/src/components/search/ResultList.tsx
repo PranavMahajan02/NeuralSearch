@@ -7,6 +7,7 @@ import { useOpenFile } from "../../hooks/useOpenFile";
 import type { useSearch } from "../../hooks/useSearch";
 import { Button } from "../common/Button";
 import { Skeleton, Spinner } from "../common/Spinner";
+import { PossibleMatches } from "./PossibleMatches";
 import { ResultCard } from "./ResultCard";
 import { ResultDetailsModal } from "./ResultDetailsModal";
 
@@ -76,23 +77,46 @@ export function ResultList({ search, query, filtered, onClearFilters }: ResultLi
       return true;
     });
 
+  const possible = pages[0]?.possible_matches ?? [];
+  const detailsModal = details && (
+    <ResultDetailsModal
+      result={details}
+      opening={busyId === details.source_id}
+      onOpen={(r) => void open(r)}
+      onClose={() => setDetails(null)}
+    />
+  );
+  const possibleSection = (
+    <PossibleMatches
+      matches={possible}
+      noConfidentResults={total === 0}
+      openingId={busyId}
+      onOpen={(r) => void open(r)}
+      onDetails={setDetails}
+    />
+  );
+
   if (total === 0) {
     return (
-      <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white py-16 text-center dark:border-slate-800 dark:bg-slate-900">
-        <SearchX aria-hidden="true" className="mx-auto mb-3 h-10 w-10 text-rose-500" />
-        <p className="font-display text-sm font-medium text-slate-800 dark:text-slate-100">
-          No results for “{query}”
-        </p>
-        <ul className="mx-auto mt-2 max-w-sm space-y-1 text-xs text-slate-600 dark:text-slate-400">
-          <li>Check the spelling, or try fewer or more general words.</li>
-          <li>Describe what an image shows (e.g. “dog on a beach”).</li>
-          <li>Make sure the platform holding the file has been indexed.</li>
-        </ul>
-        {filtered && (
-          <Button className="mt-4" onClick={onClearFilters}>
-            Search all types and platforms
-          </Button>
-        )}
+      <div className="space-y-4">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white py-16 text-center dark:border-slate-800 dark:bg-slate-900">
+          <SearchX aria-hidden="true" className="mx-auto mb-3 h-10 w-10 text-rose-500" />
+          <p className="font-display text-sm font-medium text-slate-800 dark:text-slate-100">
+            No results for “{query}”
+          </p>
+          <ul className="mx-auto mt-2 max-w-sm space-y-1 text-xs text-slate-600 dark:text-slate-400">
+            <li>Check the spelling, or try fewer or more general words.</li>
+            <li>Describe what an image shows (e.g. “dog on a beach”).</li>
+            <li>Make sure the platform holding the file has been indexed.</li>
+          </ul>
+          {filtered && (
+            <Button className="mt-4" onClick={onClearFilters}>
+              Search all types and platforms
+            </Button>
+          )}
+        </div>
+        {possibleSection}
+        {detailsModal}
       </div>
     );
   }
@@ -127,14 +151,8 @@ export function ResultList({ search, query, filtered, onClearFilters }: ResultLi
           </Button>
         </div>
       )}
-      {details && (
-        <ResultDetailsModal
-          result={details}
-          opening={busyId === details.source_id}
-          onOpen={(r) => void open(r)}
-          onClose={() => setDetails(null)}
-        />
-      )}
+      {possibleSection}
+      {detailsModal}
     </section>
   );
 }

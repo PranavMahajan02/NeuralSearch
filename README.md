@@ -151,7 +151,12 @@ python scripts/purge_excluded.py             # delete them (vectors + ledger row
   (about half of the visual-only video queries in the evaluation; `docs/eval/phase6c-video-gate.md`);
   short or background details (a stream behind a person) are missed. Indexing cost on this machine:
   decoding ≈ 12 s per video-minute plus CLIP ≈ 140 ms per frame (≈ 1.7 s per video-minute). Halving
-  the interval would double the CLIP time and the frame storage for a modest recall gain.
+  the interval was measured and rejected: at 2 s the Forest Bathing video has 2.5× the frames and 2.4×
+  the CLIP time, yet "river" scores *lower* (z 3.49 → 3.12) because the best frame is already sampled
+  and the video's own baseline rises with more frames (`docs/eval/phase6d-possible-tier.md`).
+- **Possible visual matches**: images/videos just below the visual threshold (video z 3.0–5.3, image
+  CLIP margin 0.015–0.030) are shown in a separate, labelled "Low confidence" section (max 3), never
+  mixed into the results or the count. About half an unrelated item per query appears there on average.
 - **Typos** are tolerated in single words ("jva" → "java"), but a typo plus an unmatched word
   ("jva notes") may return nothing.
 - **Evaluation:** 1 false positive remains on the negative set — "elephant" returns a Java document whose

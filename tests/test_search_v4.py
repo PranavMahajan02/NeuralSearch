@@ -677,3 +677,95 @@ def test_indexed_frames_store_their_time_and_the_video_null(client, user, local_
     assert [p["frame_time_s"] for p in mine] == [0, 5, 10]
     assert all(p["null_mean"] is not None and p["null_std"] > 0 for p in mine)
     assert len({p["null_mean"] for p in mine}) == 1   # one null per video
+
+
+# ---------------------------------------------------------------------------
+# Phase 6D: "possible visual matches" (low-confidence tier)
+# ---------------------------------------------------------------------------
+
+def z_video(file, z, frame_time=20):
+    # null mean 0, std 0.01 -> z = margin / 0.01
+    return video(file, z * 0.01, null_mean=0.0, null_std=0.01, frame_time=frame_time)
+
+
+@pytest.mark.parametrize("z, possible", [(2.99, False), (3.0, True), (4.5, True), (5.29, True), (5.3, False)])
+def test_video_tier_boundaries(z, possible):
+
+    from app.search.ranking import possible_visual_matches, score_candidates
+
+    c = z_video("forest.mp4", z)
+    returned = {s.candidate.key for s in score_candidates([c], "river")}
+    tier = possible_visual_matches([c], returned)
+
+    assert (len(tier) == 1) is possible
+    if possible:
+        assert tier[0].match["confidence"] == "low" and tier[0].match["frame_time_s"] == 20
+    if z >= 5.3:
+        assert returned  # a confident result, never also "possible"
+
+
+@pytest.mark.parametrize("margin, possible", [(0.0149, False), (0.015, True), (0.0299, True), (0.03, False)])
+def test_image_tier_boundaries(margin, possible):
+
+    from app.search.ranking import possible_visual_matches, score_candidates
+
+    c = image("IMG_1.webp", margin)
+    returned = {s.candidate.key for s in score_candidates([c], "dog")}
+
+    assert (len(possible_visual_matches([c], returned)) == 1) is possible
+
+
+def test_document_photos_never_enter_the_tier():
+
+    from app.search.ranking import possible_visual_matches
+
+    page = " ".join(["candidate roll number examination centre subject"] * 5)
+    assert possible_visual_matches([image("scan.jpeg", 0.02, ocr=page)], set()) == []
+
+
+def test_tier_is_capped_at_three_and_sorted_by_score():
+
+    from app.search.ranking import possible_visual_matches
+
+    candidates = [z_video(f"v{i}.mp4", 3.0 + i * 0.4) for i in range(5)] + [image("a.webp", 0.016)]
+    tier = possible_visual_matches(candidates, set())
+
+    # Same score scale as confident results: an image at margin 0.016 (0.128) outranks a video at z 3.8 (0.107).
+    assert [t.candidate.file for t in tier] == ["v4.mp4", "v3.mp4", "a.webp"]
+    assert [t.score for t in tier] == sorted((t.score for t in tier), reverse=True)
+
+
+def possible_api(client, user, monkeypatch, search_type="all", offset=0):
+
+    import app.services.search_service as service
+
+    candidates = [z_video("forest.mp4", 3.5), z_video("space.mp4", 4.0), image("lake.webp", 0.02),
+                  image("dog.webp", 0.06)]   # dog.webp passes the gate: a confident result
+    monkeypatch.setattr(service, "retrieve", lambda *a, **k: {c.key: c for c in candidates})
+
+    response = client.post("/search/", json={"query": "river", "search_type": search_type, "offset": offset},
+                           headers=user["headers"])
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_api_possible_matches_are_separate_and_never_counted(client, user, monkeypatch):
+
+    body = possible_api(client, user, monkeypatch)
+
+    assert [r["file"] for r in body["results"]] == ["dog.webp"] and body["total"] == 1
+    assert [r["file"] for r in body["possible_matches"]] == ["lake.webp", "space.mp4", "forest.mp4"]
+    assert all(r["match"]["confidence"] == "low" for r in body["possible_matches"])
+    assert "confidence" not in body["results"][0]["match"]
+    assert body["possible_matches"][1]["match"]["frame_time_s"] == 20
+
+
+@pytest.mark.parametrize("search_type, expected", [("document", 0), ("audio", 0), ("video", 3), ("image", 3)])
+def test_api_possible_matches_only_for_visual_search_types(client, user, monkeypatch, search_type, expected):
+
+    assert len(possible_api(client, user, monkeypatch, search_type)["possible_matches"]) == expected
+
+
+def test_api_possible_matches_only_with_the_first_page(client, user, monkeypatch):
+
+    assert possible_api(client, user, monkeypatch, offset=20)["possible_matches"] == []

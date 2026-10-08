@@ -232,3 +232,61 @@ describe("video frame matches", () => {
     );
   });
 });
+
+describe("possible visual matches", () => {
+  const possibleVideo = makeResult({
+    platform: "google_drive",
+    source_id: "forest",
+    type: "video",
+    file: "forest bathing.mp4",
+    score: 0.07,
+    match: {
+      reasons: ["visual"],
+      field: "filename",
+      snippet: "forest bathing.mp4",
+      highlights: [],
+      frame_time_s: 20,
+      confidence: "low",
+    },
+  });
+
+  it("shows them under the results, labelled, and never in the count", async () => {
+    server.use(
+      http.post(api("/search/"), () =>
+        HttpResponse.json({ ...searchResponse([makeResult()]), possible_matches: [possibleVideo] }),
+      ),
+    );
+    renderApp({ route: "/search?q=river" });
+
+    const section = (await screen.findByRole("heading", { name: "Possible visual matches" })).closest(
+      "section",
+    )!;
+    expect(within(section).getByText("forest bathing.mp4")).toBeInTheDocument();
+    expect(within(section).getByText("Low confidence")).toBeInTheDocument();
+    expect(within(section).getByText("Looks similar (frame at 0:20)")).toBeInTheDocument();
+    expect(within(section).getByRole("button", { name: "Open forest bathing.mp4" })).toBeInTheDocument();
+    // The main list and its count are untouched.
+    expect(screen.getByText(/1 matching result · showing 1/)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "forest bathing.mp4" })).not.toBeInTheDocument();
+  });
+
+  it("is shown when there are no confident results", async () => {
+    server.use(
+      http.post(api("/search/"), () =>
+        HttpResponse.json({ ...searchResponse([]), possible_matches: [possibleVideo] }),
+      ),
+    );
+    renderApp({ route: "/search?q=river" });
+
+    expect(await screen.findByText("No results for “river”")).toBeInTheDocument();
+    const heading = screen.getByRole("heading", { name: "No confident matches — possible visual matches:" });
+    expect(within(heading.closest("section")!).getByText("forest bathing.mp4")).toBeInTheDocument();
+  });
+
+  it("is absent when the API returns none", async () => {
+    renderApp({ route: "/search?q=java" });
+
+    await screen.findByRole("heading", { name: "java notes.pdf" });
+    expect(screen.queryByText(/possible visual matches/i)).not.toBeInTheDocument();
+  });
+});

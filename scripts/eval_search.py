@@ -113,6 +113,9 @@ def run(base_url: str, headers: dict, queries: list, limit: int, include_self: b
             "latency_s": round(latency, 4),
             "returned": len(results),
             "top5": files[:5],
+            # Low-confidence tier: reported separately, never part of the metrics above.
+            "possible": [r.get("file") for r in response.json().get("possible_matches", [])
+                         if not is_self_artifact(r)] if response.status_code == 200 else [],
         }
 
         if dropped:
@@ -149,8 +152,33 @@ def run(base_url: str, headers: dict, queries: list, limit: int, include_self: b
     aggregate["non_visual"] = summarize([r for r in per_query if not r.get("visual") and not r.get("code") and not r.get("visual_video")], [])
     aggregate["code"] = summarize([r for r in per_query if r.get("code")], [])
     aggregate["visual_video"] = summarize([r for r in per_query if r.get("visual_video")], [])
+    aggregate["possible_tier"] = possible_tier(per_query, queries)
 
     return {"aggregate": aggregate, "per_query": per_query}
+
+
+def possible_tier(per_query: list, queries: list) -> dict:
+    """The "possible visual matches" tier: targets it recovers (visual subsets, only those NOT
+    already found in results) and the non-matching items it shows per query."""
+
+    expected = {q["query"]: {e.lower() for e in q.get("expected") or []} for q in queries}
+    out = {}
+
+    for name, flag in (("visual_video", "visual_video"), ("visual_image", "visual")):
+        rows = [r for r in per_query if r.get(flag) and not r.get("negative")]
+        missed = recovered = 0
+        for r in rows:
+            found = {f.lower() for f in r["top5"]}
+            for target in expected[r["query"]] - found:
+                missed += 1
+                recovered += target in {f.lower() for f in r["possible"]}
+        out[name] = {"targets_missed_by_results": missed, "recovered_by_tier": recovered}
+
+    noise = [sum(1 for f in r["possible"] if f.lower() not in expected[r["query"]]) for r in per_query]
+    out["noise_per_query_avg"] = round(sum(noise) / max(1, len(noise)), 3)
+    out["noise_per_query_max"] = max(noise, default=0)
+
+    return out
 
 
 def summarize(per_query: list, latencies: list) -> dict:
@@ -196,6 +224,13 @@ def print_report(report: dict, label: str):
         if a:
             print(f"{name:12} P@5 {a['precision_at_5']:.3f} | R@10 {a['recall_at_10']:.3f} | MRR {a['mrr']:.3f} | "
                   f"negatives FP {a['negative_false_positives']} ({a['negative_queries_with_results']}/{a['negative_queries']})")
+
+    tier = report["aggregate"].get("possible_tier")
+    if tier:
+        v, im = tier["visual_video"], tier["visual_image"]
+        print(f"possible tier: recovers {v['recovered_by_tier']}/{v['targets_missed_by_results']} missed video targets, "
+              f"{im['recovered_by_tier']}/{im['targets_missed_by_results']} missed image targets | "
+              f"noise per query avg {tier['noise_per_query_avg']} max {tier['noise_per_query_max']}")
 
     a = report["aggregate"]
     print(f"\nprecision@5 {a['precision_at_5']:.3f} | recall@10 {a['recall_at_10']:.3f} | MRR {a['mrr']:.3f} | "

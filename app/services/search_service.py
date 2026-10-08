@@ -8,7 +8,7 @@ from typing import Optional
 
 from app.core.config import settings
 from app.search.normalize import normalize_text, query_terms
-from app.search.ranking import frame_z, score_candidates
+from app.search.ranking import frame_z, possible_visual_matches, score_candidates
 from app.search.retrieval import retrieve
 
 
@@ -123,7 +123,7 @@ def search(
 
     # Nothing meaningful to look for (e.g. "!!!" or a single character).
     if len(normalized) < 2 or not query_terms(normalized):
-        return {"total": 0, "results": []}
+        return {"total": 0, "results": [], "possible_matches": []}
 
     platform_filter = None if platform == "all" else platform
 
@@ -131,50 +131,63 @@ def search(
     ranked = score_candidates(list(candidates.values()), normalized)
 
     page = ranked[offset:offset + limit]
-    metadata = ledger_metadata(user_id, [item.candidate.key for item in page])
 
-    results = []
+    # Low-confidence visual tier: only for searches that can return images/videos,
+    # only with the first page, never counted in total.
+    possible = []
+    if search_type in VISUAL_SEARCH_TYPES and offset == 0:
+        possible = possible_visual_matches(list(candidates.values()), {item.candidate.key for item in ranked})
 
-    for item in page:
+    metadata = ledger_metadata(user_id, [item.candidate.key for item in page + possible])
 
-        c = item.candidate
-        path = _display_path(c)
-
-        result = {
-            "platform": c.platform,
-            "source_id": c.source_id,
-            "type": c.file_type,
-            "file": c.file,
-            "display_path": path,
-            "path": path,
-            "score": item.score,
-            "match": item.match,
-            **metadata.get(c.key, EMPTY_METADATA),
-            "extension": os.path.splitext(c.file or "")[1].lower().lstrip(".") or None,
-        }
-
-        if c.platform == "github":
-            result["owner"] = c.owner
-            result["repo"] = c.repo
-
-        if debug:
-            result["debug"] = {
-                "semantic": round(item.semantic, 4),
-                "name": round(item.name, 4),
-                "content": round(item.content, 4),
-                "text_margin": c.text_margin,
-                "clip_margin": c.clip_margin,
-                "frame_z": frame_z(c),
-                "text_cosine": c.text_cosine,
-                "clip_cosine": c.clip_cosine,
-                "name_similarity": c.name_similarity,
-            }
-
-        results.append(result)
+    results = [_result(item, metadata, debug) for item in page]
+    possible_matches = [_result(item, metadata, debug) for item in possible]
 
     logger.info(
-        "search: %d candidates -> %d results (%d returned) in %.0f ms",
-        len(candidates), len(ranked), len(results), (time.perf_counter() - start) * 1000
+        "search: %d candidates -> %d results (%d returned, %d possible) in %.0f ms",
+        len(candidates), len(ranked), len(results), len(possible_matches), (time.perf_counter() - start) * 1000
     )
 
-    return {"total": len(ranked), "results": results}
+    return {"total": len(ranked), "results": results, "possible_matches": possible_matches}
+
+
+VISUAL_SEARCH_TYPES = ("all", "image", "video")
+
+
+def _result(item, metadata, debug) -> dict:
+    """One API result (same shape for results and possible_matches)."""
+
+    c = item.candidate
+    path = _display_path(c)
+
+    result = {
+        "platform": c.platform,
+        "source_id": c.source_id,
+        "type": c.file_type,
+        "file": c.file,
+        "display_path": path,
+        "path": path,
+        "score": item.score,
+        "match": item.match,
+        **metadata.get(c.key, EMPTY_METADATA),
+        "extension": os.path.splitext(c.file or "")[1].lower().lstrip(".") or None,
+    }
+
+    if c.platform == "github":
+        result["owner"] = c.owner
+        result["repo"] = c.repo
+
+    if debug:
+        result["debug"] = {
+            "semantic": round(item.semantic, 4),
+            "name": round(item.name, 4),
+            "content": round(item.content, 4),
+            "text_margin": c.text_margin,
+            "clip_margin": c.clip_margin,
+            "frame_z": frame_z(c),
+            "text_cosine": c.text_cosine,
+            "clip_cosine": c.clip_cosine,
+            "name_similarity": c.name_similarity,
+        }
+
+    return result

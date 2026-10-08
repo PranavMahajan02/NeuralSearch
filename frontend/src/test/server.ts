@@ -83,6 +83,7 @@ export function searchResponse(results: SearchResult[], extra: Partial<SearchRes
     offset: 0,
     total: results.length,
     results,
+    possible_matches: [],
     ...extra,
   };
 }
