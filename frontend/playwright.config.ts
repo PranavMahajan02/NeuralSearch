@@ -4,6 +4,9 @@ import { defineConfig, devices } from "@playwright/test";
 //   E2E_BASE_URL  the frontend (default: start `npm run dev` on 127.0.0.1:3000)
 //   E2E_API_URL   the backend (default http://127.0.0.1:8000)
 const baseURL = process.env.E2E_BASE_URL || "http://127.0.0.1:3000";
+// The Docker stack on https://localhost uses Caddy's internal (self-signed) CA.
+// Accepted here only, for local hosts only.
+const selfSignedLocalhost = /^https:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(baseURL);
 
 export default defineConfig({
   testDir: "./e2e",
@@ -17,6 +20,7 @@ export default defineConfig({
     baseURL,
     trace: "retain-on-failure",
     acceptDownloads: true,
+    ignoreHTTPSErrors: selfSignedLocalhost,
     // No CSS transitions: accessibility scans must not sample colours mid-transition.
     contextOptions: { reducedMotion: "reduce" },
   },

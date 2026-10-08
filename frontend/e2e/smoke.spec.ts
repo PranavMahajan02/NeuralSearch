@@ -5,7 +5,7 @@
 import { randomBytes } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
@@ -17,6 +17,15 @@ const password = `E2e-${randomBytes(9).toString("base64url")}7`;
 const marker = `zephyrquartz${id}`; // a word that exists only in this test's files
 
 let folder = "";
+
+/** The path the backend sees. In Docker the host folder E2E_FILES_ROOT is mounted
+ * at E2E_CONTAINER_ROOT (e.g. ./sample-data -> /data), so the path is mapped. */
+function backendPath(hostPath: string): string {
+  const containerRoot = process.env.E2E_CONTAINER_ROOT;
+  if (!containerRoot || !process.env.E2E_FILES_ROOT) return hostPath;
+  const rel = relative(process.env.E2E_FILES_ROOT, hostPath).split(/[\\/]/).join("/");
+  return `${containerRoot.replace(/\/+$/, "")}/${rel}`;
+}
 
 test.beforeAll(async ({ request }) => {
   // The folder must be inside the backend's ALLOWED_LOCAL_ROOTS (default: the home directory).
@@ -84,7 +93,7 @@ test("new user: onboarding, priority = local, dashboard banner, search, download
   await expect(page).toHaveURL(/\/onboarding$/);
   await expect(page.getByRole("heading", { name: "Connect Your Platforms" })).toBeVisible();
   await expectNoSeriousA11yViolations(page);
-  await page.getByLabel(/Add a folder/).fill(folder);
+  await page.getByLabel(/Add a folder/).fill(backendPath(folder));
   await page.getByRole("button", { name: "Add folder" }).click();
   await expect(page.getByRole("list", { name: "Registered folders" })).toContainText("cogniseek-e2e-");
   await page.getByRole("button", { name: /Continue to Priority Indexing/ }).click();
