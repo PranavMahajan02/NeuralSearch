@@ -144,7 +144,7 @@ scikit-image==0.26.0
 scikit-learn==1.9.1
 scipy==1.17.1
 sentence-transformers==5.6.0
-setuptools==83.0.0
+setuptools==81.0.0
 shapely==2.2.0
 six==1.17.0
 slowapi==0.1.10
