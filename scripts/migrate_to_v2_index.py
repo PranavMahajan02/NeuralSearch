@@ -23,7 +23,6 @@ import os
 import re
 import sys
 from collections import Counter, defaultdict
-from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -38,6 +37,7 @@ from app.services.indexing_pipeline import github_source_id, local_source_id  # 
 from app.vectorstore.client import get_client  # noqa: E402
 from app.vectorstore.config import collection_for_type  # noqa: E402
 from app.vectorstore.schema import ensure_collections, point_id  # noqa: E402
+from app.core.clock import utcnow  # noqa: E402
 
 
 OLD_COLLECTIONS = {
@@ -286,7 +286,7 @@ def write(client, owner_id, sources, planned):
         for start in range(0, len(points), BATCH):
             client.upsert(collection_name=name, points=points[start:start + BATCH], wait=True)
 
-    now = datetime.utcnow()
+    now = utcnow()
 
     with SessionLocal() as db:
 

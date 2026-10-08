@@ -47,7 +47,7 @@ def guess_mime(name: str) -> Optional[str]:
 
 
 def parse_rfc3339(value: Optional[str]) -> Optional[datetime]:
-    """'2026-10-06T15:25:53.000Z' -> naive UTC datetime (None if absent/invalid)."""
+    """'2026-10-06T15:25:53.000Z' -> aware UTC datetime (None if absent/invalid)."""
 
     if not value:
         return None
@@ -57,7 +57,7 @@ def parse_rfc3339(value: Optional[str]) -> Optional[datetime]:
     except ValueError:
         return None
 
-    return parsed.astimezone(timezone.utc).replace(tzinfo=None) if parsed.tzinfo else parsed
+    return parsed.astimezone(timezone.utc) if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
 def local_meta(user_id, path: str) -> FileMeta:
@@ -74,7 +74,7 @@ def local_meta(user_id, path: str) -> FileMeta:
         file_type=file_type_for(real) or "unsupported",
         version=repr(stat.st_mtime),
         size_bytes=stat.st_size,
-        modified_at=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).replace(tzinfo=None),
+        modified_at=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
         mime_type=guess_mime(real)
     )
 

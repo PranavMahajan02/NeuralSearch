@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.search.normalize import normalize_text, query_terms
 from app.search.ranking import frame_z, possible_visual_matches, score_candidates
 from app.search.retrieval import retrieve
+from app.core.clock import iso
 
 
 logger = logging.getLogger("cogniseek.search")
@@ -58,7 +59,7 @@ def ledger_metadata(user_id, keys) -> dict:
     return {
         (platform, source_id): {
             "file_size": size,
-            "modified_at": modified.isoformat() + "Z" if modified else None,
+            "modified_at": iso(modified),
             "mime_type": mime,
         }
         for platform, source_id, size, modified, mime in rows

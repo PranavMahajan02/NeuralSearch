@@ -27,6 +27,7 @@ from app.vectorstore.client import get_client
 from app.vectorstore.config import all_collections, collection_for_type
 from app.vectorstore.query import user_filter
 from app.vectorstore.schema import point_id
+from app.core.clock import utcnow
 
 
 logger = logging.getLogger("cogniseek.index_store")
@@ -48,7 +49,7 @@ class FileMeta:
     default_branch: Optional[str] = None     # GitHub
     web_view_link: Optional[str] = None      # Google Drive
     size_bytes: Optional[int] = None
-    modified_at: Optional[datetime] = None   # naive UTC
+    modified_at: Optional[datetime] = None   # aware UTC
     mime_type: Optional[str] = None
 
 
@@ -228,7 +229,7 @@ def record_status(meta: FileMeta, status: str, error: Optional[str] = None, sess
 
 def _record(meta: FileMeta, status: str, chunk_count, error=None, session_factory=SessionLocal) -> IndexedFile:
 
-    now = datetime.utcnow()
+    now = utcnow()
 
     with session_factory() as db:
 

@@ -120,12 +120,10 @@ def export_account(db: Session, user_id) -> dict:
     """Everything CogniSeek stores about the user, without secrets or contents:
     profile, connections (account names only), folders, jobs, and the file ledger."""
 
+    from app.core.clock import iso
     from app.scheduler.jobs import serialize_job
 
     user = db.get(User, user_id)
-
-    def iso(value):
-        return value.isoformat() if value is not None else None
 
     return {
         "format": "cogniseek-export-v1",

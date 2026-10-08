@@ -10,6 +10,7 @@ from sqlalchemy import text
 import app.platforms.github.oauth as oauth
 from app.core.config import settings
 from app.database.models import OAuthState
+from app.core.clock import utcnow
 
 
 FRONTEND = settings.FRONTEND_URL
@@ -86,7 +87,7 @@ def test_connect_stores_random_single_use_state(client, user, db):
     assert str(row.user_id) == user["id"]
     assert row.platform == "github"
     assert row.used is False
-    assert timedelta(minutes=9) < row.expires_at - datetime.utcnow() <= timedelta(minutes=10)
+    assert timedelta(minutes=9) < row.expires_at - utcnow() <= timedelta(minutes=10)
 
 
 def test_valid_state_connects_the_state_owner(client, user, db, fake_github):
@@ -125,7 +126,7 @@ def test_expired_state_is_rejected(client, user, db, fake_github):
     state = start_connect(client, user)
 
     row = db.get(OAuthState, state)
-    row.expires_at = datetime.utcnow() - timedelta(seconds=1)
+    row.expires_at = utcnow() - timedelta(seconds=1)
     db.commit()
 
     assert redirect_params(callback(client, code="good", state=state))["reason"] == "state_expired"
