@@ -168,6 +168,9 @@ E2E_BASE_URL=https://localhost E2E_API_URL=https://localhost/api \
   E2E_FILES_ROOT=../sample-data E2E_CONTAINER_ROOT=/data npm run test:e2e
 ```
 
+In Git Bash on Windows prefix it with `MSYS_NO_PATHCONV=1`, otherwise `/data` is rewritten to a
+Windows path. The test fails on any Content-Security-Policy violation reported by the browser.
+
 ## Database migrations
 
 The schema is managed with Alembic (the app no longer calls `create_all`).
