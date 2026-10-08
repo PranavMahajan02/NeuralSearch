@@ -118,6 +118,14 @@ class ModelManager:
 
         return self._ocr_model
 
+    @property
+    def ready(self) -> bool:
+        """Every preloaded model is in memory (GET /ready)."""
+
+        return all(m is not None for m in (
+            self._semantic_model, self._clip_model, self._clip_processor, self._whisper_model, self._ocr_model
+        ))
+
     def preload(self) -> None:
 
         _ = self.semantic_model

@@ -8,6 +8,9 @@ from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.config import settings
 from app.core.errors import register_error_handlers
+from app.core.logging_setup import configure_logging
+from app.core import metrics
+from app.core.request_id import RequestIdMiddleware
 from app.core.rate_limit import limiter
 from app.core.security_headers import SecurityHeadersMiddleware
 
@@ -21,6 +24,7 @@ from app.routes.delete import router as delete_router
 from app.routes.open import router as open_router
 from app.routes.files import router as files_router
 from app.routes.dashboard import router as dashboard_router
+from app.routes.health import router as health_router
 from app.vectorstore.schema import ensure_collections
 from app.routes.login_state import router as login_state_router
 from app.routes import platforms
@@ -30,7 +34,7 @@ from app.scheduler.jobs import recover_interrupted_jobs
 from app.scheduler.worker import clear_orphaned_job_dirs, worker as indexing_worker
 
 
-logging.basicConfig(level=logging.INFO)
+configure_logging(settings.log_format, settings.LOG_LEVEL)
 
 
 logger = logging.getLogger("cogniseek")
@@ -117,10 +121,20 @@ app.add_middleware(
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
     # Lets the browser read the download file name from /files/local.
-    expose_headers=["Content-Disposition"],
+    expose_headers=["Content-Disposition", "X-Request-ID"],
 )
+
+# Outermost: every log line of the request, including errors, carries the id.
+app.add_middleware(RequestIdMiddleware)
+
+# Liveness / readiness (compose healthchecks).
+app.include_router(health_router)
+
+# GET /metrics: scraped on the internal network only (never proxied by Caddy).
+if settings.METRICS_ENABLED:
+    metrics.install(app)
 
 # Register Routers
 app.include_router(search_router)
