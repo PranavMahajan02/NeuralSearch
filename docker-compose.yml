@@ -100,6 +100,10 @@ services:
       CORS_ORIGINS: https://${DOMAIN:-localhost}
       GOOGLE_REDIRECT_URI: https://${DOMAIN:-localhost}/api/platforms/google-drive/callback
       ALLOWED_LOCAL_ROOTS: /data
+      # Container paths: these override the development values .env may carry.
+      DATA_DIR: /var/lib/cogniseek
+      TEMP_DIR: /var/lib/cogniseek/temp
+      POPPLER_PATH: ""
       GITHUB_OAUTH_CONFIG_PATH: /app/credentials/github_oauth.json
       GOOGLE_CLIENT_SECRET_PATH: /app/credentials/client_secret.json
       WORKERS: ${WORKERS:-1}

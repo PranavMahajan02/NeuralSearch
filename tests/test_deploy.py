@@ -66,6 +66,18 @@ def test_secrets_are_required_and_production_is_forced():
     assert any(v.endswith(":/data:ro") for v in backend["volumes"])
 
 
+def test_container_settings_override_development_values_from_env_file():
+    """The backend reads .env (env_file), which holds development values such as
+    DATA_DIR=data; every path/host setting must be pinned in `environment`."""
+
+    environment = compose()["services"]["backend"]["environment"]
+    for key in ("DATABASE_URL", "QDRANT_HOST", "QDRANT_LOCATION", "REDIS_URL", "DATA_DIR", "TEMP_DIR",
+                "ALLOWED_LOCAL_ROOTS", "POPPLER_PATH", "FRONTEND_URL", "BACKEND_PUBLIC_URL", "CORS_ORIGINS",
+                "GOOGLE_REDIRECT_URI", "GITHUB_OAUTH_CONFIG_PATH", "GOOGLE_CLIENT_SECRET_PATH", "ENV"):
+        assert key in environment, key
+    assert environment["DATA_DIR"].startswith("/") and environment["TEMP_DIR"].startswith("/")
+
+
 def test_the_app_database_role_is_not_a_superuser():
 
     postgres = compose()["services"]["postgres"]["environment"]
