@@ -200,3 +200,12 @@ describe("resilience", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });
+
+describe("apiBase", () => {
+  it("keeps an absolute base and resolves the proxy's relative /api against the page", async () => {
+    const { apiBase } = await import("../api/client");
+    expect(apiBase("http://127.0.0.1:8000/")).toBe("http://127.0.0.1:8000");
+    expect(apiBase("/api")).toBe(`${window.location.origin}/api`);
+    expect(apiBase("/api/")).toBe(`${window.location.origin}/api`);
+  });
+});

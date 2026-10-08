@@ -17,6 +17,9 @@ interface AuthValue {
   sessionExpired: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Forget the token locally (the server already ended the session, e.g. after a
+   * password change or account deletion) and go to the login page. */
+  clearSession: () => void;
   /** Onboarding finished or skipped: update the cached profile. */
   markOnboarded: () => void;
 }
@@ -59,17 +62,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [queryClient],
   );
 
+  const clearSession = useCallback(() => {
+    clearToken();
+    queryClient.clear();
+    setTokenState(null);
+    navigate("/login", { replace: true });
+  }, [navigate, queryClient]);
+
   const logout = useCallback(async () => {
     try {
       await api.logout(); // revokes every token of this user on the server
     } catch {
       /* logging out locally is enough if the server is unreachable */
     }
-    clearToken();
-    queryClient.clear();
-    setTokenState(null);
-    navigate("/login", { replace: true });
-  }, [navigate, queryClient]);
+    clearSession();
+  }, [clearSession]);
 
   const markOnboarded = useCallback(() => {
     queryClient.setQueryData<User>(["profile", token], (old) =>
@@ -82,8 +89,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const status: AuthStatus =
       token === null || profile.isError ? "anonymous" : user ? "authenticated" : "checking";
 
-    return { status, user, userId: user?.id ?? "", sessionExpired, login, logout, markOnboarded };
-  }, [token, profile.data, profile.isError, sessionExpired, login, logout, markOnboarded]);
+    return {
+      status,
+      user,
+      userId: user?.id ?? "",
+      sessionExpired,
+      login,
+      logout,
+      clearSession,
+      markOnboarded,
+    };
+  }, [token, profile.data, profile.isError, sessionExpired, login, logout, clearSession, markOnboarded]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

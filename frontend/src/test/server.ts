@@ -3,7 +3,7 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 
-import { API_BASE_URL } from "../api/client";
+import { apiUrl } from "../api/client";
 import type {
   DashboardStats,
   FoldersResponse,
@@ -14,7 +14,7 @@ import type {
   User,
 } from "../api/types";
 
-export const api = (path: string) => new URL(path, API_BASE_URL).toString();
+export const api = (path: string) => apiUrl(path);
 
 export const USER: User = {
   id: "11111111-1111-1111-1111-111111111111",
@@ -133,6 +133,25 @@ export const handlers = [
   http.get(api("/auth/profile"), () => HttpResponse.json(USER)),
   http.get(api("/auth/login-state"), () => HttpResponse.json({ has_indexed: true, platforms: ["local"] })),
   http.post(api("/auth/logout"), () => HttpResponse.json({ status: "success" })),
+  http.post(api("/auth/change-password"), () =>
+    HttpResponse.json({ status: "success", message: "Password changed. Please sign in again." }),
+  ),
+  http.get(api("/auth/export"), () =>
+    HttpResponse.json(
+      {
+        format: "cogniseek-export-v1",
+        profile: USER,
+        connections: [],
+        local_folders: [],
+        jobs: [],
+        files: [],
+      },
+      { headers: { "Content-Disposition": 'attachment; filename="cogniseek-export.json"' } },
+    ),
+  ),
+  http.delete(api("/auth/account"), () =>
+    HttpResponse.json({ status: "success", deleted_files: 3, revoked: {} }),
+  ),
   http.get(api("/search/health"), () => HttpResponse.json({ status: "Search API Ready" })),
   http.get(api("/dashboard/stats"), () => HttpResponse.json(makeStats())),
   http.get(api("/dashboard/recent"), () => HttpResponse.json(recent)),
