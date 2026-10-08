@@ -28,7 +28,8 @@ RUN set -eux; \
     test -n "$TORCH_VERSION"; \
     pip install --index-url "https://download.pytorch.org/whl/${TORCH_VARIANT}" \
         "torch==${TORCH_VERSION}" torchvision torchaudio; \
-    pip install -r /tmp/requirements-linux.lock; \
+    pip freeze | grep -E '^(torch|torchvision|torchaudio)==' > /tmp/torch-constraints.txt; \
+    pip install -c /tmp/torch-constraints.txt -r /tmp/requirements-linux.lock; \
     pip check
 
 # ---------------------------------------------------------------------------

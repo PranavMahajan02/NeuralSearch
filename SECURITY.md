@@ -131,7 +131,7 @@ release) is no longer installed and runs on demand via `npx`.
 
 **Python** (`pip-audit` on `backend/requirements-linux.lock`). Fixed:
 `cryptography` 48 → 50.0.0, `sentence-transformers` 5.5.1 → 5.6.0, `setuptools` 78 →
-83.0.0. Remaining, with the reason:
+81.0.0. Remaining, with the reason:
 
 | Package | Why it is not upgraded yet | Exposure |
 |---|---|---|
@@ -140,6 +140,7 @@ release) is no longer installed and runs on demand via `npx`.
 | `opencv-python(-contrib)` 4.6.0.66 | `paddleocr` 2.7.3 requires `<=4.6.0.66`. | Same as above (decoding of user images/video). |
 | `paddlepaddle` 2.6.2 | Fix is in 3.0, which `paddleocr` 2.7 does not support (requires the PaddleOCR 3 migration). | OCR of user images/PDF pages. |
 | `python-jose` 3.5.0 / `ecdsa` 0.19.2 | No fixed release. The advisories concern ECDSA (timing side channel); we only use HS256. | Not reachable. Plan: switch to PyJWT. |
+| `setuptools` 81.0.0 | One advisory is fixed in 83, but torch 2.11 requires `setuptools<82`. | Build/packaging tool; not used by the running app. |
 | `imgaug` 0.4.0 | No fixed release; pulled in by `paddleocr`, used for training-time augmentation only. | Not called at runtime. |
 
 The Windows development venv (`requirements.txt`) pins the same versions where they
