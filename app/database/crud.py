@@ -1,4 +1,3 @@
-from datetime import datetime
 
 from sqlalchemy.orm import Session
 
@@ -9,6 +8,7 @@ from .models import (
     IndexingJob,
     IndexedFile
 )
+from app.core.clock import utcnow
 
 
 # ==========================================================
@@ -56,7 +56,7 @@ def update_last_login(
     user: User
 ):
 
-    user.last_login = datetime.utcnow()
+    user.last_login = utcnow()
 
     db.commit()
 
@@ -206,7 +206,7 @@ def create_or_update_indexing_job(
         job.total_files = total_files
         job.indexed_files = 0
         job.status = "running"
-        job.started_at = datetime.utcnow()
+        job.started_at = utcnow()
 
     else:
 
@@ -216,7 +216,7 @@ def create_or_update_indexing_job(
             total_files=total_files,
             indexed_files=0,
             status="running",
-            started_at=datetime.utcnow()
+            started_at=utcnow()
         )
 
         db.add(job)

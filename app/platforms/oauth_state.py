@@ -7,12 +7,13 @@ never from anything the browser sent.
 """
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional, Tuple
 
 from sqlalchemy.orm import Session
 
 from app.database.models import OAuthState
+from app.core.clock import utcnow
 
 
 OAUTH_STATE_TTL = timedelta(minutes=10)
@@ -35,7 +36,7 @@ def create_oauth_state(db: Session, user_id, platform: str, code_verifier: Optio
             state=state,
             user_id=user_id,
             platform=platform,
-            expires_at=datetime.utcnow() + OAUTH_STATE_TTL,
+            expires_at=utcnow() + OAUTH_STATE_TTL,
             used=False,
             code_verifier=code_verifier
         )
@@ -65,7 +66,7 @@ def consume_oauth_state_row(db: Session, state: str, platform: str) -> Tuple[obj
     if row.used:
         raise InvalidOAuthState("state_already_used")
 
-    if row.expires_at < datetime.utcnow():
+    if row.expires_at < utcnow():
         raise InvalidOAuthState("state_expired")
 
     row.used = True

@@ -68,12 +68,12 @@ class User(Base):
     )
 
     created_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         server_default=text("CURRENT_TIMESTAMP")
     )
 
     last_login = Column(
-        DateTime,
+        DateTime(timezone=True),
         server_default=text("CURRENT_TIMESTAMP"),
         onupdate=func.now()
     )
@@ -120,7 +120,7 @@ class PlatformConnection(Base):
     )
 
     created_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         server_default=func.now()
     )
 
@@ -214,11 +214,11 @@ class IndexingJob(Base):
         server_default=text("''::text")
     )
 
-    started_at = Column(DateTime)
+    started_at = Column(DateTime(timezone=True))
 
-    completed_at = Column(DateTime)
+    completed_at = Column(DateTime(timezone=True))
 
-    last_index_time = Column(DateTime)
+    last_index_time = Column(DateTime(timezone=True))
 
     needs_reindex = Column(
         Boolean,
@@ -243,9 +243,9 @@ class IndexingJob(Base):
 
     cancel_requested = Column(Boolean, nullable=False, default=False, server_default=text("false"))
 
-    created_at = Column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
 
-    heartbeat_at = Column(DateTime)
+    heartbeat_at = Column(DateTime(timezone=True))
 
 
 # ==========================================================
@@ -277,7 +277,7 @@ class IndexingJobError(Base):
 
     error = Column(Text, nullable=False)
 
-    created_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    created_at = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
 
 
 # ==========================================================
@@ -315,7 +315,7 @@ class LocalStorageFolder(Base):
     )
 
     created_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         server_default=text("CURRENT_TIMESTAMP")
     )
 
@@ -384,7 +384,7 @@ class IndexedFile(Base):
     status = Column(String(20), nullable=False)
     # File metadata (Phase 6); NULL until the file is indexed again.
     size_bytes = Column(BigInteger)
-    modified_at = Column(DateTime)
+    modified_at = Column(DateTime(timezone=True))
     mime_type = Column(Text)
 
     chunk_count = Column(Integer, nullable=False, default=0, server_default=text("0"))
@@ -401,9 +401,9 @@ class IndexedFile(Base):
     # Google Drive: the file's webViewLink (used by /open).
     web_view_link = Column(Text)
 
-    indexed_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    indexed_at = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
 
-    updated_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
 
 
 # ==========================================================
@@ -429,9 +429,9 @@ class IndexingHistory(Base):
 
     platform = Column(String(50))
 
-    started_at = Column(DateTime)
+    started_at = Column(DateTime(timezone=True))
 
-    completed_at = Column(DateTime)
+    completed_at = Column(DateTime(timezone=True))
 
     files_indexed = Column(
         Integer,
@@ -469,7 +469,7 @@ class OAuthState(Base):
     )
 
     expires_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=False
     )
 
@@ -484,6 +484,6 @@ class OAuthState(Base):
     code_verifier = Column(Text)
 
     created_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         server_default=text("CURRENT_TIMESTAMP")
     )

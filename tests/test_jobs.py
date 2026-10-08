@@ -17,6 +17,7 @@ from app.platforms.errors import PlatformPreconditionError
 from app.platforms.indexing import process_files
 from app.scheduler import jobs as job_service
 from app.scheduler.worker import IndexingWorker
+from app.core.clock import utcnow
 
 
 # ---------------------------------------------------------------------------
@@ -482,7 +483,7 @@ def test_startup_recovery_fails_running_jobs_and_keeps_queued(app, user, db):
 
     from fastapi.testclient import TestClient
 
-    running = IndexingJob(user_id=user["id"], platform="local", status="running", started_at=datetime.utcnow())
+    running = IndexingJob(user_id=user["id"], platform="local", status="running", started_at=utcnow())
     queued = IndexingJob(user_id=user["id"], platform="github", status="queued")
     db.add_all([running, queued])
     db.commit()
@@ -587,8 +588,8 @@ def test_local_platform_counts_only_supported_files(client, user, local_root, mo
 
     job = jobs_of(client, user)["local"]
     assert sorted(processed) == ["a.pdf", "b.txt", "c.png", "corrupt.pdf", "d.mp3"]
-    # 3 unsupported files + 2 sub-folders are skipped, not part of progress.
-    assert (job["total_files"], job["skipped_files"]) == (5, 5)
+    # Only the 3 unsupported files are skipped; the 2 sub-folders are walked, not counted.
+    assert (job["total_files"], job["skipped_files"]) == (5, 3)
     assert (job["succeeded_files"], job["failed_files"], job["progress"]) == (4, 1, 100)
     assert job["status"] == "completed_with_errors"
 

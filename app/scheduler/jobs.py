@@ -13,7 +13,7 @@ State machine (every other transition is a bug):
 completed / completed_with_errors / failed / cancelled are final.
 """
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Iterable, List, Optional
 
 from sqlalchemy import func
@@ -25,6 +25,7 @@ from app.database.models import (
     IndexingJob,
     IndexingJobError
 )
+from app.core.clock import utcnow
 
 
 INTERRUPTED_MESSAGE = "Interrupted by server restart"
@@ -74,7 +75,7 @@ def enqueue_jobs(db: Session, user_id, priority_platform: str, platforms: List[s
 
     # Explicit, strictly increasing created_at so the priority platform is
     # claimed first even within one transaction.
-    base = datetime.utcnow()
+    base = utcnow()
 
     jobs = [
         IndexingJob(
@@ -125,7 +126,7 @@ def claim_next_job(db: Session) -> Optional[IndexingJob]:
         db.rollback()
         return None
 
-    now = datetime.utcnow()
+    now = utcnow()
 
     job.status = "running"
     job.started_at = now
@@ -172,7 +173,7 @@ def finalize_job(db: Session, job_id, error_message: Optional[str] = None) -> In
 
     job.status = status
     job.error_message = error_message
-    job.completed_at = datetime.utcnow()
+    job.completed_at = utcnow()
     job.heartbeat_at = job.completed_at
     job.current_file = ""
 
@@ -196,7 +197,7 @@ def recover_interrupted_jobs(db: Session) -> int:
             {
                 IndexingJob.status: "failed",
                 IndexingJob.error_message: INTERRUPTED_MESSAGE,
-                IndexingJob.completed_at: datetime.utcnow()
+                IndexingJob.completed_at: utcnow()
             },
             synchronize_session=False
         )
@@ -224,7 +225,7 @@ def _cancel_queued(db: Session, user_id) -> int:
                 IndexingJob.status: "cancelled",
                 IndexingJob.cancel_requested: True,
                 IndexingJob.error_message: "Cancelled by user.",
-                IndexingJob.completed_at: datetime.utcnow()
+                IndexingJob.completed_at: utcnow()
             },
             synchronize_session=False
         )
@@ -259,7 +260,7 @@ def request_cancel(db: Session, job: IndexingJob) -> IndexingJob:
         job.status = "cancelled"
         job.cancel_requested = True
         job.error_message = "Cancelled by user."
-        job.completed_at = datetime.utcnow()
+        job.completed_at = utcnow()
 
     elif job.status == "running":
         job.cancel_requested = True

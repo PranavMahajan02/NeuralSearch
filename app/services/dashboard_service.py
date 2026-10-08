@@ -5,6 +5,7 @@ from sqlalchemy import func
 from app.database.db import SessionLocal
 from app.database.local_storage_service import get_local_folders
 from app.database.models import IndexedFile, PlatformConnection
+from app.core.clock import iso
 
 
 PLATFORMS = ("local", "google_drive", "github")
@@ -17,7 +18,7 @@ def _platform_detail(platform, by_platform, last_by_platform):
     last = last_by_platform.get(platform)
 
     return {"indexed_files": by_platform.get(platform, 0),
-            "last_indexed_at": last.isoformat() + "Z" if last else None}
+            "last_indexed_at": iso(last)}
 
 
 def get_dashboard_stats(user_id):
@@ -104,7 +105,7 @@ def get_recent_files(user_id, limit: int = 8):
             "file": row.file_name,
             "display_path": row.display_path,
             "type": row.file_type,
-            "indexed_at": row.indexed_at.isoformat() + "Z" if row.indexed_at else None,
+            "indexed_at": iso(row.indexed_at),
         }
         for row in rows
     ]
