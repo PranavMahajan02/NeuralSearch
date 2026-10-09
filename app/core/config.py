@@ -103,6 +103,11 @@ class Settings(BaseSettings):
 
     # OCR fallback for scanned / image-heavy PDF pages.
     OCR_MAX_PAGES: int = 20
+    # PaddleOCR device: "auto" (GPU when a CUDA build of Paddle is installed,
+    # see requirements-gpu.txt), "cpu" or "gpu".
+    OCR_DEVICE: Literal["auto", "cpu", "gpu"] = "auto"
+    # faster-whisper batched pipeline (0 = off, the sequential decoder).
+    WHISPER_BATCH_SIZE: int = 0
 
     # Models: load all of them at startup (True) or on first use (False).
     PRELOAD_MODELS: bool = True
