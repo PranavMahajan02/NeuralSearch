@@ -9,6 +9,7 @@ import { platformLabel } from "../../lib/platforms";
 import { JobStatusBadge, PlatformLogo } from "../common/Badges";
 import { JobErrors } from "./JobErrors";
 import { JobHistory } from "./JobHistory";
+import { StageBreakdown } from "./StageBreakdown";
 
 function Counter({ label, value }: { label: string; value: number | string }) {
   return (
@@ -142,6 +143,7 @@ export function JobCard({ platform, job, position }: Props) {
               {showErrors && <JobErrors jobId={job.id} />}
             </div>
           )}
+          {!active && <StageBreakdown timings={job.stage_timings} />}
           <JobHistory jobs={job.history ?? []} />
         </>
       )}
