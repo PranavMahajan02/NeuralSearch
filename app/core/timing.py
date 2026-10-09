@@ -30,7 +30,7 @@ logger = logging.getLogger("cogniseek.timing")
 # Stages, in pipeline order (the Indexing Center shows them in this order).
 STAGES = (
     "download", "extract_text", "pdf_render", "ocr", "audio_extract", "whisper",
-    "frame_extract", "clip_image", "minilm", "qdrant_upsert", "ledger", "other",
+    "frame_extract", "clip_image", "minilm", "qdrant_upsert", "ledger", "model_wait", "other",
 )
 
 
@@ -125,6 +125,20 @@ def file_scope(file_type: Optional[str]) -> Iterator[None]:
             yield
     finally:
         _file_type.reset(token)
+
+
+@contextmanager
+def waiting_for(lock) -> Iterator[None]:
+    """Hold a shared model lock; the time spent waiting for it is recorded as
+    "model_wait" instead of inflating the stage that wanted the model (several
+    files are processed at once, but each model runs one call at a time)."""
+
+    with span("model_wait"):
+        lock.acquire()
+    try:
+        yield
+    finally:
+        lock.release()
 
 
 def current_timer() -> Optional[StageTimer]:

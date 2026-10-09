@@ -82,3 +82,26 @@ def test_a_job_stores_its_stage_timings(client, user, local_root, monkeypatch):
     assert job["status"] == "completed"
     assert {"extract_text", "minilm", "qdrant_upsert", "ledger"} <= set(timings["seconds"])
     assert "document" in timings["by_type"]
+
+
+def test_waiting_for_a_shared_model_is_its_own_stage():
+
+    from app.core.timing import waiting_for
+
+    timer, lock = StageTimer(), threading.Lock()
+
+    def holder():
+        with waiting_for(lock):
+            time.sleep(0.1)
+
+    with collecting(timer):
+        first = threading.Thread(target=contextvars.copy_context().run, args=(holder,))
+        first.start()
+        time.sleep(0.02)
+        with span("minilm"), waiting_for(lock):
+            pass
+        first.join()
+
+    seconds = timer.snapshot()["seconds"]
+    assert seconds["model_wait"] >= 0.05          # the second caller waited for the first
+    assert seconds["minilm"] < 0.02               # ... and that wait is not counted as MiniLM time

@@ -8,6 +8,7 @@ GPU instead of contending for it. CLIP text is always truncated to CLIP's
 from typing import List, Sequence
 
 from app.ai.model_manager import model_manager
+from app.core.timing import waiting_for
 
 
 CLIP_MAX_TOKENS = 77
@@ -17,7 +18,7 @@ def encode_texts(texts: Sequence[str]) -> List[List[float]]:
 
     model = model_manager.semantic_model
 
-    with model_manager.semantic_lock:
+    with waiting_for(model_manager.semantic_lock):
         vectors = model.encode(list(texts), convert_to_numpy=True)
 
     return [vector.tolist() for vector in vectors]
@@ -39,7 +40,7 @@ def encode_clip_text(text: str) -> List[float]:
     )
     inputs = {key: value.to(model_manager.device) for key, value in inputs.items()}
 
-    with model_manager.clip_lock, torch.no_grad():
+    with waiting_for(model_manager.clip_lock), torch.no_grad():
         features = model.get_text_features(**inputs)
 
     return features.cpu().numpy()[0].tolist()
@@ -65,7 +66,7 @@ def encode_clip_images(paths: Sequence[str], batch_size: int = 32) -> List[List[
         inputs = processor(images=images, return_tensors="pt")
         inputs = {key: value.to(model_manager.device) for key, value in inputs.items()}
 
-        with model_manager.clip_lock, torch.no_grad():
+        with waiting_for(model_manager.clip_lock), torch.no_grad():
             features = model.get_image_features(**inputs)
 
         vectors.extend(features.cpu().numpy().tolist())
@@ -85,7 +86,7 @@ def encode_clip_image(path: str) -> List[float]:
     inputs = processor(images=image, return_tensors="pt")
     inputs = {key: value.to(model_manager.device) for key, value in inputs.items()}
 
-    with model_manager.clip_lock, torch.no_grad():
+    with waiting_for(model_manager.clip_lock), torch.no_grad():
         features = model.get_image_features(**inputs)
 
     return features.cpu().numpy()[0].tolist()
