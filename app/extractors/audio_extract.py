@@ -4,7 +4,7 @@ import logging
 import os
 
 from app.ai.model_manager import model_manager
-from app.core.timing import span
+from app.core.timing import span, waiting_for
 
 
 logger = logging.getLogger("cogniseek.extractors.audio")
@@ -22,7 +22,7 @@ def extract_audio_text(audio_path: str) -> str:
 
     logger.debug("Transcribing %s", os.path.basename(audio_path))
 
-    with span("whisper"), model_manager.whisper_lock:
+    with span("whisper"), waiting_for(model_manager.whisper_lock):
         if settings.WHISPER_BATCH_SIZE > 0:
             from faster_whisper import BatchedInferencePipeline
 
