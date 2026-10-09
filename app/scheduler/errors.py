@@ -13,9 +13,12 @@ _TOKEN_LITERALS = re.compile(
     r"\b(?:ghp|gho|ghu|ghs|ghr|github_pat)_[A-Za-z0-9_]{10,}"
     r"|\bya29\.[A-Za-z0-9._-]+"
     r"|\b1//[A-Za-z0-9._-]{6,}"
+    r"|\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"  # JWTs
 )
+# code/state: OAuth callback query strings (e.g. in access logs).
 _KEY_VALUE = re.compile(
-    r"(?i)\b(access_token|refresh_token|client_secret|id_token|token|password|secret|api_key|key)=([^&\s'\"]+)"
+    r"(?i)\b(access_token|refresh_token|client_secret|id_token|token|password|secret|api_key|key|code|state)"
+    r"=([^&\s'\"]+)"
 )
 _JSON_SECRET = re.compile(
     r"(?i)(['\"](?:access_token|refresh_token|client_secret|id_token|token|password)['\"]\s*:\s*['\"])[^'\"]+"
@@ -40,7 +43,9 @@ def _redact_urls(text: str) -> str:
     return _URL.sub("<url>", text)
 
 
-def _redact_secrets(text: str) -> str:
+def redact_secrets(text: str) -> str:
+    """Bearer tokens, provider token literals, JWTs and secret key=value pairs -> <redacted>.
+    Also used by the log filter (app/core/logging_setup.py)."""
 
     text = _BEARER.sub("<redacted>", text)
     text = _TOKEN_LITERALS.sub("<redacted>", text)
@@ -92,7 +97,7 @@ def sanitize_error(error: BaseException, allowed_roots: Iterable[Path] = (), wit
         text = message or type(error).__name__
 
     text = _redact_urls(text)
-    text = _redact_secrets(text)
+    text = redact_secrets(text)
     text = _redact_paths(text, list(allowed_roots))
 
     if len(text) > MAX_MESSAGE_LENGTH:

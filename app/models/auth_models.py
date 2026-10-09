@@ -12,6 +12,24 @@ def _normalize_email(value):
     return value.strip().lower() if isinstance(value, str) else value
 
 
+def check_password_policy(value: str) -> str:
+    """The one password policy (registration and password change)."""
+
+    if not 8 <= len(value) <= 128:
+        raise ValueError("Password must be 8-128 characters.")
+
+    if len(value.encode("utf-8")) > BCRYPT_MAX_BYTES:
+        raise ValueError(
+            f"Password must be at most {BCRYPT_MAX_BYTES} bytes "
+            "(fewer characters if you use non-ASCII characters)."
+        )
+
+    if not re.search(r"[A-Za-z]", value) or not re.search(r"\d", value):
+        raise ValueError("Password must contain at least one letter and one digit.")
+
+    return value
+
+
 class RegisterRequest(BaseModel):
 
     name: str
@@ -39,19 +57,7 @@ class RegisterRequest(BaseModel):
     @classmethod
     def validate_password(cls, value: str) -> str:
 
-        if not 8 <= len(value) <= 128:
-            raise ValueError("Password must be 8-128 characters.")
-
-        if len(value.encode("utf-8")) > BCRYPT_MAX_BYTES:
-            raise ValueError(
-                f"Password must be at most {BCRYPT_MAX_BYTES} bytes "
-                "(fewer characters if you use non-ASCII characters)."
-            )
-
-        if not re.search(r"[A-Za-z]", value) or not re.search(r"\d", value):
-            raise ValueError("Password must contain at least one letter and one digit.")
-
-        return value
+        return check_password_policy(value)
 
 
 class LoginRequest(BaseModel):
@@ -74,6 +80,24 @@ class LoginRequest(BaseModel):
             raise ValueError("Invalid password.")
 
         return value
+
+
+class CurrentPasswordRequest(BaseModel):
+    """Re-authentication for destructive account actions."""
+
+    password: str
+
+
+class ChangePasswordRequest(BaseModel):
+
+    current_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+
+        return check_password_policy(value)
 
 
 class UserResponse(BaseModel):

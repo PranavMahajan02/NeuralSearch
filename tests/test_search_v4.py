@@ -528,7 +528,7 @@ def test_local_results_carry_size_modified_time_and_mime(client, user, folder):
     result = results(client, user, "volcano notes")["results"][0]
 
     assert result["file_size"] == path.stat().st_size
-    assert result["modified_at"].endswith("Z") and result["modified_at"][:4].isdigit()
+    assert result["modified_at"].endswith("+00:00") and result["modified_at"][:4].isdigit()
     assert (result["mime_type"], result["extension"]) == ("text/plain", "txt")
 
 
@@ -581,7 +581,7 @@ def test_dashboard_stats_give_one_connection_count_and_per_platform_detail(clien
 
     assert (stats["connected_platforms"], stats["supported_platforms"]) == (0, 3)
     drive = stats["platforms"]["google_drive"]
-    assert drive["indexed_files"] == 1 and drive["last_indexed_at"].endswith("Z")
+    assert drive["indexed_files"] == 1 and drive["last_indexed_at"].endswith("+00:00")
     assert stats["platforms"]["github"] == {"connected": False, "indexed_files": 0, "last_indexed_at": None}
 
 

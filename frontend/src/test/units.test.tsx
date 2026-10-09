@@ -180,6 +180,9 @@ describe("resilience", () => {
       Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
       window.dispatchEvent(new Event("online"));
     });
+    // Going online refetches the (still failing) health check: let that request
+    // settle before the test ends, or its network error outlives the test.
+    expect(await screen.findByText("The CogniSeek server is not reachable. Retrying…")).toBeInTheDocument();
   });
 
   it("toggles the theme", async () => {
@@ -198,5 +201,14 @@ describe("resilience", () => {
     expect(screen.getByRole("dialog", { name: "Menu" })).toBeInTheDocument();
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
+describe("apiBase", () => {
+  it("keeps an absolute base and resolves the proxy's relative /api against the page", async () => {
+    const { apiBase } = await import("../api/client");
+    expect(apiBase("http://127.0.0.1:8000/")).toBe("http://127.0.0.1:8000");
+    expect(apiBase("/api")).toBe(`${window.location.origin}/api`);
+    expect(apiBase("/api/")).toBe(`${window.location.origin}/api`);
   });
 });

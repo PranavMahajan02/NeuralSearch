@@ -58,3 +58,6 @@ htmlcov/
 
 # Local Claude Code launch config
 .claude/
+
+# Local compose override (dev-only host ports); see docker-compose.override.example.yml
+docker-compose.override.yml

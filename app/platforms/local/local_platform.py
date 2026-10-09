@@ -72,8 +72,8 @@ class LocalPlatform(BasePlatform):
     def scan(folders):
         """(supported file paths, number of skipped entries).
 
-        Skipped = sub-folders + unsupported files; they are not part of the
-        progress denominator."""
+        Skipped = unsupported files (not part of the progress denominator).
+        Sub-folders are walked, not skipped, so they are not counted."""
 
         supported = []
         skipped = 0
@@ -83,9 +83,7 @@ class LocalPlatform(BasePlatform):
             if not os.path.isdir(folder):
                 continue
 
-            for root, dirnames, filenames in os.walk(folder):
-
-                skipped += len(dirnames)
+            for root, _dirnames, filenames in os.walk(folder):
 
                 for name in filenames:
                     if is_supported(name):

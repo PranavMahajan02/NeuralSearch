@@ -1,7 +1,16 @@
 import { useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { motion } from "motion/react";
-import { ChevronLeft, ChevronRight, Database, LayoutDashboard, LogOut, Menu, RefreshCw } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Database,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  RefreshCw,
+  Settings,
+} from "lucide-react";
 
 import { useConnectionCount, useJobs, useStats } from "../../api/queries";
 import { PLATFORMS, isActiveJob } from "../../api/types";
@@ -10,6 +19,7 @@ import { PlatformLogo } from "../common/Badges";
 import { LogoTile, ThemeToggle } from "../common/Brand";
 import { ConnectionBanner } from "../common/ConnectionBanner";
 import { Modal } from "../common/Modal";
+import { AccountDialog } from "./AccountDialog";
 
 const NAV = [
   { to: "/search", label: "Dashboard", icon: LayoutDashboard },
@@ -67,10 +77,11 @@ function NavItems({ collapsed = false, onNavigate }: { collapsed?: boolean; onNa
 
 function UserCard({ collapsed = false }: { collapsed?: boolean }) {
   const { user, logout } = useAuth();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <div className="border-t border-slate-200 p-3 dark:border-slate-800/60">
-      <div className="flex items-center gap-3 rounded-xl p-2">
+      <div className={`flex items-center gap-3 rounded-xl p-2 ${collapsed ? "flex-col" : ""}`}>
         <div
           aria-hidden="true"
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
@@ -89,6 +100,15 @@ function UserCard({ collapsed = false }: { collapsed?: boolean }) {
         )}
         <button
           type="button"
+          onClick={() => setSettingsOpen(true)}
+          aria-label="Account settings"
+          title="Account settings"
+          className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+        >
+          <Settings aria-hidden="true" className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
           onClick={() => void logout()}
           aria-label="Log out"
           title="Log out"
@@ -97,6 +117,7 @@ function UserCard({ collapsed = false }: { collapsed?: boolean }) {
           <LogOut aria-hidden="true" className="h-4 w-4" />
         </button>
       </div>
+      {settingsOpen && <AccountDialog onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }

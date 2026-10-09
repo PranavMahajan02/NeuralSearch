@@ -13,6 +13,9 @@ export default defineConfig({
     strictPort: true,
   },
   build: {
+    // Never inline assets as data: URIs: the production CSP allows fonts from
+    // 'self' only (deploy/caddy/Caddyfile), and small font subsets would be inlined.
+    assetsInlineLimit: 0,
     rollupOptions: {
       output: {
         // Long-lived vendor chunks: app changes don't invalidate them.
