@@ -8,13 +8,13 @@ stores per-file errors (capped per job).
 import logging
 import time
 import uuid
-from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 from app.database.db import SessionLocal
 from app.database.models import IndexingJob, IndexingJobError
 from app.scheduler.errors import sanitize_error
+from app.core.clock import utcnow
 
 
 logger = logging.getLogger("cogniseek.jobs")
@@ -186,7 +186,7 @@ class JobContext:
                     # Legacy column, kept equal to processed_files for old clients.
                     IndexingJob.indexed_files: self.processed_files,
                     IndexingJob.current_file: self.current_file,
-                    IndexingJob.heartbeat_at: datetime.utcnow()
+                    IndexingJob.heartbeat_at: utcnow()
                 },
                 synchronize_session=False
             )

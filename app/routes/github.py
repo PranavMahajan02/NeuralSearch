@@ -4,10 +4,12 @@ from urllib.parse import urlencode
 
 from fastapi import APIRouter
 from fastapi import Depends
+from fastapi import Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.rate_limit import limiter, user_key
 from app.database.db import get_db
 from app.services.index_store import purge_platform
 from app.auth.auth_dependency import get_current_user
@@ -50,7 +52,9 @@ def _frontend_redirect(**params) -> RedirectResponse:
 
 
 @router.get("/connect", response_model=rm.ConnectResponse, response_model_exclude_unset=True)
+@limiter.limit(settings.OAUTH_RATE_LIMIT, key_func=user_key)
 def connect_github(
+    request: Request,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -87,7 +91,9 @@ def connect_github(
 
 
 @router.get("/callback")
+@limiter.limit(settings.OAUTH_RATE_LIMIT)
 def github_callback(
+    request: Request,
     code: Optional[str] = None,
     state: Optional[str] = None,
     error: Optional[str] = None,

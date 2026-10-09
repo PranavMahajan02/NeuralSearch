@@ -1,10 +1,13 @@
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import Query
+from fastapi import Request
 
 from app.auth.auth_dependency import get_current_user
 from app.core.config import settings
 from app.core.errors import AppError
+from app.core.metrics import SEARCH_LATENCY
+from app.core.rate_limit import limiter, user_key
 from app.models.request_models import SearchRequest
 from app.services.search_service import search, suggestions
 from app.models import response_models as rm
@@ -35,8 +38,10 @@ def search_suggestions(
 
 
 @router.post("/", response_model=rm.SearchResponse, response_model_exclude_unset=True)
+@limiter.limit(settings.SEARCH_RATE_LIMIT, key_func=user_key)
 def search_files(
-    request: SearchRequest,
+    request: Request,
+    body: SearchRequest,
     debug: bool = Query(False, description="Include score components (development only)."),
     current_user=Depends(get_current_user)
 ):
@@ -45,22 +50,23 @@ def search_files(
         raise AppError(400, "debug is only available in development.")
 
     # Isolation is enforced inside the queries (user_id filter), not after.
-    found = search(
-        query=request.query,
-        user_id=current_user["id"],
-        platform=request.platform.value,
-        search_type=request.search_type.value,
-        limit=request.limit,
-        offset=request.offset,
-        debug=debug
-    )
+    with SEARCH_LATENCY.time():
+        found = search(
+            query=body.query,
+            user_id=current_user["id"],
+            platform=body.platform.value,
+            search_type=body.search_type.value,
+            limit=body.limit,
+            offset=body.offset,
+            debug=debug
+        )
 
     return {
-        "query": request.query,
-        "platform": request.platform.value,
-        "search_type": request.search_type.value,
-        "limit": request.limit,
-        "offset": request.offset,
+        "query": body.query,
+        "platform": body.platform.value,
+        "search_type": body.search_type.value,
+        "limit": body.limit,
+        "offset": body.offset,
         "total": found["total"],
         "results": found["results"],
         "possible_matches": found["possible_matches"]

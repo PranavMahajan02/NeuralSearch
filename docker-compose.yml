@@ -1,48 +1,190 @@
-# Local infrastructure for CogniSeek. Credentials come from .env (see .env.example).
-# The project name is pinned so the existing volumes/containers are reused.
-name: omniseach-ai
+# CogniSeek - production deployment.
+#
+#   cp .env.example .env && python scripts/generate_secrets.py   # fills the REQUIRED secrets
+#   docker compose up -d --build
+#   -> https://localhost   (or https://$DOMAIN with a Let's Encrypt certificate)
+#
+# Only Caddy publishes ports (80/443). Networks (both "data" and "app" are
+# internal: no route to or from the outside world):
+#   data   : postgres, qdrant, redis, backend
+#   app    : caddy -> backend only (Caddy cannot reach the data services)
+#   egress : backend's outbound internet (model downloads, Google, GitHub)
+#   edge   : caddy's published ports
+# GPU: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+# Dev-only host ports for the data services: docker-compose.override.example.yml.
+name: cogniseek
+
+x-restart: &restart
+  restart: unless-stopped
 
 services:
 
   postgres:
+    <<: *restart
     image: postgres:16
-    container_name: cogniseek-postgres
-    restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
-    ports:
-      - "5432:5432"
+      # Bootstrap superuser: used only by the init script and backups.
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?REQUIRED - run scripts/generate_secrets.py}
+      POSTGRES_DB: postgres
+      # The application role (NOT a superuser), created by deploy/postgres/initdb.
+      APP_DB_USER: ${POSTGRES_USER:-cogniseek}
+      APP_DB_PASSWORD: ${POSTGRES_PASSWORD:?REQUIRED - run scripts/generate_secrets.py}
+      APP_DB_NAME: ${POSTGRES_DB:-cogniseek}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/initdb:/docker-entrypoint-initdb.d:ro
+    networks: [data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      # TCP, not the socket: during first-time init Postgres listens on the socket
+      # only, so this stays unhealthy until the init script (role, database) is done.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d $${APP_DB_NAME}"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 10s
+      retries: 10
+      start_period: 20s
 
   qdrant:
+    <<: *restart
     image: qdrant/qdrant:v1.18.2
-    container_name: cogniseek-qdrant
-    restart: unless-stopped
-    ports:
-      - "6333:6333"
-      - "6334:6334"
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?REQUIRED - run scripts/generate_secrets.py}
+      QDRANT__TELEMETRY_DISABLED: "true"
     volumes:
-      # Same mount as the original standalone "qdrant" container.
-      - qdrant_storage:/qdrant/storage:z
+      - qdrant_storage:/qdrant/storage
+      - qdrant_snapshots:/qdrant/snapshots
+    networks: [data]
     healthcheck:
-      # The image has bash but no curl/wget.
+      # /readyz is exempt from the API key. The image has bash but no curl/wget.
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/6333 && printf 'GET /readyz HTTP/1.0\r\n\r\n' >&3 && grep -q '200 OK' <&3"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
       start_period: 10s
+
+  redis:
+    <<: *restart
+    image: redis:7.4-alpine
+    # Rate-limit counters only: small, password-protected, persisted with AOF.
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REQUIRED - run scripts/generate_secrets.py}", "--maxmemory", "64mb", "--maxmemory-policy", "volatile-lru"]
+    volumes:
+      - redis_data:/data
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+  backend:
+    <<: *restart
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        TORCH_VARIANT: ${TORCH_VARIANT:-cpu}
+    image: cogniseek-backend:${TORCH_VARIANT:-cpu}
+    pull_policy: build
+    env_file: .env
+    environment:
+      ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cogniseek}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cogniseek}
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: "6333"
+      QDRANT_LOCATION: ""
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      # Same origin behind Caddy: the browser never makes cross-origin API calls.
+      FRONTEND_URL: https://${DOMAIN:-localhost}
+      BACKEND_PUBLIC_URL: https://${DOMAIN:-localhost}/api
+      CORS_ORIGINS: https://${DOMAIN:-localhost}
+      GOOGLE_REDIRECT_URI: https://${DOMAIN:-localhost}/api/platforms/google-drive/callback
+      ALLOWED_LOCAL_ROOTS: /data
+      # Container paths: these override the development values .env may carry.
+      DATA_DIR: /var/lib/cogniseek
+      TEMP_DIR: /var/lib/cogniseek/temp
+      POPPLER_PATH: ""
+      GITHUB_OAUTH_CONFIG_PATH: /app/credentials/github_oauth.json
+      GOOGLE_CLIENT_SECRET_PATH: /app/credentials/client_secret.json
+      WORKERS: ${WORKERS:-1}
+    volumes:
+      - models:/models
+      - appdata:/var/lib/cogniseek
+      # Folders users may index: container paths under /data (read-only).
+      - ${LOCAL_DATA_DIR:-./sample-data}:/data:ro
+      # OAuth client files (optional; Drive/GitHub stay unavailable without them).
+      - ./credentials:/app/credentials:ro
+    networks: [data, app, egress]
+    depends_on:
+      postgres: {condition: service_healthy}
+      qdrant: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+  caddy:
+    <<: *restart
+    build:
+      context: .
+      dockerfile: deploy/caddy/Dockerfile
+    image: cogniseek-caddy
+    pull_policy: build
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+      TLS: ${TLS:-internal}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [edge, app]
+    depends_on:
+      backend: {condition: service_healthy}
+
+  # One-off tools (not started by "up"):  docker compose run --rm backup
+  # Writes ./backups/cogniseek-<UTC>.tar.enc; restore: see scripts/restore.py.
+  backup:
+    profiles: [tools]
+    build:
+      context: .
+      dockerfile: deploy/backup/Dockerfile
+    image: cogniseek-backup
+    pull_policy: build
+    environment:
+      BACKUP_DATABASE_URL: postgresql://postgres:${POSTGRES_SUPERUSER_PASSWORD}@postgres:5432/${POSTGRES_DB:-cogniseek}
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY}
+      QDRANT_COLLECTION_PREFIX: ${QDRANT_COLLECTION_PREFIX:-cogniseek_v2}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+      BACKUP_DIR: /backups
+    volumes:
+      - ./backups:/backups
+      - ./scripts:/scripts:ro
+    networks: [data]
+    depends_on:
+      postgres: {condition: service_healthy}
+      qdrant: {condition: service_healthy}
+
+networks:
+  # No external route: only the backend can reach the data services.
+  data:
+    internal: true
+  # Caddy <-> backend.
+  app:
+    internal: true
+  # Outbound internet for the backend (model downloads, Google, GitHub).
+  egress: {}
+  # Published ports (Caddy only).
+  edge: {}
 
 volumes:
   postgres_data:
-    name: omniseach-ai_postgres_data
   qdrant_storage:
-    external: true
+  qdrant_snapshots:
+  redis_data:
+  models:
+  appdata:
+  caddy_data:
+  caddy_config:

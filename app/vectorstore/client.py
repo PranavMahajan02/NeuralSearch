@@ -22,7 +22,13 @@ def get_client() -> QdrantClient:
                 if settings.QDRANT_LOCATION:
                     _client = QdrantClient(location=settings.QDRANT_LOCATION)
                 else:
-                    _client = QdrantClient(host=settings.QDRANT_HOST, port=settings.QDRANT_PORT)
+                    # https=False: Qdrant is only reachable on the internal network.
+                    _client = QdrantClient(
+                        host=settings.QDRANT_HOST,
+                        port=settings.QDRANT_PORT,
+                        api_key=settings.QDRANT_API_KEY or None,
+                        https=False,
+                    )
 
     return _client
 

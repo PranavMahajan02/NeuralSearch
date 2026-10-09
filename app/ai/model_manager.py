@@ -110,13 +110,23 @@ class ModelManager:
             with self._load_lock:
                 if self._ocr_model is None:
                     # On Windows, torch must load its DLLs before paddle's,
-                    # otherwise a later `import torch` fails (WinError 127).
+                    # otherwise a later `import torch` fails (WinError 127). On Linux,
+                    # importing paddleocr first segfaults in zlib (inflateReset2) - also
+                    # avoided by loading torch first.
                     import torch  # noqa: F401
                     from paddleocr import PaddleOCR
                     logger.info("Loading PaddleOCR...")
                     self._ocr_model = PaddleOCR(use_angle_cls=True, lang="en")
 
         return self._ocr_model
+
+    @property
+    def ready(self) -> bool:
+        """Every preloaded model is in memory (GET /ready)."""
+
+        return all(m is not None for m in (
+            self._semantic_model, self._clip_model, self._clip_processor, self._whisper_model, self._ocr_model
+        ))
 
     def preload(self) -> None:
 

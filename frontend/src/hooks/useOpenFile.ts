@@ -4,6 +4,7 @@ import { ApiError } from "../api/client";
 import * as api from "../api/endpoints";
 import type { SearchResult } from "../api/types";
 import { useToast } from "../components/common/Toast";
+import { saveBlob } from "../lib/download";
 
 type Openable = Pick<SearchResult, "platform" | "source_id" | "file">;
 
@@ -29,15 +30,9 @@ export function useOpenFile() {
         }
 
         const { blob, filename } = await api.downloadFile(target.url);
-        const objectUrl = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = objectUrl;
-        link.download = filename || target.filename || item.file || "download";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
-        notify(`Downloading ${link.download}`, "success");
+        const name = filename || target.filename || item.file || "download";
+        saveBlob(blob, name);
+        notify(`Downloading ${name}`, "success");
       } catch (error) {
         notify(error instanceof ApiError ? error.message : "Could not open the file.", "error");
       } finally {

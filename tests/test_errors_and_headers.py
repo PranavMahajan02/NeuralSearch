@@ -118,7 +118,8 @@ print(app.openapi_url, app.docs_url, "/platforms/local/pick-folder" in paths)
 def test_production_disables_docs_and_folder_picker():
 
     env = dict(os.environ)
-    env.update({"ENV": "production", "PYTHONPATH": str(ROOT)})
+    env.update({"ENV": "production", "PYTHONPATH": str(ROOT),
+                "QDRANT_API_KEY": "probe-key", "REDIS_URL": "redis://127.0.0.1:1/0"})
 
     result = subprocess.run(
         [sys.executable, "-c", PRODUCTION_PROBE],

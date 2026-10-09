@@ -17,6 +17,7 @@ from app.database.models import IndexedFile, PlatformConnection
 from app.platforms import http
 from app.services import index_store
 from tests.test_jobs import drain, enqueue, isolated_queue, jobs_of, make_worker  # noqa: F401
+from app.core.clock import utcnow
 
 
 API = "https://api.github.com"
@@ -871,7 +872,7 @@ def test_drive_callback_expired_state_and_failed_exchange(client, user, fake_goo
         return parse_qs(urlparse(body["authorization_url"]).query)["state"][0]
 
     expired = new_state()
-    db.get(OAuthState, expired).expires_at = datetime.utcnow() - timedelta(seconds=1)
+    db.get(OAuthState, expired).expires_at = utcnow() - timedelta(seconds=1)
     db.commit()
     assert redirect_params(drive_callback(client, code="good", state=expired))["reason"] == "state_expired"
 

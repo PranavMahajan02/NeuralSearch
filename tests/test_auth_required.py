@@ -14,9 +14,14 @@ PUBLIC_ROUTES = {
     ("POST", "/auth/register"),
     ("POST", "/auth/login"),
     ("GET", "/"),
+    ("GET", "/ready"),     # readiness probe: booleans only
     ("GET", "/platforms/github/callback"),
     ("GET", "/platforms/google-drive/callback"),
 }
+
+# Not in the schema on purpose: Prometheus scrapes it on the internal network
+# only (Caddy never proxies it, see deploy/Caddyfile; tests/test_deploy.py).
+INTERNAL_ROUTES = {"/metrics"}
 
 # Interactive docs (development only) are not API routes.
 DOCS_PATHS = {"/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"}
@@ -62,7 +67,7 @@ def test_no_api_route_is_hidden_from_the_schema(app):
     hidden = [
         route.path
         for route in api_routes
-        if not route.include_in_schema
+        if not route.include_in_schema and route.path not in INTERNAL_ROUTES
     ]
 
     assert len(api_routes) >= 30
@@ -130,4 +135,5 @@ def test_public_routes_answer_without_token(client):
 def test_old_unprefixed_upload_routes_are_gone(client):
 
     assert client.post("/").status_code in (404, 405)
-    assert client.get("/health").status_code == 404
+    # GET /health is the liveness probe now (app/routes/health.py), not the old upload route.
+    assert client.get("/health").json() == {"status": "ok"}

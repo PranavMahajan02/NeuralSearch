@@ -20,6 +20,81 @@ Features:
 - File Name Search
 - Persistent Indexing
 
+## Deployment (Docker)
+
+One command gives an HTTPS-served CogniSeek: Caddy (the only public entry, ports 80/443) serves the
+frontend and proxies `/api/*` to the backend; Postgres, Qdrant and Redis are on an internal network
+with no published ports.
+
+```bash
+git clone <repo> cogniseek && cd cogniseek
+cp .env.example .env
+python scripts/generate_secrets.py        # fills every REQUIRED secret; prints key names only
+docker compose up -d --build              # first start downloads the AI models (~2 GB)
+docker compose ps                         # wait until backend and caddy are "healthy"
+```
+
+Open **https://localhost** (Caddy's internal CA: accept the certificate warning, or trust it with
+`docker compose exec caddy caddy trust`). For a public server set `DOMAIN=search.example.com` and
+`TLS=<your e-mail>` in `.env`; Caddy then gets a Let's Encrypt certificate and sends HSTS.
+
+- **Indexing local folders:** the backend sees `LOCAL_DATA_DIR` (default `./sample-data`, read-only)
+  as `/data`. Register `/data` or a sub-folder (e.g. `/data/notes`) on the Platforms page; paths are
+  container paths, not host paths.
+- **Google Drive / GitHub:** put the OAuth client files in `./credentials/` (mounted read-only) and
+  register these callback URLs: `https://<DOMAIN>/api/platforms/google-drive/callback` and
+  `https://<DOMAIN>/api/platforms/github/callback`.
+- **GPU (NVIDIA):** `docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build`
+  (CUDA torch build + one reserved GPU; needs the NVIDIA Container Toolkit).
+- **Health:** `/api/health` is liveness (process up), `/api/ready` checks Postgres, Qdrant, Redis and
+  the models; compose healthchecks use readiness, so Caddy starts only once the API can serve.
+- **Metrics:** `GET /metrics` (Prometheus) is reachable only inside the Docker network; Caddy answers
+  404 for `/api/metrics`. Scrape `backend:8000/metrics` from a container on the `data` network.
+- **One uvicorn worker** (`WORKERS=1`): the indexing worker runs inside the API process and the models
+  are loaded once per process, so more workers would compete for the queue and multiply model memory.
+- **Upgrades:** `git pull && docker compose up -d --build` (the backend runs `alembic upgrade head`
+  on start).
+- Security model and hardening notes: [SECURITY.md](SECURITY.md).
+
+### Backups
+
+`docker compose run --rm backup` writes `./backups/cogniseek-<UTC>.tar.enc`: a `pg_dump` of the
+database plus a snapshot of every Qdrant collection, encrypted with `BACKUP_ENCRYPTION_KEY` (keep a
+copy of that key off the machine - without it the backups cannot be restored). The newest
+`BACKUP_KEEP` (default 14) archives are kept.
+
+```bash
+docker compose run --rm backup python3 /scripts/restore.py --dry-run /backups/<file>   # verify only
+```
+
+Schedule it daily, e.g. with cron on the Docker host (copy the archives off-site as well):
+
+```cron
+30 3 * * *  cd /opt/cogniseek && docker compose run --rm backup >> backups/backup.log 2>&1
+```
+
+On Windows use Task Scheduler with the same command. A restore into a scratch database and collection
+prefix (safe to run any time) and the full disaster-recovery steps are in `scripts/restore.py --help`.
+
+## Development (non-Docker)
+
+The original setup stays as it was: Postgres and Qdrant in Docker, the backend and the Vite dev
+server on the host.
+
+```bash
+docker compose -f docker-compose.dev.yml up -d   # postgres :5432 + qdrant :6333 (127.0.0.1 only)
+venv\Scripts\alembic upgrade head
+venv\Scripts\uvicorn app.main:app --port 8000   # http://127.0.0.1:8000
+cd frontend && npm run dev                      # http://127.0.0.1:3000
+```
+
+`ENV=development` needs no Redis (in-memory rate limits) and no Qdrant API key; missing JWT/Fernet
+keys are generated per run with a warning. `docker-compose.override.example.yml` publishes the data
+services of the *Docker* stack on 127.0.0.1 for debugging (copy it to `docker-compose.override.yml`).
+
+> **Note:** `docker compose up` without `-f` now starts the production stack (project `cogniseek`,
+> separate volumes). It never touches the development containers (project `omniseach-ai`).
+
 ## Screenshots
 
 Captured by `frontend/e2e/screenshots.ts`, which walks a throwaway demo account (sample notes and
@@ -66,8 +141,9 @@ The backend URL comes from `VITE_API_BASE_URL` (default `http://127.0.0.1:8000`)
 
 Runs against the **real** backend: it creates a throwaway user `e2e-<id>@cogniseek.dev`, registers a
 temporary folder with 3 sample files, indexes it, searches, downloads a result, runs axe accessibility
-checks, logs out, then deletes the user and all of its data (`scripts/delete_e2e_user.py`, which refuses any
-other e-mail) and the temporary folder.
+checks, then deletes the account in the UI (Account settings → Delete account, i.e. the real
+`DELETE /auth/account` flow) and the temporary folder. If the test fails earlier, `afterAll` deletes the
+account through the same API.
 
 ```bash
 # backend running (uvicorn app.main:app) with its worker; then, in frontend/:
@@ -81,15 +157,27 @@ login, onboarding, dashboard, indexing and platforms pages, in light and dark mo
 
 `E2E_BASE_URL` / `E2E_API_URL` point it at other URLs; the temporary folder is created under the system
 temp directory, which must lie inside the backend's `ALLOWED_LOCAL_ROOTS` (default: the home directory) -
-set `E2E_FILES_ROOT` otherwise. `E2E_PYTHON` selects the Python used for the cleanup (default: `venv`).
+set `E2E_FILES_ROOT` otherwise.
+
+Against the Docker stack (`https://localhost`; the self-signed certificate is accepted in the test
+config only). The test folder must be visible to the container, so it is created under
+`LOCAL_DATA_DIR` and registered by its container path:
+
+```bash
+E2E_BASE_URL=https://localhost E2E_API_URL=https://localhost/api \
+  E2E_FILES_ROOT=../sample-data E2E_CONTAINER_ROOT=/data npm run test:e2e
+```
+
+In Git Bash on Windows prefix it with `MSYS_NO_PATHCONV=1`, otherwise `/data` is rewritten to a
+Windows path. The test fails on any Content-Security-Policy violation reported by the browser.
 
 ## Database migrations
 
 The schema is managed with Alembic (the app no longer calls `create_all`).
 
 ```powershell
-docker compose up -d                    # postgres + qdrant
-venv\Scripts\alembic upgrade head       # create / upgrade the schema
+docker compose -f docker-compose.dev.yml up -d   # postgres + qdrant (development)
+venv\Scripts\alembic upgrade head                # create / upgrade the schema
 ```
 
 - New schema change: `venv\Scripts\alembic revision --autogenerate -m "<what>"`, review the file, then `alembic upgrade head`.
@@ -107,7 +195,8 @@ the frontend (`/?google_drive=connected` or `/?github=connected`).
 1. Google Cloud console → **APIs & Services → Credentials → Create credentials → OAuth client ID**.
 2. Application type: **Web application** (a "Desktop app" client does not work with this flow).
 3. **Authorized redirect URIs**: add exactly the value of `GOOGLE_REDIRECT_URI`
-   (default `http://127.0.0.1:8000/platforms/google-drive/callback`).
+   (development default `http://127.0.0.1:8000/platforms/google-drive/callback`; Docker deployment
+   `https://<DOMAIN>/api/platforms/google-drive/callback`).
 4. Enable the **Google Drive API** for the project, and on the OAuth consent screen add the scopes
    `drive.readonly`, `openid` and `userinfo.email` (and your account as a test user while the app is in testing).
 5. Download the client JSON and save it as `credentials/client_secret.json`
@@ -116,7 +205,8 @@ the frontend (`/?google_drive=connected` or `/?github=connected`).
 ### GitHub
 
 1. GitHub → **Settings → Developer settings → OAuth Apps** → your app.
-2. **Authorization callback URL**: `http://127.0.0.1:8000/platforms/github/callback`
+2. **Authorization callback URL**: `http://127.0.0.1:8000/platforms/github/callback` in development,
+   `https://<DOMAIN>/api/platforms/github/callback` in the Docker deployment
    (i.e. `BACKEND_PUBLIC_URL` + `/platforms/github/callback`).
 3. `credentials/github_oauth.json` holds `{"client_id": "...", "client_secret": "..."}`.
 

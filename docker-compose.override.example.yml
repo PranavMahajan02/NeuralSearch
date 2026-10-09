@@ -1,0 +1,24 @@
+# DEVELOPMENT ONLY: publish the data services of the Docker stack on 127.0.0.1
+# (never 0.0.0.0) to inspect them with psql / the Qdrant dashboard / redis-cli.
+#   cp docker-compose.override.example.yml docker-compose.override.yml
+# docker compose loads docker-compose.override.yml automatically; it is
+# git-ignored so it can never reach a production host by accident.
+# Ports are offset (+10000) so they do not clash with the dev infrastructure
+# from docker-compose.dev.yml (5432/6333).
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:15432:5432"
+    networks: [data, devhost]
+  qdrant:
+    ports:
+      - "127.0.0.1:16333:6333"
+    networks: [data, devhost]
+  redis:
+    ports:
+      - "127.0.0.1:16379:6379"
+    networks: [data, devhost]
+
+networks:
+  # Published ports need a non-internal network.
+  devhost: {}
