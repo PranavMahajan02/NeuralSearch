@@ -1,0 +1,537 @@
+{
+  "by_type_seconds": {
+    "audio": 80.275,
+    "document": 744.78,
+    "image": 75.415,
+    "video": 197.75
+  },
+  "by_type_stage_seconds": {
+    "audio": {
+      "ledger": 0.381,
+      "minilm": 0.792,
+      "model_wait": 24.8,
+      "other": 0.003,
+      "qdrant_upsert": 1.422,
+      "whisper": 52.873
+    },
+    "document": {
+      "extract_text": 72.184,
+      "ledger": 6.471,
+      "minilm": 39.719,
+      "model_wait": 202.66,
+      "ocr": 240.986,
+      "other": 0.012,
+      "pdf_render": 172.375,
+      "qdrant_upsert": 10.376
+    },
+    "image": {
+      "clip_image": 19.541,
+      "ledger": 1.367,
+      "model_wait": 32.387,
+      "ocr": 21.038,
+      "other": 0.005,
+      "qdrant_upsert": 1.075
+    },
+    "video": {
+      "clip_image": 32.837,
+      "frame_extract": 30.133,
+      "ledger": 0.292,
+      "minilm": 2.347,
+      "model_wait": 39.245,
+      "other": 1.748,
+      "qdrant_upsert": 1.678,
+      "whisper": 89.473
+    }
+  },
+  "files": {
+    "0x0.webp": {
+      "chunks": 1.0,
+      "ocr_chars": 4.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "1. Unit 1 - Basics of Economics - Updated PPT.pdf": {
+      "chunks": 36.0,
+      "status": "indexed",
+      "text_chars": 35433.0,
+      "type": "document"
+    },
+    "1908.10084v1.pdf": {
+      "chunks": 43.0,
+      "status": "indexed",
+      "text_chars": 42384.0,
+      "type": "document"
+    },
+    "1_s20_S092523122300303X_main.pdf": {
+      "chunks": 68.0,
+      "status": "indexed",
+      "text_chars": 67784.0,
+      "type": "document"
+    },
+    "25a19d87-ccc8-49f9-b47f-32494587979a.png": {
+      "chunks": 1.0,
+      "ocr_chars": 0.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "402.Successive differentiation.pdf": {
+      "chunks": 12.0,
+      "status": "indexed",
+      "text_chars": 11510.0,
+      "type": "document"
+    },
+    "71zkzx-VtyL._AC_UF1000,1000_QL80_.jpg": {
+      "chunks": 1.0,
+      "ocr_chars": 253.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "81pieXC63IL.jpg": {
+      "chunks": 1.0,
+      "ocr_chars": 5.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "AI Tech Social Media Strategy by Slidesgo.pptx": {
+      "chunks": 11.0,
+      "status": "indexed",
+      "text_chars": 10462.0,
+      "type": "document"
+    },
+    "ANimal kingdom java.docx": {
+      "chunks": 7.0,
+      "status": "indexed",
+      "text_chars": 6965.0,
+      "type": "document"
+    },
+    "CN_ESE1.docx": {
+      "chunks": 1.0,
+      "status": "indexed",
+      "text_chars": 756.0,
+      "type": "document"
+    },
+    "Circular FY B.Tech., M.Tech. & M.Sc. TA-I.pdf": {
+      "chunks": 2.0,
+      "status": "indexed",
+      "text_chars": 1354.0,
+      "type": "document"
+    },
+    "Copyright Office Fake review detection.pdf": {
+      "chunks": 9.0,
+      "status": "indexed",
+      "text_chars": 8165.0,
+      "type": "document"
+    },
+    "ENGLISH SPEECH  EMMA WATSON Gender Equality (English Subtitles) - English Speeches.mp3": {
+      "chunks": 4.0,
+      "status": "indexed",
+      "transcript_chars": 1948.0,
+      "type": "audio"
+    },
+    "FY B.Tech. Time Table TA-I (I-Sem) Sept-24.pdf": {
+      "chunks": 2.0,
+      "status": "indexed",
+      "text_chars": 1059.0,
+      "type": "document"
+    },
+    "Financial Report Apple Inc.docx": {
+      "chunks": 14.0,
+      "status": "indexed",
+      "text_chars": 13694.0,
+      "type": "document"
+    },
+    "Golden_Retriever.webp": {
+      "chunks": 1.0,
+      "ocr_chars": 0.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "Hospital Management System - DBMS Jury.pptx": {
+      "chunks": 6.0,
+      "status": "indexed",
+      "text_chars": 5174.0,
+      "type": "document"
+    },
+    "Instructions mechanical workshop.pdf": {
+      "chunks": 3.0,
+      "status": "indexed",
+      "text_chars": 2740.0,
+      "type": "document"
+    },
+    "Iron Man in Flight.png": {
+      "chunks": 1.0,
+      "ocr_chars": 0.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "JAVA.pdf": {
+      "chunks": 11.0,
+      "status": "indexed",
+      "text_chars": 10451.0,
+      "type": "document"
+    },
+    "MFC_II-2024-25-Sem-II-Tutorial 10,11,12.pdf": {
+      "chunks": 3.0,
+      "status": "indexed",
+      "text_chars": 2004.0,
+      "type": "document"
+    },
+    "Maths Tutorial 1.pdf": {
+      "chunks": 7.0,
+      "status": "indexed",
+      "text_chars": 6614.0,
+      "type": "document"
+    },
+    "New Text Document (2).md": {
+      "chunks": 3.0,
+      "status": "indexed",
+      "text_chars": 2760.0,
+      "type": "document"
+    },
+    "OS_Exam_QA.pdf": {
+      "chunks": 37.0,
+      "status": "indexed",
+      "text_chars": 36080.0,
+      "type": "document"
+    },
+    "OntoFM  A Personal Ontology-based File Manager for the Desktop.pdf": {
+      "chunks": 12.0,
+      "status": "indexed",
+      "text_chars": 11064.0,
+      "type": "document"
+    },
+    "Personal Information Management with Semex .test.pdf": {
+      "chunks": 16.0,
+      "status": "indexed",
+      "text_chars": 15887.0,
+      "type": "document"
+    },
+    "SDG-7AfordableandCleanEnergy.pdf": {
+      "chunks": 77.0,
+      "status": "indexed",
+      "text_chars": 76916.0,
+      "type": "document"
+    },
+    "SIH2025-IDEA-Presentation-Format.pptx.pdf": {
+      "chunks": 3.0,
+      "status": "indexed",
+      "text_chars": 2684.0,
+      "type": "document"
+    },
+    "SISM.pdf": {
+      "chunks": 9.0,
+      "status": "indexed",
+      "text_chars": 8258.0,
+      "type": "document"
+    },
+    "SRS.docx": {
+      "chunks": 9.0,
+      "status": "indexed",
+      "text_chars": 8759.0,
+      "type": "document"
+    },
+    "Screenshot (3).png": {
+      "chunks": 1.0,
+      "ocr_chars": 977.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "Steve Carell - Steve Martin Tribute  2007 Kennedy Center Honors - The Kennedy Center.mp3": {
+      "chunks": 4.0,
+      "status": "indexed",
+      "transcript_chars": 1677.5,
+      "type": "audio"
+    },
+    "Survey_Paper.pdf": {
+      "chunks": 25.0,
+      "status": "indexed",
+      "text_chars": 24750.0,
+      "type": "document"
+    },
+    "TA 2 EP PYQ.pdf": {
+      "chunks": 3.0,
+      "status": "indexed",
+      "text_chars": 2463.0,
+      "type": "document"
+    },
+    "TA-II Scanned.pdf": {
+      "chunks": 4.0,
+      "status": "indexed",
+      "text_chars": 3551.0,
+      "type": "document"
+    },
+    "TOC-Unit-I.pptx": {
+      "chunks": 12.0,
+      "status": "indexed",
+      "text_chars": 11085.0,
+      "type": "document"
+    },
+    "TOC.docx": {
+      "chunks": 1.0,
+      "status": "indexed",
+      "text_chars": 870.0,
+      "type": "document"
+    },
+    "Topic IV- photonics.pptx": {
+      "chunks": 17.0,
+      "status": "indexed",
+      "text_chars": 16921.0,
+      "type": "document"
+    },
+    "Unit 5 Application Layer .pptx": {
+      "chunks": 36.0,
+      "status": "indexed",
+      "text_chars": 35830.0,
+      "type": "document"
+    },
+    "VECTOR_SEARCH_IN_THE_ERA_OF_SEMANTIC_UNDERSTANDING.pdf": {
+      "chunks": 35.0,
+      "status": "indexed",
+      "text_chars": 34464.0,
+      "type": "document"
+    },
+    "Week-01_Report_IEEE.pdf": {
+      "chunks": 32.0,
+      "status": "indexed",
+      "text_chars": 31045.0,
+      "type": "document"
+    },
+    "delicious-pepperoni-pizza-culinary-delight_632498-24206.avif": {
+      "chunks": 1.0,
+      "ocr_chars": 0.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "delicious-raspberry-chocolate-ice-cream-sundae_632498-24987.avif": {
+      "chunks": 1.0,
+      "ocr_chars": 0.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "desert-variety-example-wadi-rum.webp": {
+      "chunks": 1.0,
+      "ocr_chars": 0.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "flat-design-om-symbol_23-2149276113.avif": {
+      "chunks": 1.0,
+      "ocr_chars": 2.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "harvard.wav": {
+      "chunks": 1.0,
+      "status": "indexed",
+      "transcript_chars": 221.0,
+      "type": "audio"
+    },
+    "helicopter-art-design-vector-luxury-260nw-2481556627.webp": {
+      "chunks": 1.0,
+      "ocr_chars": 29.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "image-bus-isolated-on-white-600nw-2578467983.webp": {
+      "chunks": 1.0,
+      "ocr_chars": 0.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "images (1).jpg": {
+      "chunks": 1.0,
+      "ocr_chars": 0.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "index_store.py": {
+      "chunks": 13.0,
+      "status": "indexed",
+      "text_chars": 12796.0,
+      "type": "document"
+    },
+    "java Practice Questions.txt": {
+      "chunks": 1.0,
+      "status": "indexed",
+      "text_chars": 926.0,
+      "type": "document"
+    },
+    "latte-coffee_1122-2728.avif": {
+      "chunks": 1.0,
+      "ocr_chars": 0.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "pdf_extract.py": {
+      "chunks": 7.0,
+      "status": "indexed",
+      "text_chars": 6033.0,
+      "type": "document"
+    },
+    "ranking.py": {
+      "chunks": 16.0,
+      "status": "indexed",
+      "text_chars": 15633.0,
+      "type": "document"
+    },
+    "royalenfield-hunter-350-retro-factory1727790756803.webp": {
+      "chunks": 1.0,
+      "ocr_chars": 0.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "s13278-025-01428-9.pdf": {
+      "chunks": 158.0,
+      "status": "indexed",
+      "text_chars": 157252.0,
+      "type": "document"
+    },
+    "spring-magical-3840x2160-16778.jpg": {
+      "chunks": 1.0,
+      "ocr_chars": 0.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "stack-of-books-on-a-brown-background-concept-for-world-book-day-photo.jpg": {
+      "chunks": 1.0,
+      "ocr_chars": 0.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "test.mp4": {
+      "chunks": 2.0,
+      "frames": 2.0,
+      "status": "indexed",
+      "type": "video"
+    },
+    "text1.txt": {
+      "chunks": 3.0,
+      "status": "indexed",
+      "text_chars": 2730.0,
+      "type": "document"
+    },
+    "text2.txt": {
+      "chunks": 11.0,
+      "status": "indexed",
+      "text_chars": 10877.0,
+      "type": "document"
+    },
+    "text3.txt": {
+      "chunks": 5.0,
+      "status": "indexed",
+      "text_chars": 4330.0,
+      "type": "document"
+    },
+    "text4.txt": {
+      "chunks": 5.0,
+      "status": "indexed",
+      "text_chars": 4674.0,
+      "type": "document"
+    },
+    "tiger-looking-with-open-mouth_1150-18083.avif": {
+      "chunks": 1.0,
+      "ocr_chars": 0.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "vidssave.com Forest Bathing _ Shinrin-Yoku _ Healing in Nature _ Short Documentary 720P.mp4": {
+      "chunks": 59.0,
+      "frames": 55.0,
+      "status": "indexed",
+      "transcript_chars": 1879.0,
+      "type": "video"
+    },
+    "vidssave.com How Champions Train Their Minds to Win _ Raj shamani _ #rajshamani 480P.mp4": {
+      "chunks": 157.0,
+      "frames": 133.0,
+      "status": "indexed",
+      "transcript_chars": 11697.0,
+      "type": "video"
+    },
+    "white-horse-running-on-the-sand-created-with-generative-ai-technology-photo.jpg": {
+      "chunks": 1.0,
+      "ocr_chars": 0.0,
+      "status": "indexed",
+      "type": "image"
+    },
+    "worker.py": {
+      "chunks": 8.0,
+      "status": "indexed",
+      "text_chars": 7277.0,
+      "type": "document"
+    }
+  },
+  "files_per_type": {
+    "audio": 3.0,
+    "document": 43.0,
+    "image": 20.0,
+    "video": 3.0
+  },
+  "job_status": [
+    "completed",
+    69,
+    0,
+    0
+  ],
+  "resources": {
+    "cpu_percent_max": 100.0,
+    "cpu_percent_mean": 89.15,
+    "gpu_busy_share": 0.16,
+    "gpu_mem_used_peak_mb": 2461.0,
+    "gpu_util_mean": 6.55,
+    "gpu_util_samples": 167.5,
+    "peak_rss_mb": 4835.0,
+    "peak_temp_mb": 11.3,
+    "peak_vram_torch_mb": 866.0
+  },
+  "stage_calls": {
+    "clip_image": 23.0,
+    "extract_text": 43.0,
+    "frame_extract": 3.0,
+    "ledger": 138.0,
+    "minilm": 48.0,
+    "model_wait": 163.0,
+    "ocr": 81.0,
+    "other": 69.0,
+    "pdf_render": 12.0,
+    "qdrant_upsert": 138.0,
+    "whisper": 6.0
+  },
+  "stage_seconds": {
+    "clip_image": 52.377,
+    "extract_text": 72.184,
+    "frame_extract": 30.133,
+    "ledger": 8.509,
+    "minilm": 42.858,
+    "model_wait": 299.092,
+    "ocr": 262.023,
+    "other": 1.768,
+    "pdf_render": 172.375,
+    "qdrant_upsert": 14.551,
+    "whisper": 142.346
+  },
+  "throughput_per_minute": {
+    "audio": 2.41,
+    "audio_minutes_per_minute": 6.24,
+    "document": 3.465,
+    "image": 15.91,
+    "video": 0.915,
+    "video_minutes_per_minute": 4.79
+  },
+  "time_to_100pct_searchable_s": 291.77,
+  "time_to_50pct_searchable_s": 69.275,
+  "wall_seconds": 291.885,
+  "label": "after-cpu-ocr",
+  "created_at": "2026-10-09T07:58:52+00:00",
+  "runs": 2,
+  "run_walls": [
+    291.94,
+    291.83
+  ],
+  "file_count": 69,
+  "media_minutes": {
+    "audio": 7.76,
+    "video": 15.69
+  },
+  "kept_user": null
+}
