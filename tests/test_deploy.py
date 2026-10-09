@@ -210,3 +210,15 @@ def test_env_example_lists_every_required_secret_empty(key):
 
     example = (ROOT / ".env.example").read_text(encoding="utf-8")
     assert re.search(rf"^{key}=$", example, re.M), key
+
+
+def test_pyav_is_pinned_to_a_version_faster_whisper_supports():
+    """faster-whisper 1.2.1 passes av.open(metadata_errors=...), removed in PyAV 19:
+    with av>=19 every audio/video transcription fails in the image."""
+
+    lock = (ROOT / "backend/requirements-linux.lock").read_text(encoding="utf-8")
+    windows = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+    pin = re.search(r"^av==(\d+)\.", lock, re.M)
+
+    assert pin and int(pin.group(1)) < 19
+    assert re.search(r"^av==17\.1\.0$", lock, re.M) and re.search(r"^av==17\.1\.0$", windows, re.M)
