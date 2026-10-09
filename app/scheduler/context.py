@@ -15,6 +15,7 @@ from app.database.db import SessionLocal
 from app.database.models import IndexingJob, IndexingJobError
 from app.scheduler.errors import sanitize_error
 from app.core.clock import utcnow
+from app.core.timing import StageTimer
 
 
 logger = logging.getLogger("cogniseek.jobs")
@@ -59,6 +60,9 @@ class JobContext:
 
         self._dirty_files = 0
         self._last_flush = clock()
+
+        # Seconds per stage for this job (saved on every flush and at the end).
+        self.timer = StageTimer()
 
     # ------------------------------------------------------------------
     # Progress
@@ -186,7 +190,8 @@ class JobContext:
                     # Legacy column, kept equal to processed_files for old clients.
                     IndexingJob.indexed_files: self.processed_files,
                     IndexingJob.current_file: self.current_file,
-                    IndexingJob.heartbeat_at: utcnow()
+                    IndexingJob.heartbeat_at: utcnow(),
+                    IndexingJob.stage_timings: self.timer.snapshot()
                 },
                 synchronize_session=False
             )

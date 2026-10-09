@@ -18,6 +18,7 @@ import re
 import tempfile
 
 from app.core.config import settings
+from app.core.timing import span
 
 
 logger = logging.getLogger("cogniseek.extractors.pdf")
@@ -81,16 +82,17 @@ def render_page(pdf_path: str, page_number: int, output_dir: str) -> str:
 
     from pdf2image import convert_from_path
 
-    images = convert_from_path(
-        pdf_path,
-        dpi=200,
-        first_page=page_number,
-        last_page=page_number,
-        poppler_path=settings.POPPLER_PATH or None
-    )
+    with span("pdf_render"):
+        images = convert_from_path(
+            pdf_path,
+            dpi=200,
+            first_page=page_number,
+            last_page=page_number,
+            poppler_path=settings.POPPLER_PATH or None
+        )
 
-    path = os.path.join(output_dir, f"page_{page_number}.jpg")
-    images[0].save(path, "JPEG")
+        path = os.path.join(output_dir, f"page_{page_number}.jpg")
+        images[0].save(path, "JPEG")
 
     return path
 

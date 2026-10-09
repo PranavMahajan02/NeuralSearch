@@ -412,5 +412,6 @@ def serialize_job(job: IndexingJob) -> dict:
         "created_at": job.created_at,
         "started_at": job.started_at,
         "completed_at": job.completed_at,
-        "heartbeat_at": job.heartbeat_at
+        "heartbeat_at": job.heartbeat_at,
+        "stage_timings": job.stage_timings
     }
