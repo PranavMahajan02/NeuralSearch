@@ -111,3 +111,18 @@ def test_batched_whisper_is_opt_in(monkeypatch):
     monkeypatch.setattr(settings, "WHISPER_BATCH_SIZE", 0)
 
     assert audio.extract_audio_text("a.wav") == "hello"
+
+
+@pytest.mark.parametrize("serialize, on_gpu, shared", [(True, True, True), (True, False, False), (False, True, False)])
+def test_gpu_models_share_one_lock(monkeypatch, serialize, on_gpu, shared):
+
+    manager = real_model_manager.ModelManager()
+    monkeypatch.setattr(settings, "GPU_SERIALIZE", serialize)
+    manager._device = "cuda" if on_gpu else "cpu"
+    manager._ocr_on_gpu = on_gpu
+
+    locks = {manager.semantic_lock, manager.clip_lock, manager.whisper_lock, manager.ocr_lock}
+
+    assert (len(locks) == 1) is shared
+    if not shared:
+        assert len(locks) == 4

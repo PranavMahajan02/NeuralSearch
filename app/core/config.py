@@ -113,6 +113,10 @@ class Settings(BaseSettings):
     INDEX_IO_WORKERS: int = 4
     # Upper bound on files in flight (bounded memory / temp disk), >= workers.
     INDEX_PREFETCH: int = 8
+    # One lock for ALL GPU model calls instead of one per model. Off: measured
+    # 115 s vs 93 s (per-model locks) on the benchmark set - different models
+    # overlapping on the GPU is faster (docs/perf/RESULTS.md).
+    GPU_SERIALIZE: bool = False
 
     # Models: load all of them at startup (True) or on first use (False).
     PRELOAD_MODELS: bool = True

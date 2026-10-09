@@ -1,0 +1,120 @@
+{
+  "by_type_seconds": {
+    "audio": 88.63,
+    "document": 1139.38,
+    "image": 604.93,
+    "video": 300.63
+  },
+  "by_type_stage_seconds": {
+    "audio": {
+      "ledger": 0.095,
+      "minilm": 0.087,
+      "model_wait": 54.201,
+      "other": 0.004,
+      "qdrant_upsert": 0.504,
+      "whisper": 33.737
+    },
+    "document": {
+      "extract_text": 102.689,
+      "ledger": 19.291,
+      "minilm": 57.483,
+      "model_wait": 512.389,
+      "ocr": 273.784,
+      "other": 0.024,
+      "pdf_render": 150.597,
+      "qdrant_upsert": 23.126
+    },
+    "image": {
+      "clip_image": 62.991,
+      "ledger": 2.521,
+      "model_wait": 389.091,
+      "ocr": 148.59,
+      "other": 0.017,
+      "qdrant_upsert": 1.716
+    },
+    "video": {
+      "clip_image": 35.901,
+      "frame_extract": 32.522,
+      "ledger": 0.186,
+      "minilm": 0.309,
+      "model_wait": 147.846,
+      "other": 0.655,
+      "qdrant_upsert": 1.042,
+      "whisper": 82.17
+    }
+  },
+  "email": "bench-ce47dc60@example.com",
+  "files_per_type": {
+    "audio": 6,
+    "document": 86,
+    "image": 64,
+    "video": 8
+  },
+  "job_status": [
+    "completed",
+    164,
+    0,
+    0
+  ],
+  "resources": {
+    "cpu_percent_max": 100.0,
+    "cpu_percent_mean": 82.0,
+    "gpu_busy_share": 0.26,
+    "gpu_mem_used_peak_mb": 3478.0,
+    "gpu_util_mean": 10.2,
+    "gpu_util_samples": 376,
+    "peak_rss_mb": 4295,
+    "peak_temp_mb": 29.6,
+    "peak_vram_torch_mb": 863
+  },
+  "stage_calls": {
+    "clip_image": 72,
+    "extract_text": 86,
+    "frame_extract": 8,
+    "ledger": 328,
+    "minilm": 95,
+    "model_wait": 330,
+    "ocr": 132,
+    "other": 164,
+    "pdf_render": 19,
+    "qdrant_upsert": 328,
+    "whisper": 14
+  },
+  "stage_seconds": {
+    "clip_image": 98.892,
+    "extract_text": 102.689,
+    "frame_extract": 32.522,
+    "ledger": 22.093,
+    "minilm": 57.879,
+    "model_wait": 1103.527,
+    "ocr": 422.374,
+    "other": 0.699,
+    "pdf_render": 150.597,
+    "qdrant_upsert": 26.387,
+    "whisper": 115.907
+  },
+  "throughput_per_minute": {
+    "audio": 4.06,
+    "audio_minutes_per_minute": 16.73,
+    "document": 4.53,
+    "image": 6.35,
+    "video": 1.6,
+    "video_minutes_per_minute": 11.22
+  },
+  "time_to_100pct_searchable_s": 573.18,
+  "time_to_50pct_searchable_s": 139.55,
+  "wall_seconds": 573.34,
+  "label": "eval-after-cpu",
+  "created_at": "2026-10-09T04:55:36+00:00",
+  "runs": 1,
+  "run_walls": [
+    573.34
+  ],
+  "file_count": 164,
+  "media_minutes": {
+    "audio": 24.71,
+    "video": 56.23
+  },
+  "kept_user": "bench-ce47dc60@example.com",
+  "files_note": "per-file outputs (164 files of the owner's data/ folder) omitted: file names are personal"
+}

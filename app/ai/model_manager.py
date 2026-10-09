@@ -28,11 +28,12 @@ class ModelManager:
 
         self._load_lock = threading.Lock()
 
-        # One lock per model for inference (encode/transcribe/ocr).
-        self.semantic_lock = threading.Lock()
-        self.clip_lock = threading.Lock()
-        self.whisper_lock = threading.Lock()
-        self.ocr_lock = threading.Lock()
+        # Inference locks (encode/transcribe/ocr): one per model, so each model
+        # runs one call at a time while different models may overlap (measured
+        # fastest). settings.GPU_SERIALIZE=true makes every GPU model share ONE lock.
+        self._model_locks = {name: threading.Lock() for name in ("semantic", "clip", "whisper", "ocr")}
+        self._gpu_lock = threading.Lock()
+        self._ocr_on_gpu = False
 
     # ------------------------------------------------------------------
     # Device
@@ -119,8 +120,35 @@ class ModelManager:
                     from paddleocr import PaddleOCR
                     logger.info("Loading PaddleOCR (%s)...", "GPU" if use_gpu else "CPU")
                     self._ocr_model = PaddleOCR(use_angle_cls=True, lang="en", use_gpu=use_gpu, show_log=False)
+                    self._ocr_on_gpu = use_gpu
 
         return self._ocr_model
+
+    def _lock_for(self, name: str, on_gpu: bool) -> threading.Lock:
+
+        from app.core.config import settings
+
+        return self._gpu_lock if (on_gpu and settings.GPU_SERIALIZE) else self._model_locks[name]
+
+    @property
+    def semantic_lock(self) -> threading.Lock:
+
+        return self._lock_for("semantic", self.device == "cuda")
+
+    @property
+    def clip_lock(self) -> threading.Lock:
+
+        return self._lock_for("clip", self.device == "cuda")
+
+    @property
+    def whisper_lock(self) -> threading.Lock:
+
+        return self._lock_for("whisper", self.device == "cuda")
+
+    @property
+    def ocr_lock(self) -> threading.Lock:
+
+        return self._lock_for("ocr", self._ocr_on_gpu)
 
     @property
     def ready(self) -> bool:
