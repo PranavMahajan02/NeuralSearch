@@ -5,7 +5,7 @@ TypeScript types are generated (frontend: `npm run gen:api`).
 """
 
 from datetime import datetime
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel
 
@@ -128,6 +128,8 @@ class Job(BaseModel):
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     heartbeat_at: Optional[datetime] = None
+    # Where the time went: seconds per stage, calls, and per file type.
+    stage_timings: Optional[Dict[str, Any]] = None
 
 
 class JobWithHistory(Job):

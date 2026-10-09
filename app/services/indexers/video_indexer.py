@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.search.frame_null import frame_time_s, null_stats
 from app.services.index_store import IndexPoint
 from app.services.indexers.document_indexer import chunk_text
+from app.core.timing import span
 
 
 CHUNK_SIZE = 500
@@ -31,7 +32,8 @@ def extract_frames(path: str, output_folder: str) -> List[str]:
 
     from app.extractors.video_frames import extract_frames as extract
 
-    return extract(path, output_folder)
+    with span("frame_extract"):
+        return extract(path, output_folder)
 
 
 def build_video_points(path: str, temp_dir=None) -> List[IndexPoint]:

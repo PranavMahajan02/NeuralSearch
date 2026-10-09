@@ -6,6 +6,8 @@ deterministic fake, so no model is ever loaded in the test suite.
 
 from typing import List, Sequence
 
+from app.core.timing import span
+
 
 class ModelEmbedder:
     """Real models, imported lazily (they pull in torch/transformers)."""
@@ -38,7 +40,8 @@ def embed_texts(texts: Sequence[str]) -> List[List[float]]:
     if not texts:
         return []
 
-    return backend.text(texts)
+    with span("minilm"):
+        return backend.text(texts)
 
 
 def embed_text(text: str) -> List[float]:
@@ -54,4 +57,5 @@ def embed_clip_text(text: str) -> List[float]:
 
 def embed_clip_image(path: str) -> List[float]:
 
-    return backend.clip_image(path)
+    with span("clip_image"):
+        return backend.clip_image(path)
