@@ -151,5 +151,12 @@ lengths, and frame counts for all 164 corpus files.
 
 ## Docker (CPU image)
 
-See the Phase 7A.5 report: the bench was run inside the rebuilt CPU image; ffmpeg,
-Poppler and Paddle work there.
+`scripts/bench_indexing.py` was run inside the rebuilt `cogniseek-backend:cpu` image, where
+every model runs on the CPU (CPU torch, CPU Paddle). On the same 69 files: **333 s, 69/69 files
+indexed, half searchable after 69 s**. ffmpeg (PyAV), Poppler and PaddleOCR all work in the
+container (`docs/perf/docker-cpu.json`).
+
+This run found a pre-existing image bug. The Linux lock had resolved PyAV 19, which removed
+an argument faster-whisper 1.2.1 passes. Every audio and video transcription failed in the
+container (6 of 69 files). PyAV is now pinned to 17.1.0, the same as the Windows dev venv,
+with a test.

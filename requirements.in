@@ -35,6 +35,8 @@ torch==2.11.0+cu128
 transformers==4.49.0
 sentence-transformers==5.6.0
 faster-whisper==1.2.1
+av==17.1.0                    # PyAV for faster-whisper decode_audio; av>=19 dropped the
+                              # metadata_errors argument faster-whisper 1.2.1 passes (audio fails)
 paddleocr==2.7.3
 paddlepaddle==2.6.2
 numpy==1.26.4

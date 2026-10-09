@@ -46,7 +46,7 @@ MEDIA_TYPES = ("audio", "video")
 # Isolation: must run before any app import (settings are read at import).
 # ---------------------------------------------------------------------------
 
-def isolate(db_name: str, prefix: str, temp_dir: Path) -> str:
+def isolate(db_name: str, prefix: str, temp_dir: Path, allowed_root: Path) -> str:
 
     from dotenv import dotenv_values
 
@@ -73,7 +73,8 @@ def isolate(db_name: str, prefix: str, temp_dir: Path) -> str:
         "TEMP_DIR": str(temp_dir),
         "PRELOAD_MODELS": "true",
         "COGNISEEK_DISABLE_WORKER": "1",
-        "ALLOWED_LOCAL_ROOTS": "",
+        # Exactly the folder being indexed (inside a container: a mounted path).
+        "ALLOWED_LOCAL_ROOTS": str(allowed_root),
     })
 
     from alembic import command
@@ -357,6 +358,8 @@ def median_of(runs: list) -> dict:
     """Numeric fields: median across runs (per key); everything else from run 1."""
 
     def merge(values):
+        if not values:
+            return None
         first = values[0]
         if isinstance(first, dict):
             keys = {k for v in values for k in v}
@@ -385,7 +388,6 @@ def main() -> int:
     workdir = Path(args.workdir)
     temp_root = workdir / "temp"
     temp_root.mkdir(parents=True, exist_ok=True)
-    isolate(args.db_name, args.prefix, temp_root)
 
     if args.folder:
         folder = Path(args.folder).resolve()
@@ -395,6 +397,8 @@ def main() -> int:
         if folder.exists():
             shutil.rmtree(folder)
         files = copy_set(read_set(Path(args.set)), folder)
+
+    isolate(args.db_name, args.prefix, temp_root, folder)
 
     from app.config.file_types import file_type_for
     media = {}
