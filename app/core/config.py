@@ -108,6 +108,11 @@ class Settings(BaseSettings):
     OCR_DEVICE: Literal["auto", "cpu", "gpu"] = "auto"
     # faster-whisper batched pipeline (0 = off, the sequential decoder).
     WHISPER_BATCH_SIZE: int = 0
+    # Files processed at once per job (downloads + CPU extraction overlap with
+    # GPU work; the GPU sections stay serialized). 1 = strictly sequential.
+    INDEX_IO_WORKERS: int = 4
+    # Upper bound on files in flight (bounded memory / temp disk), >= workers.
+    INDEX_PREFETCH: int = 8
 
     # Models: load all of them at startup (True) or on first use (False).
     PRELOAD_MODELS: bool = True

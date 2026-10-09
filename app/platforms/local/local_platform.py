@@ -3,7 +3,7 @@ from pathlib import Path
 
 from app.platforms.base_platform import BasePlatform
 from app.platforms.errors import PlatformPreconditionError
-from app.platforms.indexing import EXCLUDED_REASON, is_excluded, is_supported, process_files
+from app.platforms.indexing import EXCLUDED_REASON, is_excluded, is_supported, process_files, schedule_key
 from app.database.db import SessionLocal
 from app.database.local_storage_service import get_local_folders
 
@@ -52,6 +52,8 @@ class LocalPlatform(BasePlatform):
         ctx.add_skipped(skipped + len(excluded))
         ctx.set_total(len(supported))
 
+        supported.sort(key=local_schedule_key)
+
         process_files(
             ctx,
             supported,
@@ -96,6 +98,18 @@ class LocalPlatform(BasePlatform):
     def list_files(self):
 
         return self.scan(self.folders)[0]
+
+
+def local_schedule_key(path: str):
+    """Documents -> images -> audio -> video, small first (see schedule_key)."""
+
+    from app.config.file_types import file_type_for
+
+    try:
+        size = os.path.getsize(path)
+    except OSError:
+        size = None
+    return schedule_key(file_type_for(path), size, path)
 
 
 def record_excluded(user_id, paths) -> None:
