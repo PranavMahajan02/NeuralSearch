@@ -1,0 +1,81 @@
+# Phase 7A.5 benchmark set. One file per line, copied (read-only) into a scratch
+# folder by scripts/bench_indexing.py. "data:" = the owner's data/ folder (not in
+# git), "repo:" = a file of this repository. Personal documents (ID cards,
+# marksheets, certificates, receipts, chat photos) are deliberately excluded.
+#
+# [pdf-text] 18 text PDFs
+data:1908.10084v1.pdf
+data:402.Successive differentiation.pdf
+data:MFC_II-2024-25-Sem-II-Tutorial 10,11,12.pdf
+data:OS_Exam_QA.pdf
+data:OntoFM  A Personal Ontology-based File Manager for the Desktop.pdf
+data:Personal Information Management with Semex .test.pdf
+data:SISM.pdf
+data:Survey_Paper.pdf
+data:VECTOR_SEARCH_IN_THE_ERA_OF_SEMANTIC_UNDERSTANDING.pdf
+data:Week-01_Report_IEEE.pdf
+data:s13278-025-01428-9.pdf
+data:JAVA.pdf
+data:SDG-7AfordableandCleanEnergy.pdf
+data:Copyright Office Fake review detection.pdf
+data:1_s20_S092523122300303X_main.pdf
+data:SIH2025-IDEA-Presentation-Format.pptx.pdf
+data:Circular FY B.Tech., M.Tech. & M.Sc. TA-I.pdf
+data:FY B.Tech. Time Table TA-I (I-Sem) Sept-24.pdf
+# [pdf-scanned] 5 scanned / image-heavy PDFs
+data:Maths Tutorial 1.pdf
+data:TA-II Scanned.pdf
+data:TA 2 EP PYQ.pdf
+data:Instructions mechanical workshop.pdf
+data:1. Unit 1 - Basics of Economics - Updated PPT.pdf
+# [office] 10 DOCX/PPTX
+data:ANimal kingdom java.docx
+data:CN_ESE1.docx
+data:Financial Report Apple Inc.docx
+data:SRS.docx
+data:TOC.docx
+data:Hospital Management System - DBMS Jury.pptx
+data:TOC-Unit-I.pptx
+data:Unit 5 Application Layer .pptx
+data:Topic IV- photonics.pptx
+data:AI Tech Social Media Strategy by Slidesgo.pptx
+# [text-code] 10 text/code files
+data:text1.txt
+data:text2.txt
+data:text3.txt
+data:text4.txt
+data:java Practice Questions.txt
+data:New Text Document (2).md
+repo:app/search/ranking.py
+repo:app/services/index_store.py
+repo:app/scheduler/worker.py
+repo:app/extractors/pdf_extract.py
+# [image] 20 images (jpg/png/webp/avif; some with text)
+data:Golden_Retriever.webp
+data:0x0.webp
+data:desert-variety-example-wadi-rum.webp
+data:helicopter-art-design-vector-luxury-260nw-2481556627.webp
+data:image-bus-isolated-on-white-600nw-2578467983.webp
+data:royalenfield-hunter-350-retro-factory1727790756803.webp
+data:delicious-pepperoni-pizza-culinary-delight_632498-24206.avif
+data:delicious-raspberry-chocolate-ice-cream-sundae_632498-24987.avif
+data:latte-coffee_1122-2728.avif
+data:tiger-looking-with-open-mouth_1150-18083.avif
+data:flat-design-om-symbol_23-2149276113.avif
+data:Iron Man in Flight.png
+data:Screenshot (3).png
+data:25a19d87-ccc8-49f9-b47f-32494587979a.png
+data:spring-magical-3840x2160-16778.jpg
+data:white-horse-running-on-the-sand-created-with-generative-ai-technology-photo.jpg
+data:stack-of-books-on-a-brown-background-concept-for-world-book-day-photo.jpg
+data:81pieXC63IL.jpg
+data:71zkzx-VtyL._AC_UF1000,1000_QL80_.jpg
+data:images (1).jpg
+# [audio] 3 audio files
+data:harvard.wav
+data:ENGLISH SPEECH  EMMA WATSON Gender Equality (English Subtitles) - English Speeches.mp3
+data:Steve Carell - Steve Martin Tribute  2007 Kennedy Center Honors - The Kennedy Center.mp3
+# [video] 3 videos: short, ~5 min, ~11 min
+data:test.mp4
+data:vidssave.com Forest Bathing _ Shinrin-Yoku _ Healing in Nature _ Short Documentary 720P.mp4
+data:vidssave.com How Champions Train Their Minds to Win _ Raj shamani _ #rajshamani 480P.mp4
