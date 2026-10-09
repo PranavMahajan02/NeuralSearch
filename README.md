@@ -95,6 +95,24 @@ services of the *Docker* stack on 127.0.0.1 for debugging (copy it to `docker-co
 > **Note:** `docker compose up` without `-f` now starts the production stack (project `cogniseek`,
 > separate volumes). It never touches the development containers (project `omniseach-ai`).
 
+## Performance
+
+A fixed 69-file benchmark (211 MB: PDFs, scanned PDFs, Office files, code, 20 images,
+8 audio-minutes, 16 video-minutes) on an RTX 3050 laptop indexes in **93 s instead of 347 s**
+(3.7× faster). Half of the files are searchable after **31 s instead of 191 s**. Search quality
+is unchanged: the eval was re-run on indexes built before and after. Details, per-stage
+numbers and the ideas that were measured and rejected: [docs/perf/RESULTS.md](docs/perf/RESULTS.md).
+
+- **GPU OCR is opt-in** and is most of the gain: `pip uninstall -y paddlepaddle && pip install -r requirements-gpu.txt`.
+  `OCR_DEVICE=auto` uses it when present. Without it, the default install takes 292 s and is
+  50% searchable after 69 s.
+- **Tuning:** `INDEX_IO_WORKERS` (files processed at once, default 4; lower it on small
+  machines) and `INDEX_PREFETCH` (files in flight, default 8).
+- **Benchmark it yourself:** `venv\Scripts\python scripts\bench_indexing.py --label mine --runs 2`
+  (scratch DB and Qdrant prefix; your data is never touched). Then compare with
+  `scripts\compare_bench.py docs\perf\baseline.json docs\perf\mine.json`.
+- The Indexing Center shows **"Where the time went"** for every finished job.
+
 ## Screenshots
 
 Captured by `frontend/e2e/screenshots.ts`, which walks a throwaway demo account (sample notes and
