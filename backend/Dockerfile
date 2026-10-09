@@ -19,7 +19,7 @@ RUN apt-get update \
 RUN python -m venv /opt/venv
 ENV PATH=/opt/venv/bin:$PATH
 
-COPY requirements.in backend/requirements-linux.lock /tmp/
+COPY requirements.in requirements-gpu.txt backend/requirements-linux.lock /tmp/
 
 # torch comes from the PyTorch index matching TORCH_VARIANT (cpu | cu128), at the
 # version pinned in requirements.in; everything else from the Linux lock file.
@@ -31,6 +31,12 @@ RUN set -eux; \
     pip freeze | grep -E '^(torch|torchvision|torchaudio)==' > /tmp/torch-constraints.txt; \
     pip install -c /tmp/torch-constraints.txt -r /tmp/requirements-linux.lock; \
     pip check
+
+# GPU variant only: PaddleOCR on CUDA (Paddle 2.6 + cuDNN 8, requirements-gpu.txt).
+# Not exercised in CI or on the dev machine (no NVIDIA container runtime there).
+RUN if [ "$TORCH_VARIANT" != "cpu" ]; then \
+        pip uninstall -y paddlepaddle && pip install -r /tmp/requirements-gpu.txt; \
+    fi
 
 # ---------------------------------------------------------------------------
 FROM python:${PYTHON_VERSION}-slim AS runtime
@@ -61,6 +67,7 @@ ENV PATH=/opt/venv/bin:$PATH \
     PYTHONUNBUFFERED=1 \
     HOME=/models \
     HF_HOME=/models/huggingface \
+    LD_LIBRARY_PATH=/opt/venv/lib/python3.12/site-packages/nvidia/cudnn/lib \
     XDG_CACHE_HOME=/models/cache \
     ENV=production \
     DATA_DIR=/var/lib/cogniseek \

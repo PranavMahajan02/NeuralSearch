@@ -13,7 +13,7 @@ from sqlalchemy import (
     text
 )
 
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.sql import func
 
 import uuid
@@ -246,6 +246,9 @@ class IndexingJob(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
 
     heartbeat_at = Column(DateTime(timezone=True))
+
+    # Seconds per indexing stage (app/core/timing.py): {"seconds", "calls", "by_type"}.
+    stage_timings = Column(JSONB)
 
 
 # ==========================================================

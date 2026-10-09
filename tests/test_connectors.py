@@ -943,11 +943,11 @@ def fake_ocr(monkeypatch):
 
     calls = []
 
-    def render(pdf_path, page_number, output_dir):
-        calls.append(page_number)
-        return f"page-{page_number}.jpg"
+    def render(pdf_path, numbers, output_dir):
+        calls.extend(numbers)
+        return {n: f"page-{n}.jpg" for n in numbers}
 
-    monkeypatch.setattr(pdf_extract, "render_page", render)
+    monkeypatch.setattr(pdf_extract, "render_pages", render)
     monkeypatch.setattr(pdf_extract, "ocr_image", lambda path: "Government of India Aadhaar unique identification")
 
     return calls
@@ -1010,7 +1010,7 @@ def test_ocr_failure_falls_back_to_text_layer(tmp_path, monkeypatch):
     def broken(*args):
         raise OSError("poppler not found")
 
-    monkeypatch.setattr(pdf_extract, "render_page", broken)
+    monkeypatch.setattr(pdf_extract, "render_pages", broken)
 
     text = pdf_extract.extract_text(str(make_image_pdf(tmp_path / "scan.pdf", text_layer="short", pages=3)))
 
@@ -1268,3 +1268,29 @@ def test_job_errors_never_contain_urls(client, user):
 
     message = jobs_of(client, user)["local"]["error_message"]
     assert message == "RuntimeError: GET <url> failed"
+
+
+def test_pages_render_in_contiguous_runs():
+
+    from app.extractors.pdf_extract import page_runs
+
+    assert page_runs([9, 1, 2, 3, 7, 10]) == [(1, 3), (7, 7), (9, 10)]
+    assert page_runs([]) == []
+
+
+def test_ocr_stops_after_a_failing_page(tmp_path, monkeypatch):
+
+    import app.extractors.pdf_extract as pdf_extract
+
+    calls = []
+
+    def ocr(path):
+        calls.append(path)
+        raise RuntimeError("paddle crashed")
+
+    monkeypatch.setattr(pdf_extract, "render_pages", lambda pdf, numbers, out: {n: f"p{n}" for n in numbers})
+    monkeypatch.setattr(pdf_extract, "ocr_image", ocr)
+
+    text = pdf_extract.extract_text(str(make_image_pdf(tmp_path / "scan.pdf", text_layer="short", pages=3)))
+
+    assert calls == ["p1"] and "short" in text

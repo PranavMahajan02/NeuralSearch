@@ -6,10 +6,14 @@
   if that is under MAX_RATE_LIMIT_WAIT seconds, otherwise fail the job with
   "rate limited until <time>"
 - every request has a timeout
+- a 429 / rate limit seen by ONE request pauses ALL of them (CooldownGate):
+  downloads run in parallel (settings.INDEX_IO_WORKERS), and the limit is per
+  account, not per request
 """
 
 import logging
 import random
+import threading
 import time
 from datetime import datetime, timezone
 from typing import Callable, Optional
@@ -32,6 +36,44 @@ RETRY_STATUSES = {429, 500, 502, 503, 504}
 # Indirection so tests can run without real sleeping.
 sleep = time.sleep
 now = time.time
+
+
+class CooldownGate:
+    """Process-wide pause shared by every connector request.
+
+    hold(seconds) extends the pause; wait() blocks until it is over (it sleeps
+    outside the lock, so other threads can extend it meanwhile)."""
+
+    def __init__(self) -> None:
+
+        self._lock = threading.Lock()
+        self._until = 0.0
+
+    def hold(self, seconds: float) -> None:
+
+        with self._lock:
+            self._until = max(self._until, now() + max(0.0, seconds))
+
+    def remaining(self) -> float:
+
+        with self._lock:
+            return max(0.0, self._until - now())
+
+    def wait(self) -> None:
+        """Sleep out the current pause, once (whoever extends it meanwhile
+        waits too, and every request checks again before it is sent)."""
+
+        delay = self.remaining()
+        if delay > 0:
+            sleep(delay)
+
+    def reset(self) -> None:
+
+        with self._lock:
+            self._until = 0.0
+
+
+gate = CooldownGate()
 
 
 class RateLimited(PlatformPreconditionError):
@@ -103,6 +145,7 @@ def request(
     for attempt in range(max_tries):
 
         last = attempt == max_tries - 1
+        gate.wait()
 
         try:
             response = http.request(method, url, timeout=timeout, **kwargs)
@@ -120,14 +163,17 @@ def request(
             if last:
                 return response
             logger.warning("Rate limited on %s; waiting %.0fs for the reset", url, wait)
-            sleep(wait)
+            gate.hold(wait)          # every parallel request waits, not just this one
             continue
 
         if response.status_code in RETRY_STATUSES and not last:
             delay = _retry_after_seconds(response.headers)
             delay = backoff_delay(attempt) if delay is None else min(delay, MAX_RATE_LIMIT_WAIT)
             logger.warning("%s %s -> %d; retry %d in %.1fs", method, url, response.status_code, attempt + 1, delay)
-            sleep(delay)
+            if response.status_code == 429:
+                gate.hold(delay)     # account-wide: pause all parallel requests
+            else:
+                sleep(delay)
             continue
 
         return response
@@ -146,12 +192,15 @@ def call_with_retry(
 
     for attempt in range(max_tries):
 
+        gate.wait()
+
         try:
             return fn()
 
-        except (requests.ConnectionError, requests.Timeout, ConnectionError, TimeoutError) as error:
+        except (requests.ConnectionError, requests.Timeout, ConnectionError, TimeoutError):
             if attempt == max_tries - 1:
                 raise
+            status = None
             delay = backoff_delay(attempt)
 
         except Exception as error:
@@ -162,4 +211,7 @@ def call_with_retry(
             delay = backoff_delay(attempt) if delay is None else min(delay, MAX_RATE_LIMIT_WAIT)
 
         logger.warning("call failed; retry %d in %.1fs", attempt + 1, delay)
-        sleep(delay)
+        if status == 429:
+            gate.hold(delay)
+        else:
+            sleep(delay)

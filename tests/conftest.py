@@ -70,6 +70,9 @@ os.environ.update({
     "PRELOAD_MODELS": "false",
     # Tests drive the indexing worker explicitly (IndexingWorker.run_once).
     "COGNISEEK_DISABLE_WORKER": "1",
+    # Sequential file loop by default, so counts after cancel/abort are exact;
+    # tests/test_pipeline_concurrency.py covers the parallel loop explicitly.
+    "INDEX_IO_WORKERS": "1",
     # In-process Qdrant + a throwaway prefix: tests can never reach the real
     # collections (cogniseek_v2_* / cogniseek*).
     "QDRANT_LOCATION": ":memory:",
@@ -197,6 +200,17 @@ def client(app):
 
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture(autouse=True)
+def _reset_http_gate():
+    """The connector cool-down gate is process-wide: no test inherits a pause."""
+
+    from app.platforms import http
+
+    http.gate.reset()
+    yield
+    http.gate.reset()
 
 
 @pytest.fixture(autouse=True)

@@ -7,12 +7,19 @@ from app.ai.embedder import embed_texts
 from app.config.file_types import TEXT_DOCUMENTS
 from app.core.config import settings
 from app.services.index_store import IndexPoint, Points
+from app.core.timing import span
 
 
 CHUNK_SIZE = 1000
 
 
 def extract_document_text(path: str) -> str:
+
+    with span("extract_text"):
+        return _extract(path)
+
+
+def _extract(path: str) -> str:
 
     extension = os.path.splitext(path)[1].lower()
 

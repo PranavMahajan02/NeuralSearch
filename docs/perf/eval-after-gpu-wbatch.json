@@ -1,0 +1,120 @@
+{
+  "by_type_seconds": {
+    "audio": 58.59,
+    "document": 633.36,
+    "image": 137.75,
+    "video": 282.95
+  },
+  "by_type_stage_seconds": {
+    "audio": {
+      "ledger": 0.138,
+      "minilm": 0.377,
+      "model_wait": 33.777,
+      "other": 0.043,
+      "qdrant_upsert": 0.6,
+      "whisper": 23.655
+    },
+    "document": {
+      "extract_text": 184.664,
+      "ledger": 5.102,
+      "minilm": 35.277,
+      "model_wait": 171.014,
+      "ocr": 130.262,
+      "other": 0.041,
+      "pdf_render": 99.155,
+      "qdrant_upsert": 7.843
+    },
+    "image": {
+      "clip_image": 25.068,
+      "ledger": 2.145,
+      "model_wait": 73.634,
+      "ocr": 34.035,
+      "other": 0.02,
+      "qdrant_upsert": 2.853
+    },
+    "video": {
+      "clip_image": 55.224,
+      "frame_extract": 60.057,
+      "ledger": 0.227,
+      "minilm": 0.448,
+      "model_wait": 99.247,
+      "other": 1.106,
+      "qdrant_upsert": 1.755,
+      "whisper": 64.888
+    }
+  },
+  "email": "bench-a0e2eaa1@example.com",
+  "files_per_type": {
+    "audio": 6,
+    "document": 86,
+    "image": 64,
+    "video": 8
+  },
+  "job_status": [
+    "completed",
+    164,
+    0,
+    0
+  ],
+  "resources": {
+    "cpu_percent_max": 93.3,
+    "cpu_percent_mean": 63.0,
+    "gpu_busy_share": 0.43,
+    "gpu_mem_used_peak_mb": 3533.0,
+    "gpu_util_mean": 26.4,
+    "gpu_util_samples": 247,
+    "peak_rss_mb": 2388,
+    "peak_temp_mb": 29.6,
+    "peak_vram_torch_mb": 863
+  },
+  "stage_calls": {
+    "clip_image": 72,
+    "extract_text": 86,
+    "frame_extract": 8,
+    "ledger": 328,
+    "minilm": 96,
+    "model_wait": 331,
+    "ocr": 132,
+    "other": 164,
+    "pdf_render": 19,
+    "qdrant_upsert": 328,
+    "whisper": 14
+  },
+  "stage_seconds": {
+    "clip_image": 80.292,
+    "extract_text": 184.664,
+    "frame_extract": 60.057,
+    "ledger": 7.612,
+    "minilm": 36.102,
+    "model_wait": 377.671,
+    "ocr": 164.297,
+    "other": 1.21,
+    "pdf_render": 99.155,
+    "qdrant_upsert": 13.051,
+    "whisper": 88.544
+  },
+  "throughput_per_minute": {
+    "audio": 6.14,
+    "audio_minutes_per_minute": 25.31,
+    "document": 8.15,
+    "image": 27.88,
+    "video": 1.7,
+    "video_minutes_per_minute": 11.92
+  },
+  "time_to_100pct_searchable_s": 322.49,
+  "time_to_50pct_searchable_s": 123.77,
+  "wall_seconds": 322.84,
+  "label": "eval-after-gpu-wbatch",
+  "created_at": "2026-10-09T07:38:11+00:00",
+  "runs": 1,
+  "run_walls": [
+    322.84
+  ],
+  "file_count": 164,
+  "media_minutes": {
+    "audio": 24.71,
+    "video": 56.23
+  },
+  "kept_user": "bench-a0e2eaa1@example.com",
+  "files_note": "per-file outputs (164 files of the owner's data/ folder) omitted: file names are personal"
+}

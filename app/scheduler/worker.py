@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Callable, Dict, Optional
 
 from app.core.config import settings
+from app.core.timing import collecting
 from app.database.db import SessionLocal
 from app.platforms.errors import PlatformPreconditionError
 from app.scheduler.context import JobContext
@@ -198,7 +199,8 @@ class IndexingWorker:
             if factory is None:
                 raise PlatformPreconditionError(f"Unknown platform '{platform_name}'.")
 
-            factory().index(context)
+            with collecting(context.timer):
+                factory().index(context)
 
         except PlatformPreconditionError as e:
 

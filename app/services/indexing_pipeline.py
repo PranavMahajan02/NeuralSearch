@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from app.config.file_types import file_type_for
+from app.core.timing import file_scope, span
 from app.scheduler.errors import sanitize_error
 from app.services import index_store
 from app.services.index_store import FileMeta
@@ -133,24 +134,29 @@ def index_source(meta: FileMeta, local_path: str, temp_dir=None, force: bool = F
     ledger), so the job counts the file as failed.
     """
 
-    if not force and not index_store.needs_index(meta.user_id, meta.platform, meta.source_id, meta.version):
-        return "skipped"
+    with file_scope(meta.file_type):
 
-    builder = BUILDERS.get(meta.file_type)
+        if not force:
+            with span("ledger"):
+                changed = index_store.needs_index(meta.user_id, meta.platform, meta.source_id, meta.version)
+            if not changed:
+                return "skipped"
 
-    if builder is None:
-        index_store.record_status(meta, "unsupported")
-        return "unsupported"
+        builder = BUILDERS.get(meta.file_type)
 
-    try:
-        points = builder(local_path, temp_dir)
-    except Exception as error:
-        index_store.record_status(meta, "failed", error=sanitize_error(error))
-        raise
+        if builder is None:
+            index_store.record_status(meta, "unsupported")
+            return "unsupported"
 
-    row = index_store.upsert_file(meta, points)
+        try:
+            points = builder(local_path, temp_dir)
+        except Exception as error:
+            index_store.record_status(meta, "failed", error=sanitize_error(error))
+            raise
 
-    return row.status
+        row = index_store.upsert_file(meta, points)
+
+        return row.status
 
 
 def index_local_file(user_id, path: str, temp_dir=None, force: bool = False) -> str:

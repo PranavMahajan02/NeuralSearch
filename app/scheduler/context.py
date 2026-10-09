@@ -2,10 +2,12 @@
 
 Platforms never touch the job row directly. They report through the context,
 which batches counter writes (at most every second or every 10 files) and
-stores per-file errors (capped per job).
+stores per-file errors (capped per job). Several files are processed at once
+(process_files), so every update holds the context's lock.
 """
 
 import logging
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -15,6 +17,7 @@ from app.database.db import SessionLocal
 from app.database.models import IndexingJob, IndexingJobError
 from app.scheduler.errors import sanitize_error
 from app.core.clock import utcnow
+from app.core.timing import StageTimer
 
 
 logger = logging.getLogger("cogniseek.jobs")
@@ -60,6 +63,11 @@ class JobContext:
         self._dirty_files = 0
         self._last_flush = clock()
 
+        # Seconds per stage for this job (saved on every flush and at the end).
+        self.timer = StageTimer()
+
+        self._lock = threading.RLock()
+
     # ------------------------------------------------------------------
     # Progress
     # ------------------------------------------------------------------
@@ -72,41 +80,48 @@ class JobContext:
     def set_total(self, total: int) -> None:
         """Number of supported files that will be processed."""
 
-        self.total_files = int(total)
-        self.flush()
+        with self._lock:
+            self.total_files = int(total)
+            self.flush()
 
     def add_skipped(self, count: int = 1) -> None:
         """Folders and unsupported files: counted, not part of progress."""
 
-        self.skipped_files += count
-        self._maybe_flush()
+        with self._lock:
+            self.skipped_files += count
+            self._maybe_flush()
 
     def start_file(self, file_ref: str) -> None:
 
-        self.current_file = str(file_ref)[:500]
+        with self._lock:
+            self.current_file = str(file_ref)[:500]
 
-        # Time-based only: a slow file (e.g. a video) still shows up in the UI
-        # within about a second instead of at the next 10-file boundary.
-        if self._clock() - self._last_flush >= FLUSH_INTERVAL_SECONDS:
-            self.flush()
+            # Time-based only: a slow file (e.g. a video) still shows up in the UI
+            # within about a second instead of at the next 10-file boundary.
+            if self._clock() - self._last_flush >= FLUSH_INTERVAL_SECONDS:
+                self.flush()
 
     def file_downloaded(self) -> None:
         """A remote file was fetched (0 on a run where nothing changed)."""
 
-        self.downloaded_files += 1
+        with self._lock:
+            self.downloaded_files += 1
 
     def file_succeeded(self) -> None:
 
-        self.succeeded_files += 1
-        self._dirty_files += 1
-        self._maybe_flush()
+        with self._lock:
+            self.succeeded_files += 1
+            self._dirty_files += 1
+            self._maybe_flush()
 
     def file_failed(self, file_ref: str, error: BaseException) -> None:
 
-        self.failed_files += 1
-        self._dirty_files += 1
+        with self._lock:
+            self.failed_files += 1
+            self._dirty_files += 1
         self.record_error(file_ref, error)
-        self._maybe_flush()
+        with self._lock:
+            self._maybe_flush()
 
     def report_progress(self, force: bool = False) -> None:
 
@@ -128,8 +143,10 @@ class JobContext:
             exc_info=(type(error), error, error.__traceback__)
         )
 
-        if self.stored_errors >= MAX_STORED_ERRORS:
-            return
+        with self._lock:
+            if self.stored_errors >= MAX_STORED_ERRORS:
+                return
+            self.stored_errors += 1
 
         message = sanitize_error(error, allowed_roots=self.allowed_roots,
                                  with_type=not getattr(error, "user_facing", False))
@@ -143,8 +160,6 @@ class JobContext:
                 )
             )
             db.commit()
-
-        self.stored_errors += 1
 
     # ------------------------------------------------------------------
     # Cancellation
@@ -174,6 +189,11 @@ class JobContext:
 
     def flush(self) -> None:
 
+        with self._lock:
+            self._flush()
+
+    def _flush(self) -> None:
+
         with self._session_factory() as db:
             db.query(IndexingJob).filter(IndexingJob.id == self.job_id).update(
                 {
@@ -186,7 +206,8 @@ class JobContext:
                     # Legacy column, kept equal to processed_files for old clients.
                     IndexingJob.indexed_files: self.processed_files,
                     IndexingJob.current_file: self.current_file,
-                    IndexingJob.heartbeat_at: utcnow()
+                    IndexingJob.heartbeat_at: utcnow(),
+                    IndexingJob.stage_timings: self.timer.snapshot()
                 },
                 synchronize_session=False
             )
