@@ -1,0 +1,1444 @@
+{
+  "aggregate": {
+    "queries": 83,
+    "positive_queries": 71,
+    "negative_queries": 12,
+    "precision_at_5": 0.4178,
+    "recall_at_10": 0.4178,
+    "mrr": 0.4014,
+    "negative_false_positives": 2,
+    "negative_queries_with_results": 2,
+    "latency_p50_s": 0.2251,
+    "latency_p95_s": 0.3042,
+    "visual_only": {
+      "queries": 19,
+      "positive_queries": 16,
+      "negative_queries": 3,
+      "precision_at_5": 0.7188,
+      "recall_at_10": 0.7188,
+      "mrr": 0.6771,
+      "negative_false_positives": 2,
+      "negative_queries_with_results": 2,
+      "latency_p50_s": 0.0,
+      "latency_p95_s": 0.0
+    },
+    "non_visual": {
+      "queries": 29,
+      "positive_queries": 23,
+      "negative_queries": 6,
+      "precision_at_5": 0.7029,
+      "recall_at_10": 0.7029,
+      "mrr": 0.7029,
+      "negative_false_positives": 0,
+      "negative_queries_with_results": 0,
+      "latency_p50_s": 0.0,
+      "latency_p95_s": 0.0
+    },
+    "code": {
+      "queries": 14,
+      "positive_queries": 14,
+      "negative_queries": 0,
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "mrr": 0.0,
+      "negative_false_positives": 0,
+      "negative_queries_with_results": 0,
+      "latency_p50_s": 0.0,
+      "latency_p95_s": 0.0
+    },
+    "visual_video": {
+      "queries": 21,
+      "positive_queries": 18,
+      "negative_queries": 3,
+      "precision_at_5": 0.1111,
+      "recall_at_10": 0.1111,
+      "mrr": 0.0833,
+      "negative_false_positives": 0,
+      "negative_queries_with_results": 0,
+      "latency_p50_s": 0.0,
+      "latency_p95_s": 0.0
+    },
+    "possible_tier": {
+      "visual_video": {
+        "targets_missed_by_results": 16,
+        "recovered_by_tier": 1
+      },
+      "visual_image": {
+        "targets_missed_by_results": 8,
+        "recovered_by_tier": 4
+      },
+      "noise_per_query_avg": 0.518,
+      "noise_per_query_max": 3
+    }
+  },
+  "per_query": [
+    {
+      "query": "java",
+      "status": 200,
+      "latency_s": 0.2889,
+      "returned": 10,
+      "top5": [
+        "java Practice Questions.txt",
+        "JAVA.pdf",
+        "ANimal kingdom java.docx",
+        "DAILY PRACTICE.docx",
+        "OS_Exam_QA.pdf"
+      ],
+      "possible": [],
+      "modality": "document",
+      "precision_at_5": 0.3333333333333333,
+      "recall_at_10": 0.3333333333333333,
+      "reciprocal_rank": 0.3333333333333333,
+      "first_relevant_rank": 3
+    },
+    {
+      "query": "jva notes",
+      "status": 200,
+      "latency_s": 0.2338,
+      "returned": 4,
+      "top5": [
+        "DAILY PRACTICE.docx",
+        "UNIT II- SQL PLSQL 2018-19 (1).pptx",
+        "Hall ticket.jpeg",
+        "Personal Information Management with Semex .test.pdf"
+      ],
+      "possible": [],
+      "modality": "document",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "java!!!@#$%",
+      "status": 200,
+      "latency_s": 0.1949,
+      "returned": 10,
+      "top5": [
+        "java Practice Questions.txt",
+        "JAVA.pdf",
+        "ANimal kingdom java.docx",
+        "DAILY PRACTICE.docx",
+        "OS_Exam_QA.pdf"
+      ],
+      "possible": [],
+      "modality": "document",
+      "precision_at_5": 0.3333333333333333,
+      "recall_at_10": 0.3333333333333333,
+      "reciprocal_rank": 0.3333333333333333,
+      "first_relevant_rank": 3
+    },
+    {
+      "query": "fee collection 57500",
+      "status": 200,
+      "latency_s": 0.1936,
+      "returned": 2,
+      "top5": [
+        "TCS iON Fee Collection 57500.pdf",
+        "Social Media Trend Analyzer Project_.docx"
+      ],
+      "possible": [
+        "image-bus-isolated-on-white-600nw-2578467983.webp",
+        "helicopter-art-design-vector-luxury-260nw-2481556627.webp",
+        "royalenfield-hunter-350-retro-factory1727790756803.webp"
+      ],
+      "modality": "document",
+      "precision_at_5": 0.5,
+      "recall_at_10": 0.5,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "academic calendar 2024-25",
+      "status": 200,
+      "latency_s": 0.2111,
+      "returned": 12,
+      "top5": [
+        "WhatsApp Image 2026-06-21 at 5.34.43 PM (2).jpeg",
+        "Circular FY B.Tech., M.Tech. & M.Sc. TA-I.pdf",
+        "WhatsApp Image 2026-06-21 at 5.34.41 PM (1).jpeg",
+        "CN_ESE1.docx",
+        "CN_ESE_2.docx"
+      ],
+      "possible": [
+        "stack-of-books-on-a-brown-background-concept-for-world-book-day-photo.jpg",
+        "vidssave.com SPIDER-MAN_ BRAND NEW DAY - Official Trailer (Hindi) _ Exclusively In Cinemas 31 July 720P.mp4"
+      ],
+      "modality": "document",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "Apple financial report",
+      "status": 200,
+      "latency_s": 0.2054,
+      "returned": 3,
+      "top5": [
+        "Financial Report Apple Inc.docx",
+        "SDG-7AfordableandCleanEnergy.pdf",
+        "s13278-025-01428-9.pdf"
+      ],
+      "possible": [
+        "images.jpg"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "Find my government documents",
+      "status": 200,
+      "latency_s": 0.2251,
+      "returned": 5,
+      "top5": [
+        "Caste validity.pdf",
+        "ADHAR.pdf",
+        "text2.txt",
+        "SDG-7AfordableandCleanEnergy.pdf",
+        "5 Minute Speech - Action on Climate Change - 10 August 2021 - Gladys Liu MP.mp3"
+      ],
+      "possible": [],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 0.5,
+      "first_relevant_rank": 2
+    },
+    {
+      "query": "aadhaar government id",
+      "status": 200,
+      "latency_s": 0.241,
+      "returned": 4,
+      "top5": [
+        "ADHAR.pdf",
+        "WhatsApp Image 2026-06-21 at 5.34.40 PM.jpeg",
+        "text2.txt",
+        "SDG-7AfordableandCleanEnergy.pdf"
+      ],
+      "possible": [
+        "vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4"
+      ],
+      "modality": "document",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "train model",
+      "status": 200,
+      "latency_s": 0.2453,
+      "returned": 7,
+      "top5": [
+        "1908.10084v1.pdf",
+        "Social Media Trend Analyzer Project_.docx",
+        "1_s20_S092523122300303X_main.pdf",
+        "final report.docx",
+        "Survey_Paper.pdf"
+      ],
+      "possible": [],
+      "modality": "code",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "chrome extension manifest",
+      "status": 200,
+      "latency_s": 0.2436,
+      "returned": 2,
+      "top5": [
+        "final report.docx",
+        "text4.txt"
+      ],
+      "possible": [
+        "images (5).jpg",
+        "vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4"
+      ],
+      "modality": "code",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "merge datasets",
+      "status": 200,
+      "latency_s": 0.2221,
+      "returned": 0,
+      "top5": [],
+      "possible": [
+        "images (5).jpg"
+      ],
+      "modality": "code",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "tiger",
+      "status": 200,
+      "latency_s": 0.214,
+      "returned": 2,
+      "top5": [
+        "tiger-looking-with-open-mouth_1150-18083.avif",
+        "text4.txt"
+      ],
+      "possible": [
+        "vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4"
+      ],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "hall ticket",
+      "status": 200,
+      "latency_s": 0.2413,
+      "returned": 1,
+      "top5": [
+        "Hall ticket.jpeg"
+      ],
+      "possible": [],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "golden retriever dog",
+      "status": 200,
+      "latency_s": 0.2375,
+      "returned": 1,
+      "top5": [
+        "Golden_Retriever.webp"
+      ],
+      "possible": [],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "pizza",
+      "status": 200,
+      "latency_s": 0.2008,
+      "returned": 1,
+      "top5": [
+        "delicious-pepperoni-pizza-culinary-delight_632498-24206.avif"
+      ],
+      "possible": [],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "coffee",
+      "status": 200,
+      "latency_s": 0.2364,
+      "returned": 1,
+      "top5": [
+        "latte-coffee_1122-2728.avif"
+      ],
+      "possible": [],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "motorcycle",
+      "status": 200,
+      "latency_s": 0.2222,
+      "returned": 1,
+      "top5": [
+        "royalenfield-hunter-350-retro-factory1727790756803.webp"
+      ],
+      "possible": [],
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "climate change speech",
+      "status": 200,
+      "latency_s": 0.2289,
+      "returned": 4,
+      "top5": [
+        "5 Minute Speech - Action on Climate Change - 10 August 2021 - Gladys Liu MP.mp3",
+        "s13278-025-01428-9.pdf",
+        "SDG-7AfordableandCleanEnergy.pdf",
+        "SISM.pdf"
+      ],
+      "possible": [
+        "vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4",
+        "vidssave.com How Champions Train Their Minds to Win _ Raj shamani _ #rajshamani 480P.mp4"
+      ],
+      "modality": "audio",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "gender equality",
+      "status": 200,
+      "latency_s": 0.2229,
+      "returned": 2,
+      "top5": [
+        "ENGLISH SPEECH  EMMA WATSON Gender Equality (English Subtitles) - English Speeches.mp3",
+        "s13278-025-01428-9.pdf"
+      ],
+      "possible": [],
+      "modality": "audio",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "forest bathing",
+      "status": 200,
+      "latency_s": 0.2552,
+      "returned": 3,
+      "top5": [
+        "vidssave.com Forest Bathing _ Shinrin-Yoku _ Healing in Nature _ Short Documentary 720P.mp4",
+        "images (5).jpg",
+        "spring-magical-3840x2160-16778.jpg"
+      ],
+      "possible": [
+        "images (3).jpg"
+      ],
+      "modality": "video",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "brain behaves differently in nature",
+      "status": 200,
+      "latency_s": 0.2785,
+      "returned": 4,
+      "top5": [
+        "vidssave.com Forest Bathing _ Shinrin-Yoku _ Healing in Nature _ Short Documentary 720P.mp4",
+        "vidssave.com How Champions Train Their Minds to Win _ Raj shamani _ #rajshamani 480P.mp4",
+        "images (5).jpg",
+        "tiger-looking-with-open-mouth_1150-18083.avif"
+      ],
+      "possible": [
+        "IMG-20210502-WA0004.jpg",
+        "IMG-20210502-WA0003.jpg",
+        "images (3).jpg"
+      ],
+      "modality": "video",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "cute baby animals",
+      "status": 200,
+      "latency_s": 0.2225,
+      "returned": 2,
+      "top5": [
+        "vidssave.com 7 Minutes of The Cutest Baby Animals You've Ever Seen _ Nat Geo 720p.mp4",
+        "tiger-looking-with-open-mouth_1150-18083.avif"
+      ],
+      "possible": [
+        "IMG-20210502-WA0003.jpg",
+        "test.mp4"
+      ],
+      "modality": "video",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "data centers in space",
+      "status": 200,
+      "latency_s": 0.2381,
+      "returned": 9,
+      "top5": [
+        "vidssave.com How Data Centers in Space Could Change AI 480P.mp4",
+        "Unit 2.pptx",
+        "OS_Exam_QA.pdf",
+        "PAI REPORT MICRO PROJECT.docx",
+        "os unit 3 and 4.docx"
+      ],
+      "possible": [
+        "vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4"
+      ],
+      "modality": "video",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "dog",
+      "status": 200,
+      "latency_s": 0.3042,
+      "returned": 5,
+      "top5": [
+        "text2.txt",
+        "1_s20_S092523122300303X_main.pdf",
+        "Golden_Retriever.webp",
+        "Personal Information Management with Semex .test.pdf",
+        "images (4).jpg"
+      ],
+      "possible": [],
+      "visual": true,
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 0.3333333333333333,
+      "first_relevant_rank": 3
+    },
+    {
+      "query": "big cat",
+      "status": 200,
+      "latency_s": 0.218,
+      "returned": 3,
+      "top5": [
+        "ANimal kingdom java.docx",
+        "tiger-looking-with-open-mouth_1150-18083.avif",
+        "Priyanka Chopra speech  with Big Subtitles  Learn English - 5 Minute speech.mp3"
+      ],
+      "possible": [
+        "vidssave.com 7 Minutes of The Cutest Baby Animals You've Ever Seen _ Nat Geo 720p.mp4"
+      ],
+      "visual": true,
+      "modality": "image",
+      "precision_at_5": 0.5,
+      "recall_at_10": 0.5,
+      "reciprocal_rank": 0.5,
+      "first_relevant_rank": 2
+    },
+    {
+      "query": "kitten lying on the floor",
+      "status": 200,
+      "latency_s": 0.3419,
+      "returned": 1,
+      "top5": [
+        "image-asset.jpeg"
+      ],
+      "possible": [],
+      "visual": true,
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "dessert",
+      "status": 200,
+      "latency_s": 0.2332,
+      "returned": 1,
+      "top5": [
+        "desert-variety-example-wadi-rum.webp"
+      ],
+      "possible": [
+        "delicious-raspberry-chocolate-ice-cream-sundae_632498-24987.avif",
+        "IMG_20230411_202707.jpg"
+      ],
+      "visual": true,
+      "modality": "image",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "motorbike",
+      "status": 200,
+      "latency_s": 0.2354,
+      "returned": 1,
+      "top5": [
+        "royalenfield-hunter-350-retro-factory1727790756803.webp"
+      ],
+      "possible": [],
+      "visual": true,
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "sports car on a road",
+      "status": 200,
+      "latency_s": 0.2408,
+      "returned": 0,
+      "top5": [],
+      "possible": [
+        "0x0.webp"
+      ],
+      "visual": true,
+      "modality": "image",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "washing machine",
+      "status": 200,
+      "latency_s": 0.2263,
+      "returned": 2,
+      "top5": [
+        "nxjziQPmnp7FlSsP.webp",
+        "vidssave.com SPIDER-MAN_ BRAND NEW DAY - Official Trailer (Hindi) _ Exclusively In Cinemas 31 July 720P.mp4"
+      ],
+      "possible": [],
+      "visual": true,
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "sand dunes",
+      "status": 200,
+      "latency_s": 0.2594,
+      "returned": 3,
+      "top5": [
+        "photo-1473580044384-7ba9967e16a0.avif",
+        "TA-II Scanned.pdf",
+        "white-horse-running-on-the-sand-created-with-generative-ai-technology-photo.jpg"
+      ],
+      "possible": [],
+      "visual": true,
+      "modality": "image",
+      "precision_at_5": 0.5,
+      "recall_at_10": 0.5,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "river flowing through mountains",
+      "status": 200,
+      "latency_s": 0.307,
+      "returned": 1,
+      "top5": [
+        "photo-1624807136278-e2973be118ff.avif"
+      ],
+      "possible": [
+        "images (2).jpg",
+        "vidssave.com Forest Bathing _ Shinrin-Yoku _ Healing in Nature _ Short Documentary 720P.mp4"
+      ],
+      "visual": true,
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "temple",
+      "status": 200,
+      "latency_s": 0.2803,
+      "returned": 2,
+      "top5": [
+        "photo-1715876722520-02ccc9248dab.avif",
+        "SIH2025-IDEA-Presentation-Format.pptx.pdf"
+      ],
+      "possible": [],
+      "visual": true,
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "sunset",
+      "status": 200,
+      "latency_s": 0.294,
+      "returned": 2,
+      "top5": [
+        "IMG-20230918-WA0003.jpg",
+        "QKOPUFKJMVV7JE2YNBCV2FILFQ.webp"
+      ],
+      "possible": [],
+      "visual": true,
+      "modality": "image",
+      "precision_at_5": 0.5,
+      "recall_at_10": 0.5,
+      "reciprocal_rank": 0.5,
+      "first_relevant_rank": 2
+    },
+    {
+      "query": "passenger vehicle",
+      "status": 200,
+      "latency_s": 0.2915,
+      "returned": 1,
+      "top5": [
+        "image-bus-isolated-on-white-600nw-2578467983.webp"
+      ],
+      "possible": [
+        "helicopter-art-design-vector-luxury-260nw-2481556627.webp"
+      ],
+      "visual": true,
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "aircraft",
+      "status": 200,
+      "latency_s": 0.2309,
+      "returned": 2,
+      "top5": [
+        "360_F_1472821_kMjcU0El8NkcU0k7zNtlVTU0Fl8W2l.jpg",
+        "helicopter-art-design-vector-luxury-260nw-2481556627.webp"
+      ],
+      "possible": [],
+      "visual": true,
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 0.5,
+      "first_relevant_rank": 2
+    },
+    {
+      "query": "sacred hindu sign",
+      "status": 200,
+      "latency_s": 0.3532,
+      "returned": 2,
+      "top5": [
+        "flat-design-om-symbol_23-2149276113.avif",
+        "photo-1715876722520-02ccc9248dab.avif"
+      ],
+      "possible": [
+        "vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4"
+      ],
+      "visual": true,
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "food",
+      "status": 200,
+      "latency_s": 0.2252,
+      "returned": 6,
+      "top5": [
+        "harvard.wav",
+        "1. Unit 1 - Basics of Economics - Updated PPT.pdf",
+        "SISM.pdf",
+        "vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4",
+        "Social Media Trend Analyzer Project_.docx"
+      ],
+      "possible": [
+        "delicious-pepperoni-pizza-culinary-delight_632498-24206.avif",
+        "delicious-raspberry-chocolate-ice-cream-sundae_632498-24987.avif"
+      ],
+      "visual": true,
+      "modality": "image",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "hot drink in a cup",
+      "status": 200,
+      "latency_s": 0.2158,
+      "returned": 2,
+      "top5": [
+        "latte-coffee_1122-2728.avif",
+        "1. Unit 1 - Basics of Economics - Updated PPT.pdf"
+      ],
+      "possible": [],
+      "visual": true,
+      "modality": "image",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "elephant",
+      "status": 200,
+      "latency_s": 0.2517,
+      "returned": 1,
+      "top5": [
+        "ANimal kingdom java.docx"
+      ],
+      "possible": [
+        "vidssave.com 7 Minutes of The Cutest Baby Animals You've Ever Seen _ Nat Geo 720p.mp4"
+      ],
+      "visual": true,
+      "negative": true,
+      "false_positives": 1
+    },
+    {
+      "query": "laptop keyboard",
+      "status": 200,
+      "latency_s": 0.2436,
+      "returned": 0,
+      "top5": [],
+      "possible": [
+        "MjUjNiFhGnbXb9QU78u8Sc.jpg",
+        "vidssave.com How Data Centers in Space Could Change AI 480P.mp4"
+      ],
+      "visual": true,
+      "negative": true,
+      "false_positives": 0
+    },
+    {
+      "query": "soccer ball",
+      "status": 200,
+      "latency_s": 0.2921,
+      "returned": 1,
+      "top5": [
+        "images (4).jpg"
+      ],
+      "possible": [],
+      "visual": true,
+      "negative": true,
+      "false_positives": 1
+    },
+    {
+      "query": "shortest path algorithm on a weighted network",
+      "status": 200,
+      "latency_s": 0.2778,
+      "returned": 2,
+      "top5": [
+        "Data Collection and Analysis - Master of Science in Community Health and Prevention Research by Slidesgo.pptx",
+        "Unit 3_NETWORK LAYER (1).pptx"
+      ],
+      "possible": [],
+      "code": true,
+      "modality": "code",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "equipment upkeep scheduling for company property",
+      "status": 200,
+      "latency_s": 0.2281,
+      "returned": 1,
+      "top5": [
+        "1. Unit 1 - Basics of Economics - Updated PPT.pdf"
+      ],
+      "possible": [
+        "nxjziQPmnp7FlSsP.webp",
+        "360_F_61056620_4Iz1gLLHl8kNenRM12y8oezKSx0i8F12.jpg",
+        "360_F_1472821_kMjcU0El8NkcU0k7zNtlVTU0Fl8W2l.jpg"
+      ],
+      "code": true,
+      "modality": "code",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "move equipment from one team to another",
+      "status": 200,
+      "latency_s": 0.2446,
+      "returned": 1,
+      "top5": [
+        "vidssave.com How Data Centers in Space Could Change AI 480P.mp4"
+      ],
+      "possible": [
+        "image-bus-isolated-on-white-600nw-2578467983.webp"
+      ],
+      "code": true,
+      "modality": "code",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "reserve a room or resource for a time slot",
+      "status": 200,
+      "latency_s": 0.2465,
+      "returned": 1,
+      "top5": [
+        "Unit 3_NETWORK LAYER (1).pptx"
+      ],
+      "possible": [
+        "image-bus-isolated-on-white-600nw-2578467983.webp"
+      ],
+      "code": true,
+      "modality": "code",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "api key and project identifier for the cloud database",
+      "status": 200,
+      "latency_s": 0.2439,
+      "returned": 6,
+      "top5": [
+        "Social Media Trend Analyzer Project_.docx",
+        "UNIT II- SQL PLSQL 2018-19 (1).pptx",
+        "Week-01_Report_IEEE.pdf",
+        "unit i – introduction of database and sql.pptx",
+        "text4.txt"
+      ],
+      "possible": [
+        "images (5).jpg"
+      ],
+      "code": true,
+      "modality": "code",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "browser toolbar window showing if a product review is genuine",
+      "status": 200,
+      "latency_s": 0.2183,
+      "returned": 6,
+      "top5": [
+        "PBL Fake review (2).pptx",
+        "PBL Fake review.pptx",
+        "final report.docx",
+        "Hospital Management System - DBMS Jury.pptx",
+        "PBL poster.pptx"
+      ],
+      "possible": [],
+      "code": true,
+      "modality": "code",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "traffic jam forecast",
+      "status": 200,
+      "latency_s": 0.219,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "code": true,
+      "modality": "code",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "turn the edge list text into nodes and links",
+      "status": 200,
+      "latency_s": 0.2585,
+      "returned": 0,
+      "top5": [],
+      "possible": [
+        "vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4",
+        "stack-of-books-on-a-brown-background-concept-for-world-book-day-photo.jpg"
+      ],
+      "code": true,
+      "modality": "code",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "noisy or combination of semantic filename and content signals",
+      "status": 200,
+      "latency_s": 0.2688,
+      "returned": 1,
+      "top5": [
+        "Social Media Trend Analyzer Project_.docx"
+      ],
+      "possible": [
+        "stack-of-books-on-a-brown-background-concept-for-world-book-day-photo.jpg",
+        "images (4).jpg",
+        "vidssave.com Forest Bathing _ Shinrin-Yoku _ Healing in Nature _ Short Documentary 720P.mp4"
+      ],
+      "code": true,
+      "modality": "code",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "issue an access token when a user signs in",
+      "status": 200,
+      "latency_s": 0.2558,
+      "returned": 3,
+      "top5": [
+        "Week-01_Report_IEEE.pdf",
+        "VECTOR_SEARCH_IN_THE_ERA_OF_SEMANTIC_UNDERSTANDING.pdf",
+        "Unit 5 Application Layer .pptx"
+      ],
+      "possible": [
+        "vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4"
+      ],
+      "code": true,
+      "modality": "code",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "write vectors and remove stale chunks",
+      "status": 200,
+      "latency_s": 0.3501,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "code": true,
+      "modality": "code",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "synthetic fake reviews from a language model",
+      "status": 200,
+      "latency_s": 0.2034,
+      "returned": 8,
+      "top5": [
+        "PBL Fake review (2).pptx",
+        "PBL Fake review.pptx",
+        "final report.docx",
+        "Hospital Management System - DBMS Jury.pptx",
+        "PBL poster.pptx"
+      ],
+      "possible": [],
+      "code": true,
+      "modality": "code",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "fit a classifier that detects fake reviews",
+      "status": 200,
+      "latency_s": 0.2231,
+      "returned": 6,
+      "top5": [
+        "PBL Fake review.pptx",
+        "PBL poster.pptx",
+        "PBL Fake review (2).pptx",
+        "final report.docx",
+        "text4.txt"
+      ],
+      "possible": [],
+      "code": true,
+      "modality": "code",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "record who changed which asset and when",
+      "status": 200,
+      "latency_s": 0.2602,
+      "returned": 4,
+      "top5": [
+        "UNIT II- SQL PLSQL 2018-19 (1).pptx",
+        "5 Minute Speech - Action on Climate Change - 10 August 2021 - Gladys Liu MP.mp3",
+        "s13278-025-01428-9.pdf",
+        "1. Unit 1 - Basics of Economics - Updated PPT.pdf"
+      ],
+      "possible": [
+        "vidssave.com How Data Centers in Space Could Change AI 480P.mp4",
+        "vidssave.com India's Foreign Policy Evolution From 1947 to 2025 _ The India Story _ Vantage with Palki Sharma 720P.mp4"
+      ],
+      "code": true,
+      "modality": "code",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "polar bear cubs in the snow",
+      "status": 200,
+      "latency_s": 0.2593,
+      "returned": 1,
+      "top5": [
+        "vidssave.com 7 Minutes of The Cutest Baby Animals You've Ever Seen _ Nat Geo 720p.mp4"
+      ],
+      "possible": [],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 1.0,
+      "first_relevant_rank": 1
+    },
+    {
+      "query": "penguins",
+      "status": 200,
+      "latency_s": 0.1975,
+      "returned": 0,
+      "top5": [],
+      "possible": [
+        "vidssave.com 7 Minutes of The Cutest Baby Animals You've Ever Seen _ Nat Geo 720p.mp4"
+      ],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "chimpanzee in a tree",
+      "status": 200,
+      "latency_s": 0.2424,
+      "returned": 2,
+      "top5": [
+        "IMG-20210502-WA0003.jpg",
+        "vidssave.com 7 Minutes of The Cutest Baby Animals You've Ever Seen _ Nat Geo 720p.mp4"
+      ],
+      "possible": [],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "reciprocal_rank": 0.5,
+      "first_relevant_rank": 2
+    },
+    {
+      "query": "meerkat",
+      "status": 429,
+      "latency_s": 0.0147,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "sea lion pups on rocks",
+      "status": 429,
+      "latency_s": 0.015,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "lake reflecting mountains",
+      "status": 429,
+      "latency_s": 0.0115,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "glass skyscrapers",
+      "status": 429,
+      "latency_s": 0.0121,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "swans on a pond",
+      "status": 429,
+      "latency_s": 0.0152,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "misty valley",
+      "status": 429,
+      "latency_s": 0.0176,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "cheering audience in the dark",
+      "status": 429,
+      "latency_s": 0.0308,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "welding workshop",
+      "status": 429,
+      "latency_s": 0.0328,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "laboratory clean room",
+      "status": 429,
+      "latency_s": 0.0323,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "podcast studio with microphones",
+      "status": 429,
+      "latency_s": 0.0138,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "grey haired woman",
+      "status": 429,
+      "latency_s": 0.0144,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "sepia archive footage",
+      "status": 429,
+      "latency_s": 0.0115,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "mushroom cloud explosion",
+      "status": 429,
+      "latency_s": 0.0222,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "postage stamp",
+      "status": 429,
+      "latency_s": 0.0101,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "leaders shaking hands",
+      "status": 429,
+      "latency_s": 0.01,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "modality": "video",
+      "precision_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "reciprocal_rank": 0.0,
+      "first_relevant_rank": null
+    },
+    {
+      "query": "underwater coral reef",
+      "status": 429,
+      "latency_s": 0.0297,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "negative": true,
+      "false_positives": 0
+    },
+    {
+      "query": "ferris wheel",
+      "status": 429,
+      "latency_s": 0.0118,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "negative": true,
+      "false_positives": 0
+    },
+    {
+      "query": "grand piano keyboard",
+      "status": 429,
+      "latency_s": 0.0289,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "visual_video": true,
+      "negative": true,
+      "false_positives": 0
+    },
+    {
+      "query": "xqzv wplk qqq",
+      "status": 429,
+      "latency_s": 0.041,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "negative": true,
+      "false_positives": 0
+    },
+    {
+      "query": "submarine volcano eruption",
+      "status": 429,
+      "latency_s": 0.0358,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "negative": true,
+      "false_positives": 0
+    },
+    {
+      "query": "bowling alley",
+      "status": 429,
+      "latency_s": 0.0345,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "negative": true,
+      "false_positives": 0
+    },
+    {
+      "query": "basketball tournament scores",
+      "status": 429,
+      "latency_s": 0.0293,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "negative": true,
+      "false_positives": 0
+    },
+    {
+      "query": "zzzzzz",
+      "status": 429,
+      "latency_s": 0.0123,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "negative": true,
+      "false_positives": 0
+    },
+    {
+      "query": "quarterly tax return form 1040",
+      "status": 429,
+      "latency_s": 0.0124,
+      "returned": 0,
+      "top5": [],
+      "possible": [],
+      "negative": true,
+      "false_positives": 0
+    }
+  ],
+  "include_self": false,
+  "label": "perf-b-after-cpu",
+  "created_at": "2026-10-09T10:26:54"
+}
