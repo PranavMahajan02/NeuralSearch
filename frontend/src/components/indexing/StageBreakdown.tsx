@@ -13,7 +13,7 @@ const STAGE_LABELS: Record<string, string> = {
   minilm: "Text embeddings",
   qdrant_upsert: "Vector store",
   ledger: "Bookkeeping",
-  model_wait: "Waiting for a shared model",
+  model_wait: "Waiting for a model",
   other: "Other",
 };
 
