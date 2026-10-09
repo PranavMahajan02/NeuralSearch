@@ -30,6 +30,12 @@ class ModelEmbedder:
 
         return encode_clip_image(path)
 
+    def clip_images(self, paths: Sequence[str]) -> List[List[float]]:
+
+        from app.ai.encoders import encode_clip_images
+
+        return encode_clip_images(paths)
+
 
 backend = ModelEmbedder()
 
@@ -59,3 +65,17 @@ def embed_clip_image(path: str) -> List[float]:
 
     with span("clip_image"):
         return backend.clip_image(path)
+
+
+def embed_clip_images(paths: Sequence[str]) -> List[List[float]]:
+    """Batched CLIP image vectors (video frames). Backends without a batch
+    method (test fakes) are called per image."""
+
+    if not paths:
+        return []
+
+    with span("clip_image"):
+        batch = getattr(backend, "clip_images", None)
+        if batch is not None:
+            return batch(list(paths))
+        return [backend.clip_image(path) for path in paths]

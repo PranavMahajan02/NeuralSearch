@@ -10,7 +10,7 @@ import uuid
 from pathlib import Path
 from typing import List
 
-from app.ai.embedder import embed_clip_image, embed_texts
+from app.ai.embedder import embed_clip_images, embed_texts
 from app.core.config import settings
 from app.search.frame_null import frame_time_s, null_stats
 from app.services.index_store import IndexPoint
@@ -54,7 +54,7 @@ def build_video_points(path: str, temp_dir=None) -> List[IndexPoint]:
     frames_dir = Path(temp_dir or settings.TEMP_DIR) / f"frames-{uuid.uuid4().hex}"
 
     try:
-        vectors = [embed_clip_image(frame_path) for frame_path in extract_frames(path, str(frames_dir))]
+        vectors = embed_clip_images(extract_frames(path, str(frames_dir)))
 
         # Per-video null (app/search/frame_null.py): stored on every frame point.
         null_mean, null_std = null_stats(vectors)
