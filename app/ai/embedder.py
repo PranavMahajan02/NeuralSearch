@@ -6,6 +6,8 @@ deterministic fake, so no model is ever loaded in the test suite.
 
 from typing import List, Sequence
 
+from app.core.timing import span
+
 
 class ModelEmbedder:
     """Real models, imported lazily (they pull in torch/transformers)."""
@@ -28,6 +30,12 @@ class ModelEmbedder:
 
         return encode_clip_image(path)
 
+    def clip_images(self, paths: Sequence[str]) -> List[List[float]]:
+
+        from app.ai.encoders import encode_clip_images
+
+        return encode_clip_images(paths)
+
 
 backend = ModelEmbedder()
 
@@ -38,7 +46,8 @@ def embed_texts(texts: Sequence[str]) -> List[List[float]]:
     if not texts:
         return []
 
-    return backend.text(texts)
+    with span("minilm"):
+        return backend.text(texts)
 
 
 def embed_text(text: str) -> List[float]:
@@ -54,4 +63,19 @@ def embed_clip_text(text: str) -> List[float]:
 
 def embed_clip_image(path: str) -> List[float]:
 
-    return backend.clip_image(path)
+    with span("clip_image"):
+        return backend.clip_image(path)
+
+
+def embed_clip_images(paths: Sequence[str]) -> List[List[float]]:
+    """Batched CLIP image vectors (video frames). Backends without a batch
+    method (test fakes) are called per image."""
+
+    if not paths:
+        return []
+
+    with span("clip_image"):
+        batch = getattr(backend, "clip_images", None)
+        if batch is not None:
+            return batch(list(paths))
+        return [backend.clip_image(path) for path in paths]

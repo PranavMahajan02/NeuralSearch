@@ -20,7 +20,8 @@ from pathlib import Path
 from typing import Callable, List, Optional
 
 from app.core.config import settings
-from app.platforms.indexing import EXCLUDED_REASON, is_excluded, process_files
+from app.core.timing import file_scope, span
+from app.platforms.indexing import EXCLUDED_REASON, is_excluded, process_files, schedule_key
 from app.services import index_store
 from app.services.index_store import FileMeta
 
@@ -96,6 +97,7 @@ def sync_remote(ctx, platform: str, files: List[RemoteFile], listing_complete: b
         work.append(remote)
 
     result.to_index = len(work)
+    work.sort(key=lambda remote: schedule_key(remote.meta.file_type, remote.size, remote.meta.display_path))
 
     ctx.add_skipped(result.unchanged + result.skipped)
     ctx.set_total(len(work))
@@ -106,14 +108,16 @@ def sync_remote(ctx, platform: str, files: List[RemoteFile], listing_complete: b
         local_path = None
 
         try:
-            local_path = remote.download(target)
-            ctx.file_downloaded()
+            with file_scope(remote.meta.file_type):
+                with span("download"):
+                    local_path = remote.download(target)
+                ctx.file_downloaded()
 
-            if local_path is None:
-                index_store.record_status(remote.meta, "unsupported")
-                return
+                if local_path is None:
+                    index_store.record_status(remote.meta, "unsupported")
+                    return
 
-            index_source(remote.meta, local_path, temp_dir=ctx.temp_dir, force=True)
+                index_source(remote.meta, local_path, temp_dir=ctx.temp_dir, force=True)
 
         finally:
             for path in {str(target), local_path}:

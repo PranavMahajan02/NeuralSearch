@@ -28,6 +28,7 @@ from app.vectorstore.config import all_collections, collection_for_type
 from app.vectorstore.query import user_filter
 from app.vectorstore.schema import point_id
 from app.core.clock import utcnow
+from app.core.timing import span
 
 
 logger = logging.getLogger("cogniseek.index_store")
@@ -173,19 +174,37 @@ def upsert_file(meta: FileMeta, points: List[IndexPoint], session_factory=Sessio
         by_type.setdefault(point.type, []).append(point)
 
     try:
-        for point_type, group in by_type.items():
-            for batch in _batches(group, settings.QDRANT_UPSERT_BATCH):
-                client.upsert(
-                    collection_name=collection_for_type(point_type),
-                    points=[_point_struct(meta, p) for p in batch],
-                    wait=True
-                )
+        with span("qdrant_upsert"):
+            _upsert_batches(client, meta, by_type)
     except Exception as error:
         failure = _write_failed("upsert", error)
         _record_failure(meta, str(failure), session_factory)
         raise failure from None
 
-    # Prune: per type, everything at or beyond the new chunk count.
+    with span("qdrant_upsert"):
+        _prune(client, meta, by_type)
+
+    status = "indexed" if points else "no_content"
+
+    with span("ledger"):
+        return _record(meta, status=status, chunk_count=len(points),
+                       error=getattr(points, "note", None), session_factory=session_factory)
+
+
+def _upsert_batches(client, meta: FileMeta, by_type: Dict[str, List[IndexPoint]]) -> None:
+
+    for point_type, group in by_type.items():
+        for batch in _batches(group, settings.QDRANT_UPSERT_BATCH):
+            client.upsert(
+                collection_name=collection_for_type(point_type),
+                points=[_point_struct(meta, p) for p in batch],
+                wait=True
+            )
+
+
+def _prune(client, meta: FileMeta, by_type: Dict[str, List[IndexPoint]]) -> None:
+    """Per type, delete everything at or beyond the new chunk count."""
+
     for point_type in _types_for(meta.file_type):
 
         group = by_type.get(point_type, [])
@@ -202,11 +221,6 @@ def upsert_file(meta: FileMeta, points: List[IndexPoint], session_factory=Sessio
             ),
             wait=True
         )
-
-    status = "indexed" if points else "no_content"
-
-    return _record(meta, status=status, chunk_count=len(points),
-                   error=getattr(points, "note", None), session_factory=session_factory)
 
 
 def _record_failure(meta: FileMeta, message: str, session_factory) -> None:
