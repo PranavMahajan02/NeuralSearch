@@ -17,14 +17,16 @@ def _display_path(candidate) -> str:
     """Never expose temporary download paths (BUG-23)."""
 
     path = candidate.path or ""
-    temp_root = os.path.normcase(os.path.abspath(settings.TEMP_DIR))
-    normalized = os.path.normcase(path)
 
-    if (
-        normalized.startswith(temp_root)
-        or normalized.startswith(os.path.normcase("temp" + os.sep))
-        or normalized.startswith("temp/")
-    ):
+    def comparable(value: str) -> str:
+        # Both separators on every OS: legacy rows written on Windows hold
+        # "temp\name" and must be caught on a Linux server too.
+        return value.replace("\\", "/").lower()
+
+    temp_root = comparable(os.path.abspath(settings.TEMP_DIR)).rstrip("/") + "/"
+    normalized = comparable(path)
+
+    if normalized.startswith(temp_root) or normalized.startswith("temp/"):
         return candidate.file
 
     return path
