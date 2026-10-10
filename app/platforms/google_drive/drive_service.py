@@ -10,6 +10,7 @@
 import io
 import json
 import logging
+import threading
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -157,12 +158,20 @@ def persist_credentials(user_id, credentials) -> None:
 
 
 class DriveClient:
+    """Drive API access for one user. Shared by the job's parallel download
+    workers, so every thread gets its OWN authorized HTTP transport:
+    httplib2.Http is not thread-safe, and two threads on one connection corrupt
+    its TLS stream (SSL "bad record mac" / "wrong version number"). The
+    credentials object is shared; a refreshed token is persisted once, under a lock."""
 
-    def __init__(self, user_id, credentials, service=None):
+    def __init__(self, user_id, credentials, service=None, http_factory=None):
 
         self.user_id = user_id
         self.credentials = credentials
         self._saved_token = getattr(credentials, "token", None)
+        self._save_lock = threading.Lock()
+        self._local = threading.local()
+        self._http_factory = http_factory
 
         self.ensure_fresh()
 
@@ -196,12 +205,41 @@ class DriveClient:
 
     def save_if_refreshed(self) -> None:
 
-        token = getattr(self.credentials, "token", None)
+        with self._save_lock:
+            token = getattr(self.credentials, "token", None)
 
-        if token and token != self._saved_token:
-            persist_credentials(self.user_id, self.credentials)
-            self._saved_token = token
-            logger.info("Saved refreshed Google credentials for user %s", self.user_id)
+            if token and token != self._saved_token:
+                persist_credentials(self.user_id, self.credentials)
+                self._saved_token = token
+                logger.info("Saved refreshed Google credentials for user %s", self.user_id)
+
+    # ------------------------------------------------------------------
+    # Per-thread transport
+    # ------------------------------------------------------------------
+
+    def _new_http(self):
+
+        if self._http_factory is not None:
+            return self._http_factory()
+
+        import google_auth_httplib2
+        import httplib2
+
+        return google_auth_httplib2.AuthorizedHttp(self.credentials, http=httplib2.Http(timeout=60))
+
+    def thread_http(self):
+        """This thread's authorized transport (created on first use)."""
+
+        transport = getattr(self._local, "http", None)
+        if transport is None:
+            transport = self._new_http()
+            self._local.http = transport
+        return transport
+
+    def reset_thread_http(self, _error=None) -> None:
+        """Drop this thread's transport (after a TLS / connection error)."""
+
+        self._local.http = None
 
     def _call(self, request_factory):
         """Execute a googleapiclient request with retries and auth handling."""
@@ -209,7 +247,9 @@ class DriveClient:
         from google.auth.exceptions import RefreshError
 
         try:
-            result = http.call_with_retry(lambda: request_factory().execute(), http_status, http_headers)
+            result = http.call_with_retry(
+                lambda: request_factory().execute(http=self.thread_http()),
+                http_status, http_headers, on_retry=self.reset_thread_http)
         except RefreshError as error:
             if is_invalid_grant(error):
                 _mark_disconnected(self.user_id)
@@ -268,13 +308,21 @@ class DriveClient:
         else:
             request = self.service.files().get_media(fileId=file["id"])
 
+        # MediaIoBaseDownload sends every chunk through request.http.
+        request.http = self.thread_http()
+
+        def fresh_connection(error):
+            self.reset_thread_http(error)
+            request.http = self.thread_http()
+
         buffer = io.BytesIO()
         downloader = MediaIoBaseDownload(buffer, request)
         done = False
 
         while not done:
             try:
-                _status, done = http.call_with_retry(lambda: downloader.next_chunk(), http_status, http_headers)
+                _status, done = http.call_with_retry(
+                    lambda: downloader.next_chunk(), http_status, http_headers, on_retry=fresh_connection)
             except Exception as error:
                 self._raise_auth_problem(error)
                 raise

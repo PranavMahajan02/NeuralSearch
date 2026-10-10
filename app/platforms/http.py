@@ -6,6 +6,8 @@
   if that is under MAX_RATE_LIMIT_WAIT seconds, otherwise fail the job with
   "rate limited until <time>"
 - every request has a timeout
+- transient network / TLS errors (ssl.SSLError, connection resets,
+  IncompleteRead, httplib2 transport errors) are retried with backoff
 - a 429 / rate limit seen by ONE request pauses ALL of them (CooldownGate):
   downloads run in parallel (settings.INDEX_IO_WORKERS), and the limit is per
   account, not per request
@@ -80,6 +82,23 @@ class RateLimited(PlatformPreconditionError):
     """The remote API is rate limiting us for longer than we are willing to wait."""
 
 
+def transient_network_errors() -> tuple:
+    """Exception types that mean "the connection broke", not "the request was
+    wrong": retry them (on a fresh connection, see call_with_retry's on_retry)."""
+
+    import http.client
+    import ssl
+
+    types = [requests.ConnectionError, requests.Timeout, ConnectionError, TimeoutError,
+             ssl.SSLError, http.client.IncompleteRead, http.client.HTTPException]
+    try:
+        import httplib2
+        types.append(httplib2.HttpLib2Error)
+    except ImportError:  # pragma: no cover - httplib2 ships with googleapiclient
+        pass
+    return tuple(types)
+
+
 def backoff_delay(attempt: int) -> float:
     """Full jitter: uniform(0, min(MAX_DELAY, BASE_DELAY * 2**attempt))."""
 
@@ -149,7 +168,7 @@ def request(
 
         try:
             response = http.request(method, url, timeout=timeout, **kwargs)
-        except (requests.ConnectionError, requests.Timeout) as error:
+        except transient_network_errors() as error:
             if last:
                 raise
             delay = backoff_delay(attempt)
@@ -185,10 +204,14 @@ def call_with_retry(
     fn: Callable,
     status_of: Callable[[Exception], Optional[int]],
     headers_of: Callable[[Exception], dict] = lambda error: {},
-    max_tries: int = MAX_TRIES
+    max_tries: int = MAX_TRIES,
+    on_retry: Optional[Callable[[Exception], None]] = None
 ):
     """Retry a client-library call (e.g. googleapiclient .execute()) that
-    raises on HTTP errors. Non-retryable errors are re-raised immediately."""
+    raises on HTTP errors. Non-retryable errors are re-raised immediately.
+
+    on_retry(error) runs before retrying a transient network error, e.g. to
+    replace a connection that a TLS error left in an unknown state."""
 
     for attempt in range(max_tries):
 
@@ -197,11 +220,14 @@ def call_with_retry(
         try:
             return fn()
 
-        except (requests.ConnectionError, requests.Timeout, ConnectionError, TimeoutError):
+        except transient_network_errors() as error:
             if attempt == max_tries - 1:
                 raise
             status = None
             delay = backoff_delay(attempt)
+            logger.warning("network error (%s); retry %d", type(error).__name__, attempt + 1)
+            if on_retry is not None:
+                on_retry(error)
 
         except Exception as error:
             status = status_of(error)
