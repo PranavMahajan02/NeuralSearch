@@ -41,7 +41,7 @@ def main() -> int:
     errors = current_errors()
 
     if args.update:
-        BASELINE.write_text("".join(f"{e}\n" for e in sorted(errors.elements())), encoding="utf-8")
+        BASELINE.write_text("".join(f"{e}\n" for e in sorted(errors.elements())), encoding="utf-8", newline="\n")
         print(f"baseline written: {sum(errors.values())} errors")
         return 0
 

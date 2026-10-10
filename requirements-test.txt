@@ -1,0 +1,12 @@
+# Test, lint and audit tools (platform-independent). CI installs these on top of
+# backend/requirements-linux.lock; requirements-dev.txt adds them to the dev venv.
+pytest==9.1.1
+pytest-cov==7.1.0
+httpx2==2.13.1                # starlette TestClient (plain httpx is deprecated there)
+httpcore2==2.13.1             # (httpx2)
+truststore==0.10.4            # (httpx2)
+responses==0.26.3
+reportlab==5.0.1
+ruff==0.17.0
+mypy==2.4.0
+pip-audit==2.10.1
