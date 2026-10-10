@@ -1,7 +1,15 @@
-# Files executed or parsed inside Linux containers must keep LF endings even on
-# a Windows checkout (core.autocrlf=true would otherwise break the shebang).
-*.sh            text eol=lf
-Caddyfile       text eol=lf
-Dockerfile      text eol=lf
-*.yml           text eol=lf
-*.sql           text eol=lf
+# Line endings: LF in the repository AND in every working tree (Windows too).
+# Prettier, ruff and the Linux containers all expect LF; with core.autocrlf=true
+# and no rule here, Windows checkouts got CRLF and files showed up as modified
+# after every format run. Binary files are detected automatically and marked below.
+* text=auto eol=lf
+
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.webp binary
+*.avif binary
+*.ico  binary
+*.pdf  binary
+*.woff2 binary
+*.pkl  binary
