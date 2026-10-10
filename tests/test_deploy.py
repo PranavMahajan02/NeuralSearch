@@ -147,7 +147,7 @@ def test_backend_image_is_non_root_and_migrates_on_start():
 def test_container_scripts_keep_lf_line_endings():
 
     attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8")
-    assert re.search(r"^\*\.sh\s+text eol=lf$", attributes, re.M)
+    assert re.search(r"^\*\s+text=auto eol=lf$", attributes, re.M)     # LF everywhere, incl. *.sh
     for path in ("backend/entrypoint.sh", "deploy/postgres/initdb/01-app-role.sh"):
         assert b"\r\n" not in (ROOT / path).read_bytes(), path
 
