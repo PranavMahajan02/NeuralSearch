@@ -55,7 +55,7 @@ jobs:
           done
           docker compose ps; docker compose logs --tail 200 backend; exit 1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: lts/*
           cache: npm

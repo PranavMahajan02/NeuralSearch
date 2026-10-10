@@ -43,7 +43,7 @@ jobs:
       - run: pip install pip-audit==2.10.1
       - name: Python (fails on HIGH/CRITICAL not in security/audit-allowlist.json)
         run: python scripts/audit_python.py
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: lts/*
       - name: npm (fails on HIGH/CRITICAL)
