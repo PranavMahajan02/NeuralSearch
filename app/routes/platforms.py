@@ -12,9 +12,15 @@ from app.platforms.local.local_platform import sync_deleted_sources as purge_unr
 
 
 def picker_available() -> bool:
-    """The tkinter folder picker is mounted only in development (app/main.py)."""
+    """The tkinter folder picker exists only in development (app/main.py) and
+    only where Tk is installed."""
 
-    return settings.ENV == "development"
+    if settings.ENV != "development":
+        return False
+
+    from app.routes.local_picker import tk_available
+
+    return tk_available()
 
 
 router = APIRouter(prefix="/platforms/local", tags=["Local Platform"])
