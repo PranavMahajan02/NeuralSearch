@@ -9,6 +9,13 @@ on:
     - cron: "23 2 * * *"   # nightly 02:23 UTC
   push:
     tags: ["v*"]
+    # ... and whenever the stack or the test itself changes.
+    paths:
+      - .github/workflows/e2e.yml
+      - docker-compose.yml
+      - deploy/**
+      - backend/Dockerfile
+      - frontend/e2e/**
 
 permissions:
   contents: read
