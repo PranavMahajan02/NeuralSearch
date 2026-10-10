@@ -441,7 +441,9 @@ def test_legacy_folder_outside_allowed_roots_grants_nothing(client, user, db, tm
 def test_folder_responses_say_whether_the_native_picker_exists(client, user, monkeypatch):
 
     from app.core.config import settings
+    from app.routes import local_picker
 
+    monkeypatch.setattr(local_picker, "tk_available", lambda: True)  # CI runners have no Tk
     assert client.get("/platforms/local/folders", headers=user["headers"]).json()["picker_available"] is True
 
     monkeypatch.setattr(settings, "ENV", "production")
