@@ -13,10 +13,13 @@ from app.platforms.errors import PlatformPreconditionError
 from app.platforms.oauth_state import (  # noqa: F401  (re-exported)
     OAUTH_STATE_TTL,
     InvalidOAuthState,
-    create_oauth_state as _create_state,
+)
+from app.platforms.oauth_state import (
     consume_oauth_state as _consume_state,
 )
-
+from app.platforms.oauth_state import (
+    create_oauth_state as _create_state,
+)
 
 logger = logging.getLogger("cogniseek.github")
 
@@ -27,7 +30,7 @@ REDIRECT_URI = f"{settings.BACKEND_PUBLIC_URL}/platforms/github/callback"
 
 def load_config():
 
-    with open(GITHUB_CONFIG, "r") as f:
+    with open(GITHUB_CONFIG) as f:
         return json.load(f)
 
 
@@ -35,12 +38,9 @@ def get_authorization_url(state):
 
     config = load_config()
 
-    return "https://github.com/login/oauth/authorize?" + urlencode({
-        "client_id": config["client_id"],
-        "redirect_uri": REDIRECT_URI,
-        "state": state,
-        "scope": "repo read:user"
-    })
+    return "https://github.com/login/oauth/authorize?" + urlencode(
+        {"client_id": config["client_id"], "redirect_uri": REDIRECT_URI, "state": state, "scope": "repo read:user"}
+    )
 
 
 def exchange_code_for_token(code):
@@ -55,8 +55,8 @@ def exchange_code_for_token(code):
             "client_id": config["client_id"],
             "client_secret": config["client_secret"],
             "code": code,
-            "redirect_uri": REDIRECT_URI
-        }
+            "redirect_uri": REDIRECT_URI,
+        },
     )
 
     response.raise_for_status()
@@ -93,7 +93,7 @@ def revoke_grant(access_token: str) -> bool:
             auth=(config["client_id"], config["client_secret"]),
             headers={"Accept": "application/vnd.github+json"},
             json={"access_token": access_token},
-            max_tries=2
+            max_tries=2,
         )
     except Exception as error:
         logger.warning("GitHub grant revoke failed: %s", type(error).__name__)
@@ -107,6 +107,7 @@ def revoke_grant(access_token: str) -> bool:
 
 
 # Kept with GitHub's defaults for existing callers.
+
 
 def create_oauth_state(db: Session, user_id, platform: str = "github") -> str:
 

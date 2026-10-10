@@ -1,0 +1,52 @@
+name: Docker
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, "fix/**"]
+    paths:
+      - backend/**
+      - deploy/**
+      - app/**
+      - alembic/**
+      - frontend/**
+      - requirements*.txt
+      - requirements.in
+      - docker-compose*.yml
+      - .github/workflows/docker.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ${{ matrix.image }} (no push)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: backend-cpu
+            dockerfile: backend/Dockerfile
+          - image: caddy
+            dockerfile: deploy/caddy/Dockerfile
+          - image: backup
+            dockerfile: deploy/backup/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: false
+          tags: cogniseek-${{ matrix.image }}:ci
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}

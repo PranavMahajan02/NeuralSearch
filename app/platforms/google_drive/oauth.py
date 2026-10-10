@@ -13,7 +13,6 @@ from app.core.config import settings
 from app.platforms import http
 from app.platforms.google_drive.drive_service import DRIVE_SCOPE, SCOPES
 
-
 # Google may grant a superset of the requested scopes (include_granted_scopes);
 # oauthlib would otherwise treat that as an error.
 os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
@@ -99,7 +98,7 @@ def account_email(credentials) -> str:
     response = http.request(
         "GET",
         "https://openidconnect.googleapis.com/v1/userinfo",
-        headers={"Authorization": f"Bearer {credentials.token}"}
+        headers={"Authorization": f"Bearer {credentials.token}"},
     )
 
     if response.status_code != 200:

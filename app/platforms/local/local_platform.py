@@ -1,15 +1,14 @@
 import os
 from pathlib import Path
 
+from app.database.db import SessionLocal
+from app.database.local_storage_service import get_local_folders
 from app.platforms.base_platform import BasePlatform
 from app.platforms.errors import PlatformPreconditionError
 from app.platforms.indexing import EXCLUDED_REASON, is_excluded, is_supported, process_files, schedule_key
-from app.database.db import SessionLocal
-from app.database.local_storage_service import get_local_folders
 
 
 class LocalPlatform(BasePlatform):
-
     def __init__(self, folders=None):
 
         if folders is None:
@@ -58,11 +57,7 @@ class LocalPlatform(BasePlatform):
             ctx,
             supported,
             file_ref=lambda path: path,
-            handle=lambda _position, path: index_local_file(
-                ctx.user_id,
-                path,
-                temp_dir=ctx.temp_dir
-            )
+            handle=lambda _position, path: index_local_file(ctx.user_id, path, temp_dir=ctx.temp_dir),
         )
 
         removed = sync_deleted_sources(ctx.user_id, folders)
@@ -81,12 +76,10 @@ class LocalPlatform(BasePlatform):
         skipped = 0
 
         for folder in folders:
-
             if not os.path.isdir(folder):
                 continue
 
             for root, _dirnames, filenames in os.walk(folder):
-
                 for name in filenames:
                     if is_supported(name):
                         supported.append(os.path.join(root, name))
@@ -139,7 +132,6 @@ def sync_deleted_sources(user_id, folders) -> int:
     stale = []
 
     for row in index_store.list_sources(user_id, "local"):
-
         path = Path(row.display_path)
 
         if not path.is_file() or not any(is_within(path, base) for base in bases):

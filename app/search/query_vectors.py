@@ -1,20 +1,19 @@
 """Query embeddings: each model runs once per query, cached by normalized query."""
 
 from functools import lru_cache
-from typing import Tuple
 
 from app.ai import embedder
 
 
 @lru_cache(maxsize=512)
-def text_vector(normalized_query: str) -> Tuple[float, ...]:
+def text_vector(normalized_query: str) -> tuple[float, ...]:
     """MiniLM vector (documents, audio and video transcripts)."""
 
     return tuple(embedder.embed_text(normalized_query))
 
 
 @lru_cache(maxsize=512)
-def clip_vector(normalized_query: str) -> Tuple[float, ...]:
+def clip_vector(normalized_query: str) -> tuple[float, ...]:
     """CLIP text vector (images and video frames)."""
 
     return tuple(embedder.embed_clip_text(normalized_query))

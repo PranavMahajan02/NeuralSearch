@@ -6,8 +6,8 @@ the admin cleanup script (scripts/delete_user.py).
 
 import logging
 import shutil
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Dict, Optional
 
 from qdrant_client.models import FilterSelector
 from sqlalchemy import text
@@ -24,7 +24,6 @@ from app.vectorstore.client import get_client
 from app.vectorstore.config import all_collections
 from app.vectorstore.query import user_filter
 
-
 logger = logging.getLogger("cogniseek.account")
 
 
@@ -34,13 +33,13 @@ class JobStillRunning(Exception):
 
 @dataclass
 class DeletionReport:
-    revoked: Dict[str, Optional[bool]] = field(default_factory=dict)
-    points_deleted: Dict[str, int] = field(default_factory=dict)
+    revoked: dict[str, bool | None] = field(default_factory=dict)
+    points_deleted: dict[str, int] = field(default_factory=dict)
     ledger_rows: int = 0
     upload_dir_removed: bool = False
 
 
-def _revokers() -> Dict[str, Callable[[str], bool]]:
+def _revokers() -> dict[str, Callable[[str], bool]]:
 
     from app.platforms.github.oauth import revoke_grant
     from app.platforms.google_drive.drive_service import revoke_token
@@ -48,7 +47,7 @@ def _revokers() -> Dict[str, Callable[[str], bool]]:
     return {"google_drive": revoke_token, "github": revoke_grant}
 
 
-def revoke_platform_tokens(db: Session, user_id) -> Dict[str, Optional[bool]]:
+def revoke_platform_tokens(db: Session, user_id) -> dict[str, bool | None]:
     """Revoke every stored Drive/GitHub grant at the provider (best effort: a
     token that is already invalid or a provider outage must not block the deletion)."""
 
@@ -127,21 +126,41 @@ def export_account(db: Session, user_id) -> dict:
 
     return {
         "format": "cogniseek-export-v1",
-        "profile": {"id": str(user.id), "name": user.full_name, "email": user.email,
-                    "created_at": iso(user.created_at), "onboarding_completed": bool(user.onboarding_completed)},
+        "profile": {
+            "id": str(user.id),
+            "name": user.full_name,
+            "email": user.email,
+            "created_at": iso(user.created_at),
+            "onboarding_completed": bool(user.onboarding_completed),
+        },
         "connections": [
-            {"platform": c.platform, "account_email": c.account_email, "account_name": c.account_name,
-             "connected": bool(c.connected)}
+            {
+                "platform": c.platform,
+                "account_email": c.account_email,
+                "account_name": c.account_name,
+                "connected": bool(c.connected),
+            }
             for c in db.query(PlatformConnection).filter(PlatformConnection.user_id == user_id)
         ],
-        "local_folders": [f.folder_path for f in db.query(LocalStorageFolder).filter(LocalStorageFolder.user_id == user_id)],
+        "local_folders": [
+            f.folder_path for f in db.query(LocalStorageFolder).filter(LocalStorageFolder.user_id == user_id)
+        ],
         "jobs": [
             {k: (iso(v) if hasattr(v, "isoformat") else v) for k, v in serialize_job(job).items()}
             for job in db.query(IndexingJob).filter(IndexingJob.user_id == user_id).order_by(IndexingJob.created_at)
         ],
         "files": [
-            {"platform": f.platform, "file_name": f.file_name, "path": f.display_path, "type": f.file_type,
-             "version": f.version, "status": f.status, "indexed_at": iso(f.indexed_at)}
-            for f in db.query(IndexedFile).filter(IndexedFile.user_id == user_id).order_by(IndexedFile.platform, IndexedFile.display_path)
+            {
+                "platform": f.platform,
+                "file_name": f.file_name,
+                "path": f.display_path,
+                "type": f.file_type,
+                "version": f.version,
+                "status": f.status,
+                "indexed_at": iso(f.indexed_at),
+            }
+            for f in db.query(IndexedFile)
+            .filter(IndexedFile.user_id == user_id)
+            .order_by(IndexedFile.platform, IndexedFile.display_path)
         ],
     }

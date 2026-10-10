@@ -20,15 +20,30 @@ import numpy as np
 
 from app.ai import embedder
 
-
 TEXT_NEUTRAL_PROMPTS = (
-    "document", "a text file", "notes", "a page of text", "information",
-    "some content", "a file", "general text about a topic", "a report", "a list",
+    "document",
+    "a text file",
+    "notes",
+    "a page of text",
+    "information",
+    "some content",
+    "a file",
+    "general text about a topic",
+    "a report",
+    "a list",
 )
 
 CLIP_NEUTRAL_PROMPTS = (
-    "a photo", "an image", "a picture", "a photograph of something", "a screenshot",
-    "a frame from a video", "an object", "a scene", "a picture with text", "a person",
+    "a photo",
+    "an image",
+    "a picture",
+    "a photograph of something",
+    "a screenshot",
+    "a frame from a video",
+    "an object",
+    "a scene",
+    "a picture with text",
+    "a person",
 )
 
 TOP_NEUTRAL = 3
@@ -61,7 +76,7 @@ def margins(query_scores, candidate_vectors, neutral: np.ndarray) -> np.ndarray:
         return np.zeros(0, dtype=np.float32)
 
     vectors = _unit_rows(np.asarray(candidate_vectors, dtype=np.float32))
-    neutral_scores = vectors @ neutral.T                       # (n_candidates, n_prompts)
+    neutral_scores = vectors @ neutral.T  # (n_candidates, n_prompts)
     k = min(TOP_NEUTRAL, neutral_scores.shape[1])
     baseline = np.sort(neutral_scores, axis=1)[:, -k:].mean(axis=1)
 

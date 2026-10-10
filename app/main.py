@@ -6,33 +6,32 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.middleware import SlowAPIMiddleware
 
+from app.ai.model_manager import model_manager
+from app.auth.auth_router import router as auth_router
+from app.core import metrics
 from app.core.config import settings
 from app.core.errors import register_error_handlers
 from app.core.logging_setup import configure_logging
-from app.core import metrics
-from app.core.request_id import RequestIdMiddleware
 from app.core.rate_limit import limiter
+from app.core.request_id import RequestIdMiddleware
 from app.core.security_headers import SecurityHeadersMiddleware
-
-from app.auth.auth_router import router as auth_router
-from app.routes.search import router as search_router
-from app.routes.google_drive import router as google_drive_router
-from app.routes.github import router as github_router
-from app.routes.index import router as index_router
-from app.routes.upload import router as upload_router
-from app.routes.delete import router as delete_router
-from app.routes.open import router as open_router
-from app.routes.files import router as files_router
-from app.routes.dashboard import router as dashboard_router
-from app.routes.health import router as health_router
-from app.vectorstore.schema import ensure_collections
-from app.routes.login_state import router as login_state_router
-from app.routes import platforms
-from app.ai.model_manager import model_manager
 from app.database.db import SessionLocal
+from app.routes import platforms
+from app.routes.dashboard import router as dashboard_router
+from app.routes.delete import router as delete_router
+from app.routes.files import router as files_router
+from app.routes.github import router as github_router
+from app.routes.google_drive import router as google_drive_router
+from app.routes.health import router as health_router
+from app.routes.index import router as index_router
+from app.routes.login_state import router as login_state_router
+from app.routes.open import router as open_router
+from app.routes.search import router as search_router
+from app.routes.upload import router as upload_router
 from app.scheduler.jobs import recover_interrupted_jobs
-from app.scheduler.worker import clear_orphaned_job_dirs, worker as indexing_worker
-
+from app.scheduler.worker import clear_orphaned_job_dirs
+from app.scheduler.worker import worker as indexing_worker
+from app.vectorstore.schema import ensure_collections
 
 configure_logging(settings.log_format, settings.LOG_LEVEL)
 
@@ -53,6 +52,7 @@ def preload_models():
 
     # Calibration prompts are embedded once, up front.
     from app.search import calibration
+
     calibration.text_neutral_matrix()
     calibration.clip_neutral_matrix()
 
@@ -105,7 +105,7 @@ app = FastAPI(
     docs_url="/docs" if DOCS_ENABLED else None,
     redoc_url="/redoc" if DOCS_ENABLED else None,
     openapi_url="/openapi.json" if DOCS_ENABLED else None,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.state.limiter = limiter
@@ -147,17 +147,12 @@ app.include_router(auth_router)
 app.include_router(google_drive_router)
 app.include_router(github_router)
 app.include_router(login_state_router)
-app.include_router(
-    delete_router,
-    prefix="/delete",
-    tags=["Delete"]
-)
+app.include_router(delete_router, prefix="/delete", tags=["Delete"])
 app.include_router(platforms.router)
 
 # The tkinter folder picker opens a dialog on the machine running the backend,
 # so it only exists in development. In production, folder paths are typed in.
 if settings.ENV == "development":
-
     from app.routes.local_picker import router as local_picker_router
 
     app.include_router(local_picker_router)
@@ -166,6 +161,4 @@ if settings.ENV == "development":
 @app.get("/")
 def home():
 
-    return {
-        "message": "CogniSeek Backend Running"
-    }
+    return {"message": "CogniSeek Backend Running"}

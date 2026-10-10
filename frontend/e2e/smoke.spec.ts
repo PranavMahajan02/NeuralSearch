@@ -3,7 +3,7 @@
 // download -> accessibility checks -> delete the account in the UI (the real
 // DELETE /auth/account flow) -> clean up the temp folder.
 import { randomBytes } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 
@@ -39,6 +39,10 @@ test.beforeAll(async ({ request }) => {
     "# Lemon cake\n\nMix flour, sugar, eggs and lemon zest. Bake 35 minutes.\n",
   );
   writeFileSync(join(folder, "e2e-inventory.csv"), "item,count\nbolts,40\nwashers,120\n");
+  // mkdtemp creates the folder as 0700; a backend in a container runs as another
+  // user (uid 10001) and must be able to read it.
+  chmodSync(folder, 0o755);
+  for (const name of readdirSync(folder)) chmodSync(join(folder, name), 0o644);
 
   const response = await request.post(`${API}/auth/register`, {
     data: { name: "E2E Smoke", email, password },

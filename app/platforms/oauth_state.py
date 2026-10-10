@@ -8,26 +8,23 @@ never from anything the browser sent.
 
 import secrets
 from datetime import timedelta
-from typing import Optional, Tuple
 
 from sqlalchemy.orm import Session
 
-from app.database.models import OAuthState
 from app.core.clock import utcnow
-
+from app.database.models import OAuthState
 
 OAUTH_STATE_TTL = timedelta(minutes=10)
 
 
 class InvalidOAuthState(Exception):
-
     def __init__(self, code: str):
 
         super().__init__(code)
         self.code = code
 
 
-def create_oauth_state(db: Session, user_id, platform: str, code_verifier: Optional[str] = None) -> str:
+def create_oauth_state(db: Session, user_id, platform: str, code_verifier: str | None = None) -> str:
 
     state = secrets.token_urlsafe(32)
 
@@ -38,7 +35,7 @@ def create_oauth_state(db: Session, user_id, platform: str, code_verifier: Optio
             platform=platform,
             expires_at=utcnow() + OAUTH_STATE_TTL,
             used=False,
-            code_verifier=code_verifier
+            code_verifier=code_verifier,
         )
     )
 
@@ -47,7 +44,7 @@ def create_oauth_state(db: Session, user_id, platform: str, code_verifier: Optio
     return state
 
 
-def consume_oauth_state_row(db: Session, state: str, platform: str) -> Tuple[object, Optional[str]]:
+def consume_oauth_state_row(db: Session, state: str, platform: str) -> tuple[object, str | None]:
     """(user_id, code_verifier) for a valid state; raises InvalidOAuthState."""
 
     if not state:

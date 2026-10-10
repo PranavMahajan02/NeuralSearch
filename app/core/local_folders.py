@@ -27,7 +27,7 @@ def validate_local_folder(raw: str) -> str:
     try:
         path = Path(os.path.expanduser(raw.strip())).resolve(strict=True)
     except (OSError, RuntimeError):
-        raise AppError(400, "Folder does not exist.")
+        raise AppError(400, "Folder does not exist.") from None
 
     if not path.is_dir():
         raise AppError(400, "Path is not a folder.")

@@ -18,7 +18,7 @@ def save_github_credentials(db, user_id, token_data, account_name=None):
         token_json=json.dumps(token_data),
         token_type=token_data.get("token_type"),
         account_email=None,
-        account_name=account_name
+        account_name=account_name,
     )
 
 

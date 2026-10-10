@@ -12,12 +12,13 @@
    source of this user/platform that was not listed is removed (BUG-12).
 """
 
+import contextlib
 import hashlib
 import logging
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, List, Optional
 
 from app.core.config import settings
 from app.core.timing import file_scope, span
@@ -25,25 +26,22 @@ from app.platforms.indexing import EXCLUDED_REASON, is_excluded, process_files, 
 from app.services import index_store
 from app.services.index_store import FileMeta
 
-
 logger = logging.getLogger("cogniseek.sync")
 
 
 @dataclass
 class RemoteFile:
-
     meta: FileMeta
     # Extension of the file as it will be stored locally (".pdf", ".docx", ...).
     extension: str
-    size: Optional[int]
+    size: int | None
     # download(target_path) -> local path, or None when the content turns out
     # not to be indexable (e.g. a Git LFS pointer).
-    download: Callable[[Path], Optional[str]]
+    download: Callable[[Path], str | None]
 
 
 @dataclass
 class SyncResult:
-
     listed: int = 0
     unchanged: int = 0
     skipped: int = 0
@@ -62,16 +60,15 @@ def temp_name(source_id: str, extension: str) -> str:
     return f"{digest}{extension.lower()}"
 
 
-def sync_remote(ctx, platform: str, files: List[RemoteFile], listing_complete: bool) -> SyncResult:
+def sync_remote(ctx, platform: str, files: list[RemoteFile], listing_complete: bool) -> SyncResult:
 
     from app.services.indexing_pipeline import index_source
 
     result = SyncResult(listed=len(files))
     seen = set()
-    work: List[RemoteFile] = []
+    work: list[RemoteFile] = []
 
     for remote in files:
-
         meta = remote.meta
         seen.add(meta.source_id)
 
@@ -122,10 +119,9 @@ def sync_remote(ctx, platform: str, files: List[RemoteFile], listing_complete: b
         finally:
             for path in {str(target), local_path}:
                 if path and os.path.exists(path):
-                    try:
+                    # The job temp dir is removed by the worker anyway.
+                    with contextlib.suppress(OSError):
                         os.remove(path)
-                    except OSError:
-                        pass   # the job temp dir is removed by the worker anyway
 
     process_files(ctx, work, file_ref=lambda remote: remote.meta.display_path, handle=handle)
 
@@ -133,20 +129,14 @@ def sync_remote(ctx, platform: str, files: List[RemoteFile], listing_complete: b
 
     if not listing_complete:
         result.deletion_skipped = True
-        logger.warning(
-            "%s listing for user %s was incomplete: deletion sync skipped", platform, ctx.user_id
-        )
+        logger.warning("%s listing for user %s was incomplete: deletion sync skipped", platform, ctx.user_id)
         return result
 
     if ctx.is_cancelled():
         result.deletion_skipped = True
         return result
 
-    stale = [
-        row.source_id
-        for row in index_store.list_sources(ctx.user_id, platform)
-        if row.source_id not in seen
-    ]
+    stale = [row.source_id for row in index_store.list_sources(ctx.user_id, platform) if row.source_id not in seen]
 
     result.deleted = index_store.delete_sources(ctx.user_id, platform, stale)
 

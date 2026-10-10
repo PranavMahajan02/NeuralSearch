@@ -6,7 +6,6 @@ import uuid
 
 from app.core.logging_setup import request_id_var
 
-
 _VALID = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
 
 

@@ -1,0 +1,91 @@
+name: E2E (Docker stack)
+
+# Full stack: docker compose (Caddy + backend with CPU models + Postgres + Qdrant
+# + Redis) and the Playwright smoke test against https://localhost. Manual and
+# nightly only: the first run downloads ~2 GB of models (cached afterwards).
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 2 * * *"   # nightly 02:23 UTC
+  push:
+    tags: ["v*"]
+    branches: ["**"]
+    # ... and whenever the stack or the test itself changes.
+    paths:
+      - .github/workflows/e2e.yml
+      - docker-compose.yml
+      - deploy/**
+      - backend/Dockerfile
+      - frontend/e2e/**
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Model cache (HuggingFace, faster-whisper, PaddleOCR)
+        uses: actions/cache@v4
+        with:
+          path: .ci-models
+          key: models-v1-${{ hashFiles('app/ai/model_manager.py') }}
+
+      - name: Configure (fresh secrets, models cache mounted at /models)
+        run: |
+          cp .env.example .env
+          python3 scripts/generate_secrets.py
+          mkdir -p .ci-models && chmod 777 .ci-models
+          cat > docker-compose.override.yml <<'YAML'
+          services:
+            backend:
+              volumes:
+                - ./.ci-models:/models
+          YAML
+
+      - name: Start the stack
+        run: |
+          docker compose up -d --build
+          for i in $(seq 1 120); do
+            if curl -fsSk https://localhost/api/ready | grep -q '"ready"'; then echo ready; exit 0; fi
+            sleep 10
+          done
+          docker compose ps; docker compose logs --tail 200 backend; exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Playwright smoke test (https://localhost; self-signed cert accepted in the test config only)
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: https://localhost
+          E2E_API_URL: https://localhost/api
+          E2E_FILES_ROOT: ${{ github.workspace }}/sample-data
+          E2E_CONTAINER_ROOT: /data
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          chmod 777 ../sample-data
+          npm run test:e2e
+
+      - name: Logs and traces on failure
+        if: failure()
+        run: docker compose logs --tail 300 > compose-logs.txt || true
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-traces
+          path: |
+            frontend/test-results
+            compose-logs.txt
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

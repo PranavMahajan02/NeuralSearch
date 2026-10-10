@@ -1,8 +1,8 @@
 """Path-safety helpers for every endpoint that touches the file system."""
 
 import os
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, Optional
 from urllib.parse import unquote
 
 
@@ -66,7 +66,7 @@ def is_within(path: Path, base: Path) -> bool:
         return False
 
 
-def resolve_in_any(bases: Iterable[Path], user_input: str) -> Optional[Path]:
+def resolve_in_any(bases: Iterable[Path], user_input: str) -> Path | None:
     """Return the resolved path if it is inside any of `bases`, else None."""
 
     for base in bases:

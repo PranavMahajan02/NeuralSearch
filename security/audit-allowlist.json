@@ -1,0 +1,15 @@
+{
+  "_comment": "Known, documented advisories that CI does not fail on. Every entry must have a row in docs/SECURITY.md (section 'Dependency audit') explaining why it is not fixed yet and the exposure. Remove an entry as soon as the package can be upgraded.",
+  "python": [
+    {"package": "transformers", "reason": "fix needs re-validation of the calibrated search gates", "doc": "docs/SECURITY.md#dependency-audit"},
+    {"package": "pillow", "reason": "moviepy 2.2.1 requires pillow<12", "doc": "docs/SECURITY.md#dependency-audit"},
+    {"package": "opencv-python", "reason": "paddleocr 2.7.3 requires <=4.6.0.66", "doc": "docs/SECURITY.md#dependency-audit"},
+    {"package": "opencv-contrib-python", "reason": "paddleocr 2.7.3 requires <=4.6.0.66", "doc": "docs/SECURITY.md#dependency-audit"},
+    {"package": "paddlepaddle", "reason": "fix only in 3.0 (PaddleOCR 3 migration)", "doc": "docs/SECURITY.md#dependency-audit"},
+    {"package": "python-jose", "reason": "no fixed release; ECDSA advisories, HS256 only", "doc": "docs/SECURITY.md#dependency-audit"},
+    {"package": "ecdsa", "reason": "no fixed release; not used (HS256 only)", "doc": "docs/SECURITY.md#dependency-audit"},
+    {"package": "setuptools", "reason": "torch 2.11 requires setuptools<82", "doc": "docs/SECURITY.md#dependency-audit"},
+    {"package": "imgaug", "reason": "no fixed release; training-time only", "doc": "docs/SECURITY.md#dependency-audit"}
+  ],
+  "npm": []
+}

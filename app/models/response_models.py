@@ -5,23 +5,23 @@ TypeScript types are generated (frontend: `npm run gen:api`).
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
-
 # ---- search ------------------------------------------------------------------
 
+
 class MatchInfo(BaseModel):
-    reasons: List[str]
+    reasons: list[str]
     field: str
     snippet: str
     # [start, end) character offsets into `snippet` of the matched terms.
-    highlights: List[List[int]]
+    highlights: list[list[int]]
     # Videos matched on what a frame shows: that frame's time in seconds.
-    frame_time_s: Optional[int] = None
+    frame_time_s: int | None = None
     # "low" for possible_matches (below the visual evidence threshold).
-    confidence: Optional[str] = None
+    confidence: str | None = None
 
 
 class SearchResult(BaseModel):
@@ -33,13 +33,13 @@ class SearchResult(BaseModel):
     path: str
     score: float
     match: MatchInfo
-    file_size: Optional[int] = None
-    modified_at: Optional[str] = None
-    mime_type: Optional[str] = None
-    extension: Optional[str] = None
-    owner: Optional[str] = None
-    repo: Optional[str] = None
-    debug: Optional[Dict[str, Optional[float]]] = None
+    file_size: int | None = None
+    modified_at: str | None = None
+    mime_type: str | None = None
+    extension: str | None = None
+    owner: str | None = None
+    repo: str | None = None
+    debug: dict[str, float | None] | None = None
 
 
 class SearchResponse(BaseModel):
@@ -49,9 +49,9 @@ class SearchResponse(BaseModel):
     limit: int
     offset: int
     total: int
-    results: List[SearchResult]
+    results: list[SearchResult]
     # Low-confidence visual matches: never in results, never counted in total.
-    possible_matches: List[SearchResult] = []
+    possible_matches: list[SearchResult] = []
 
 
 class Suggestion(BaseModel):
@@ -62,10 +62,11 @@ class Suggestion(BaseModel):
 
 class SuggestionsResponse(BaseModel):
     prefix: str
-    suggestions: List[Suggestion]
+    suggestions: list[Suggestion]
 
 
 # ---- dashboard ---------------------------------------------------------------
+
 
 class RecentFile(BaseModel):
     platform: str
@@ -73,18 +74,18 @@ class RecentFile(BaseModel):
     file: str
     display_path: str
     type: str
-    indexed_at: Optional[str] = None
+    indexed_at: str | None = None
 
 
 class RecentResponse(BaseModel):
-    files: List[RecentFile]
+    files: list[RecentFile]
 
 
 class PlatformDetail(BaseModel):
     connected: bool
     indexed_files: int
-    last_indexed_at: Optional[str] = None
-    folders: Optional[List[str]] = None
+    last_indexed_at: str | None = None
+    folders: list[str] | None = None
 
 
 class DashboardStats(BaseModel):
@@ -93,14 +94,14 @@ class DashboardStats(BaseModel):
     images: int
     audio: int
     video: int
-    by_platform: Dict[str, int]
+    by_platform: dict[str, int]
     no_content_files: int
     failed_files: int
-    last_indexed_at: Optional[datetime] = None
+    last_indexed_at: datetime | None = None
     connected_platforms: int
     supported_platforms: int
     ready_platforms: int
-    platforms: Dict[str, PlatformDetail]
+    platforms: dict[str, PlatformDetail]
 
 
 # ---- indexing jobs -------------------------------------------------------------
@@ -122,49 +123,50 @@ class Job(BaseModel):
     indexed_files: int
     progress: int
     current_file: str
-    error_message: Optional[str] = None
+    error_message: str | None = None
     cancel_requested: bool
-    created_at: Optional[datetime] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    heartbeat_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    heartbeat_at: datetime | None = None
     # Where the time went: seconds per stage, calls, and per file type.
-    stage_timings: Optional[Dict[str, Any]] = None
+    stage_timings: dict[str, Any] | None = None
 
 
 class JobWithHistory(Job):
     indexed: bool
-    history: Optional[List[Job]] = None
+    history: list[Job] | None = None
 
 
 class JobError(BaseModel):
     file: str
     error: str
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
 
 class JobErrorsResponse(BaseModel):
     job_id: str
     failed_files: int
-    errors: List[JobError]
+    errors: list[JobError]
 
 
 class IndexQueuedResponse(BaseModel):
     status: str
     message: str
     priority_platform: str
-    platforms: List[str]
-    jobs: List[Job]
+    platforms: list[str]
+    jobs: list[Job]
 
 
 # ---- platforms -------------------------------------------------------------------
 
+
 class FoldersResponse(BaseModel):
-    folders: List[str]
+    folders: list[str]
     # The native folder dialog exists only when the backend runs in development.
     picker_available: bool
-    status: Optional[str] = None
-    purged_files: Optional[int] = None
+    status: str | None = None
+    purged_files: int | None = None
 
 
 class PickFolderResponse(BaseModel):
@@ -173,27 +175,27 @@ class PickFolderResponse(BaseModel):
 
 class DriveStatus(BaseModel):
     connected: bool
-    account_email: Optional[str] = None
+    account_email: str | None = None
 
 
 class GithubStatus(BaseModel):
     connected: bool
-    account_name: Optional[str] = None
+    account_name: str | None = None
 
 
 class ConnectResponse(BaseModel):
     status: str
     connected: bool
-    authorization_url: Optional[str] = None
-    account_email: Optional[str] = None
-    username: Optional[str] = None
-    message: Optional[str] = None
+    authorization_url: str | None = None
+    account_email: str | None = None
+    username: str | None = None
+    message: str | None = None
 
 
 class DisconnectResponse(BaseModel):
     status: str
     connected: bool
-    revoked: Optional[bool] = None
+    revoked: bool | None = None
     purged_files: int
     message: str
 
@@ -201,9 +203,9 @@ class DisconnectResponse(BaseModel):
 class OpenResponse(BaseModel):
     type: Literal["url", "download"]
     url: str
-    filename: Optional[str] = None
+    filename: str | None = None
 
 
 class LoginStateResponse(BaseModel):
     has_indexed: bool
-    platforms: List[str]
+    platforms: list[str]

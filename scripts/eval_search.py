@@ -68,7 +68,9 @@ def is_relevant(result: dict, expected: set) -> bool:
 # results and tests contain every eval query verbatim (true content matches).
 # They are dropped from the measurement (and counted) unless --include-self.
 # docs/QA_REPORT.md is the audit that defined the eval negatives (it quotes them).
-SELF_ARTIFACT = re.compile(r"(^|/)(tests/eval/|docs/eval/|docs/QA_REPORT\.md$|tests/test_[^/]*\.py$|scripts/eval_search\.py$)")
+SELF_ARTIFACT = re.compile(
+    r"(^|/)(tests/eval/|docs/eval/|docs/QA_REPORT\.md$|tests/test_[^/]*\.py$|scripts/eval_search\.py$)"
+)
 
 
 def is_self_artifact(result: dict) -> bool:
@@ -90,7 +92,6 @@ def run(base_url: str, headers: dict, queries: list, limit: int, include_self: b
     requests.post(f"{base_url}/search/", json={"query": "warm up"}, headers=headers, timeout=300)
 
     for item in queries:
-
         query = item["query"]
         body = {"query": query}
         if limit:
@@ -114,8 +115,9 @@ def run(base_url: str, headers: dict, queries: list, limit: int, include_self: b
             "returned": len(results),
             "top5": files[:5],
             # Low-confidence tier: reported separately, never part of the metrics above.
-            "possible": [r.get("file") for r in response.json().get("possible_matches", [])
-                         if not is_self_artifact(r)] if response.status_code == 200 else [],
+            "possible": [r.get("file") for r in response.json().get("possible_matches", []) if not is_self_artifact(r)]
+            if response.status_code == 200
+            else [],
         }
 
         if dropped:
@@ -137,19 +139,23 @@ def run(base_url: str, headers: dict, queries: list, limit: int, include_self: b
             expected = {name.lower() for name in item["expected"]}
             flags = [is_relevant(r, expected) for r in results]
             first = next((i + 1 for i, hit in enumerate(flags) if hit), None)
-            record.update({
-                "modality": item.get("modality"),
-                "precision_at_5": sum(flags[:5]) / min(5, len(expected)),
-                "recall_at_10": sum(flags[:10]) / len(expected),
-                "reciprocal_rank": 1 / first if first else 0.0,
-                "first_relevant_rank": first,
-            })
+            record.update(
+                {
+                    "modality": item.get("modality"),
+                    "precision_at_5": sum(flags[:5]) / min(5, len(expected)),
+                    "recall_at_10": sum(flags[:10]) / len(expected),
+                    "reciprocal_rank": 1 / first if first else 0.0,
+                    "first_relevant_rank": first,
+                }
+            )
 
         per_query.append(record)
 
     aggregate = summarize(per_query, latencies)
     aggregate["visual_only"] = summarize([r for r in per_query if r.get("visual")], [])
-    aggregate["non_visual"] = summarize([r for r in per_query if not r.get("visual") and not r.get("code") and not r.get("visual_video")], [])
+    aggregate["non_visual"] = summarize(
+        [r for r in per_query if not r.get("visual") and not r.get("code") and not r.get("visual_video")], []
+    )
     aggregate["code"] = summarize([r for r in per_query if r.get("code")], [])
     aggregate["visual_video"] = summarize([r for r in per_query if r.get("visual_video")], [])
     aggregate["possible_tier"] = possible_tier(per_query, queries)
@@ -212,30 +218,42 @@ def print_report(report: dict, label: str):
 
     for r in report["per_query"]:
         if r.get("negative"):
-            print(f"{r['query'][:40]:40} {'neg':>5} {'':>5} {'':>5} {r['returned']:>4} {r['latency_s']*1000:>6.0f}  FP={r['false_positives']}")
+            print(
+                f"{r['query'][:40]:40} {'neg':>5} {'':>5} {'':>5} {r['returned']:>4} {r['latency_s'] * 1000:>6.0f}  FP={r['false_positives']}"
+            )
         else:
             rank = r["first_relevant_rank"] or "-"
-            print(f"{r['query'][:40]:40} {r['precision_at_5']:>5.2f} {r['recall_at_10']:>5.2f} {rank!s:>5} {r['returned']:>4} {r['latency_s']*1000:>6.0f}")
+            print(
+                f"{r['query'][:40]:40} {r['precision_at_5']:>5.2f} {r['recall_at_10']:>5.2f} {rank!s:>5} {r['returned']:>4} {r['latency_s'] * 1000:>6.0f}"
+            )
 
-    for name, a in (("non-visual", report["aggregate"].get("non_visual")),
-                    ("visual-only", report["aggregate"].get("visual_only")),
-                    ("code", report["aggregate"].get("code")),
-                    ("visual-video", report["aggregate"].get("visual_video"))):
+    for name, a in (
+        ("non-visual", report["aggregate"].get("non_visual")),
+        ("visual-only", report["aggregate"].get("visual_only")),
+        ("code", report["aggregate"].get("code")),
+        ("visual-video", report["aggregate"].get("visual_video")),
+    ):
         if a:
-            print(f"{name:12} P@5 {a['precision_at_5']:.3f} | R@10 {a['recall_at_10']:.3f} | MRR {a['mrr']:.3f} | "
-                  f"negatives FP {a['negative_false_positives']} ({a['negative_queries_with_results']}/{a['negative_queries']})")
+            print(
+                f"{name:12} P@5 {a['precision_at_5']:.3f} | R@10 {a['recall_at_10']:.3f} | MRR {a['mrr']:.3f} | "
+                f"negatives FP {a['negative_false_positives']} ({a['negative_queries_with_results']}/{a['negative_queries']})"
+            )
 
     tier = report["aggregate"].get("possible_tier")
     if tier:
         v, im = tier["visual_video"], tier["visual_image"]
-        print(f"possible tier: recovers {v['recovered_by_tier']}/{v['targets_missed_by_results']} missed video targets, "
-              f"{im['recovered_by_tier']}/{im['targets_missed_by_results']} missed image targets | "
-              f"noise per query avg {tier['noise_per_query_avg']} max {tier['noise_per_query_max']}")
+        print(
+            f"possible tier: recovers {v['recovered_by_tier']}/{v['targets_missed_by_results']} missed video targets, "
+            f"{im['recovered_by_tier']}/{im['targets_missed_by_results']} missed image targets | "
+            f"noise per query avg {tier['noise_per_query_avg']} max {tier['noise_per_query_max']}"
+        )
 
     a = report["aggregate"]
-    print(f"\nprecision@5 {a['precision_at_5']:.3f} | recall@10 {a['recall_at_10']:.3f} | MRR {a['mrr']:.3f} | "
-          f"negatives FP {a['negative_false_positives']} ({a['negative_queries_with_results']}/{a['negative_queries']} queries) | "
-          f"p50 {a['latency_p50_s']*1000:.0f} ms | p95 {a['latency_p95_s']*1000:.0f} ms")
+    print(
+        f"\nprecision@5 {a['precision_at_5']:.3f} | recall@10 {a['recall_at_10']:.3f} | MRR {a['mrr']:.3f} | "
+        f"negatives FP {a['negative_false_positives']} ({a['negative_queries_with_results']}/{a['negative_queries']} queries) | "
+        f"p50 {a['latency_p50_s'] * 1000:.0f} ms | p95 {a['latency_p95_s'] * 1000:.0f} ms"
+    )
 
 
 def main():
@@ -246,11 +264,15 @@ def main():
     parser.add_argument("--label", default="run")
     parser.add_argument("--queries", default=str(ROOT / "tests" / "eval" / "queries.yaml"))
     parser.add_argument("--limit", type=int, default=0, help="send a limit (0 = server default)")
-    parser.add_argument("--include-self", action="store_true",
-                        help="keep results from this repo's own eval/test files (indexed via GitHub)")
+    parser.add_argument(
+        "--include-self",
+        action="store_true",
+        help="keep results from this repo's own eval/test files (indexed via GitHub)",
+    )
     args = parser.parse_args()
 
-    queries = yaml.safe_load(open(args.queries, encoding="utf-8"))["queries"]
+    with open(args.queries, encoding="utf-8") as handle:
+        queries = yaml.safe_load(handle)["queries"]
 
     report = run(args.base_url, owner_headers(args.email), queries, args.limit, args.include_self)
     report["include_self"] = args.include_self

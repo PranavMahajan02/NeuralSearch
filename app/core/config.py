@@ -4,32 +4,23 @@ import secrets
 import warnings
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import Literal
 
 from cryptography.fernet import Fernet
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 MIN_JWT_SECRET_LENGTH = 32
 
 
-def _split_csv(value: str) -> List[str]:
+def _split_csv(value: str) -> list[str]:
 
-    return [
-        item.strip()
-        for item in value.split(",")
-        if item.strip()
-    ]
+    return [item.strip() for item in value.split(",") if item.strip()]
 
 
 class Settings(BaseSettings):
-
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-        hide_input_in_errors=True
+        env_file=".env", env_file_encoding="utf-8", extra="ignore", hide_input_in_errors=True
     )
 
     ENV: Literal["development", "production"] = "development"
@@ -43,7 +34,7 @@ class Settings(BaseSettings):
     # Collections are <prefix>_text, _image, _audio, _video, _video_frames.
     QDRANT_COLLECTION_PREFIX: str = "cogniseek_v2"
     # Qdrant API key (QDRANT__SERVICE__API_KEY on the server). Required in production.
-    QDRANT_API_KEY: Optional[str] = None
+    QDRANT_API_KEY: str | None = None
 
     # Redis for shared rate-limit counters. Required in production; empty in
     # development = in-memory counters (per process, reset on restart).
@@ -61,12 +52,12 @@ class Settings(BaseSettings):
     METRICS_ENABLED: bool = True
 
     # Auth
-    JWT_SECRET_KEY: Optional[str] = None
+    JWT_SECRET_KEY: str | None = None
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
     # Fernet key for OAuth tokens stored in the DB.
-    TOKEN_ENCRYPTION_KEY: Optional[str] = None
+    TOKEN_ENCRYPTION_KEY: str | None = None
 
     # Rate limit for /auth/login and /auth/register (slowapi syntax).
     AUTH_RATE_LIMIT: str = "5/minute"
@@ -133,12 +124,12 @@ class Settings(BaseSettings):
     ALLOWED_LOCAL_ROOTS: str = ""
 
     @property
-    def cors_origins_list(self) -> List[str]:
+    def cors_origins_list(self) -> list[str]:
 
         return _split_csv(self.CORS_ORIGINS)
 
     @property
-    def allowed_local_roots_list(self) -> List[str]:
+    def allowed_local_roots_list(self) -> list[str]:
 
         return _split_csv(self.ALLOWED_LOCAL_ROOTS) or [str(Path.home())]
 
@@ -176,21 +167,17 @@ class Settings(BaseSettings):
             try:
                 Fernet(key.encode())
             except (ValueError, TypeError):
-                raise ValueError(
-                    "TOKEN_ENCRYPTION_KEY is not a valid Fernet key."
-                ) from None
+                raise ValueError("TOKEN_ENCRYPTION_KEY is not a valid Fernet key.") from None
             return self
 
         if self.is_production:
-            raise ValueError(
-                "TOKEN_ENCRYPTION_KEY must be set in production."
-            )
+            raise ValueError("TOKEN_ENCRYPTION_KEY must be set in production.")
 
         self.TOKEN_ENCRYPTION_KEY = Fernet.generate_key().decode()
         warnings.warn(
             "TOKEN_ENCRYPTION_KEY is not set: using a random development key. "
             "Stored OAuth tokens will be unreadable after a restart.",
-            stacklevel=2
+            stacklevel=2,
         )
 
         return self
@@ -205,8 +192,7 @@ class Settings(BaseSettings):
 
         if self.ENV == "production":
             raise ValueError(
-                "JWT_SECRET_KEY must be set and at least "
-                f"{MIN_JWT_SECRET_LENGTH} characters in production."
+                f"JWT_SECRET_KEY must be set and at least {MIN_JWT_SECRET_LENGTH} characters in production."
             )
 
         if not key:
@@ -214,13 +200,13 @@ class Settings(BaseSettings):
             warnings.warn(
                 "JWT_SECRET_KEY is not set: using a random development key. "
                 "Tokens will be invalidated on every restart.",
-                stacklevel=2
+                stacklevel=2,
             )
         else:
             warnings.warn(
                 f"JWT_SECRET_KEY is shorter than {MIN_JWT_SECRET_LENGTH} "
                 "characters. This is only allowed in development.",
-                stacklevel=2
+                stacklevel=2,
             )
 
         return self

@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from app.database.db import SessionLocal
-from app.database.models import IndexedFile, IndexingJob, IndexingJobError
+from app.database.models import IndexingJob, IndexingJobError
 from app.services import index_store
 from app.services.index_store import FileMeta, IndexPoint, VectorStoreWriteError
 from app.vectorstore.client import get_client
@@ -14,14 +14,20 @@ from app.vectorstore.config import collection_for_type
 from app.vectorstore.query import user_filter
 from tests.conftest import _bag_of_words_vector
 
-
 VECTOR = _bag_of_words_vector("large generated text", 384)
 
 
 def meta_for(user, version="v1", source_id=None, file_name="import_log.txt"):
 
-    return FileMeta(user_id=user["id"], platform="github", source_id=source_id or f"me/repo:{uuid.uuid4().hex}",
-                    file_name=file_name, display_path=f"me/repo/{file_name}", file_type="document", version=version)
+    return FileMeta(
+        user_id=user["id"],
+        platform="github",
+        source_id=source_id or f"me/repo:{uuid.uuid4().hex}",
+        file_name=file_name,
+        display_path=f"me/repo/{file_name}",
+        file_type="document",
+        version=version,
+    )
 
 
 def points(n):
@@ -31,11 +37,15 @@ def points(n):
 
 def count(user, source_id):
 
-    return get_client().count(
-        collection_for_type("document"),
-        count_filter=user_filter(str(user["id"]), "github", source_id=source_id),
-        exact=True
-    ).count
+    return (
+        get_client()
+        .count(
+            collection_for_type("document"),
+            count_filter=user_filter(str(user["id"]), "github", source_id=source_id),
+            exact=True,
+        )
+        .count
+    )
 
 
 class CountingUpserts:
@@ -102,7 +112,7 @@ def test_text_beyond_the_limits_is_truncated_with_a_ledger_note(user, local_root
 
     path = local_root / f"big-{uuid.uuid4().hex[:6]}" / "project_files.txt"
     path.parent.mkdir()
-    path.write_text("word " * 4000, encoding="utf-8")       # 20,000 chars = 20 chunks
+    path.write_text("word " * 4000, encoding="utf-8")  # 20,000 chars = 20 chunks
 
     assert index_local_file(user["id"], str(path)) == "indexed"
 
@@ -156,11 +166,16 @@ def test_local_excluded_files_are_recorded_and_skipped(user, local_root):
     ctx = job_context(user, "local")
 
     from unittest.mock import patch
-    with patch("app.platforms.local.local_platform.get_local_folders",
-               return_value=[type("F", (), {"folder_path": str(folder)})()]):
+
+    with patch(
+        "app.platforms.local.local_platform.get_local_folders",
+        return_value=[type("F", (), {"folder_path": str(folder)})()],
+    ):
         LocalPlatform().index(ctx)
 
-    assert index_store.get_source(user["id"], "local", local_source_id(str(folder / "vendor.min.js"))).status == "excluded"
+    assert (
+        index_store.get_source(user["id"], "local", local_source_id(str(folder / "vendor.min.js"))).status == "excluded"
+    )
     assert index_store.get_source(user["id"], "local", local_source_id(str(folder / "notes.txt"))).status == "indexed"
     assert ctx.failed_files == 0
 

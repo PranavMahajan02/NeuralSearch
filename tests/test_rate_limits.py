@@ -29,8 +29,7 @@ def test_search_is_limited_per_user(client, make_user, monkeypatch):
     first, second = make_user(), make_user()
 
     statuses = [
-        client.post("/search/", json={"query": "q"}, headers=first["headers"]).status_code
-        for _ in range(limit + 1)
+        client.post("/search/", json={"query": "q"}, headers=first["headers"]).status_code for _ in range(limit + 1)
     ]
     assert statuses[:limit] == [200] * limit and statuses[-1] == 429
 

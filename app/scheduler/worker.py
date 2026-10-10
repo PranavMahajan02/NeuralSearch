@@ -13,8 +13,8 @@ import shutil
 import threading
 import time
 import traceback
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Dict, Optional
 
 from app.core.config import settings
 from app.core.timing import collecting
@@ -24,7 +24,6 @@ from app.scheduler.context import JobContext
 from app.scheduler.errors import sanitize_error
 from app.scheduler.jobs import claim_next_job, finalize_job
 
-
 logger = logging.getLogger("cogniseek.worker")
 
 POLL_INTERVAL_SECONDS = 5.0
@@ -33,18 +32,14 @@ POLL_INTERVAL_SECONDS = 5.0
 LOOP_ERROR_BACKOFF_SECONDS = 2.0
 
 
-def default_platform_factories() -> Dict[str, Callable[[], object]]:
+def default_platform_factories() -> dict[str, Callable[[], object]]:
 
     # Imported lazily: the platforms pull in the ML stack.
     from app.platforms.github.github_platform import GitHubPlatform
     from app.platforms.google_drive.google_drive_platform import GoogleDrivePlatform
     from app.platforms.local.local_platform import LocalPlatform
 
-    return {
-        "local": LocalPlatform,
-        "google_drive": GoogleDrivePlatform,
-        "github": GitHubPlatform
-    }
+    return {"local": LocalPlatform, "google_drive": GoogleDrivePlatform, "github": GitHubPlatform}
 
 
 def jobs_temp_root() -> Path:
@@ -72,12 +67,11 @@ def clear_orphaned_job_dirs() -> int:
 
 
 class IndexingWorker:
-
     def __init__(
         self,
-        platform_factories: Optional[Dict[str, Callable[[], object]]] = None,
+        platform_factories: dict[str, Callable[[], object]] | None = None,
         session_factory=SessionLocal,
-        poll_interval: float = POLL_INTERVAL_SECONDS
+        poll_interval: float = POLL_INTERVAL_SECONDS,
     ):
 
         self._platform_factories = platform_factories
@@ -86,7 +80,7 @@ class IndexingWorker:
 
         self._wake = threading.Event()
         self._stop = threading.Event()
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
         self.current_job_id = None
 
@@ -100,11 +94,7 @@ class IndexingWorker:
             return
 
         self._stop.clear()
-        self._thread = threading.Thread(
-            target=self._run_forever,
-            name="indexing-worker",
-            daemon=True
-        )
+        self._thread = threading.Thread(target=self._run_forever, name="indexing-worker", daemon=True)
         self._thread.start()
 
         logger.info("Indexing worker started.")
@@ -137,7 +127,6 @@ class IndexingWorker:
     def _run_forever(self) -> None:
 
         while not self._stop.is_set():
-
             try:
                 ran = self.run_once()
             except Exception:
@@ -165,7 +154,7 @@ class IndexingWorker:
 
         return True
 
-    def _platforms(self) -> Dict[str, Callable[[], object]]:
+    def _platforms(self) -> dict[str, Callable[[], object]]:
 
         if self._platform_factories is None:
             self._platform_factories = default_platform_factories()
@@ -183,7 +172,7 @@ class IndexingWorker:
             user_id=user_id,
             platform=platform_name,
             temp_dir=temp_dir,
-            session_factory=self._session_factory
+            session_factory=self._session_factory,
         )
 
         error_message = None
@@ -191,7 +180,6 @@ class IndexingWorker:
         logger.info("Job %s started: %s for user %s", job_id, platform_name, user_id)
 
         try:
-
             temp_dir.mkdir(parents=True, exist_ok=True)
 
             factory = self._platforms().get(platform_name)
@@ -203,24 +191,21 @@ class IndexingWorker:
                 factory().index(context)
 
         except PlatformPreconditionError as e:
-
             error_message = sanitize_error(e, context.allowed_roots, with_type=False)
             logger.warning("Job %s precondition failed: %s", job_id, error_message)
 
         except Exception as e:
-
             error_message = sanitize_error(e, context.allowed_roots)
             logger.error("Job %s crashed:\n%s", job_id, traceback.format_exc())
 
         finally:
-
             self._finish(context, error_message)
 
             shutil.rmtree(temp_dir, ignore_errors=True)
 
             self.current_job_id = None
 
-    def _finish(self, context: JobContext, error_message: Optional[str]) -> None:
+    def _finish(self, context: JobContext, error_message: str | None) -> None:
         """Persist the last counters and the final status, whatever happened."""
 
         for attempt in range(3):
@@ -230,7 +215,11 @@ class IndexingWorker:
                     job = finalize_job(db, context.job_id, error_message)
                 logger.info(
                     "Job %s finished: %s (%s ok, %s failed, %s skipped)",
-                    job.id, job.status, job.succeeded_files, job.failed_files, job.skipped_files
+                    job.id,
+                    job.status,
+                    job.succeeded_files,
+                    job.failed_files,
+                    job.skipped_files,
                 )
                 return
             except Exception:

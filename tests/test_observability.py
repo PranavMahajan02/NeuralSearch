@@ -6,10 +6,10 @@ import logging
 
 from app.core.logging_setup import build_handler, request_id_var
 
-
 # ---------------------------------------------------------------------------
 # Health / readiness
 # ---------------------------------------------------------------------------
+
 
 def test_health_is_a_dependency_free_liveness_probe(client):
 
@@ -45,6 +45,7 @@ def test_ready_is_503_when_a_dependency_is_down_without_leaking_details(client, 
 # ---------------------------------------------------------------------------
 # Request ids
 # ---------------------------------------------------------------------------
+
 
 def test_every_response_has_a_request_id(client):
 
@@ -101,8 +102,16 @@ def test_log_filter_redacts_tokens_in_messages_args_and_tracebacks():
         logger.exception("provider call failed")
 
     output = stream.getvalue()
-    for leaked in ("secretpart", "secretvalue", "ghp_ABCDEF", "c2lnbmF0dXJlc2VjcmV0", "0AQSTgQsecret",
-                   "statesecret123", "0gsecretrefresh", "supersecret-access"):
+    for leaked in (
+        "secretpart",
+        "secretvalue",
+        "ghp_ABCDEF",
+        "c2lnbmF0dXJlc2VjcmV0",
+        "0AQSTgQsecret",
+        "statesecret123",
+        "0gsecretrefresh",
+        "supersecret-access",
+    ):
         assert leaked not in output, leaked
     assert output.count("<redacted>") >= len(SECRETS)
 
@@ -125,6 +134,7 @@ def test_json_logs_are_one_object_per_line_with_the_request_id():
 # ---------------------------------------------------------------------------
 # Metrics
 # ---------------------------------------------------------------------------
+
 
 def test_metrics_expose_http_search_and_job_series(client, user, monkeypatch):
 

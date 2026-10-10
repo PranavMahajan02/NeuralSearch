@@ -1,15 +1,12 @@
 import uuid
 
-from fastapi import Depends
-from fastapi import HTTPException
-from fastapi.security import HTTPAuthorizationCredentials
-from fastapi.security import HTTPBearer
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.auth.jwt_handler import verify_token
 from app.database.db import get_db
 from app.database.models import User
-
 
 # auto_error=False so a missing header yields our 401 (not a 403).
 security = HTTPBearer(auto_error=False)
@@ -17,17 +14,10 @@ security = HTTPBearer(auto_error=False)
 
 def _unauthorized(detail: str):
 
-    return HTTPException(
-        status_code=401,
-        detail=detail,
-        headers={"WWW-Authenticate": "Bearer"}
-    )
+    return HTTPException(status_code=401, detail=detail, headers={"WWW-Authenticate": "Bearer"})
 
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
-):
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
 
     if credentials is None or not credentials.credentials:
         raise _unauthorized("Not authenticated.")
@@ -40,7 +30,7 @@ def get_current_user(
     try:
         user_id = uuid.UUID(str(payload.get("user_id")))
     except ValueError:
-        raise _unauthorized("Invalid or expired token.")
+        raise _unauthorized("Invalid or expired token.") from None
 
     user = db.get(User, user_id)
 
@@ -55,5 +45,5 @@ def get_current_user(
         "id": str(user.id),
         "name": user.full_name,
         "email": user.email,
-        "onboarding_completed": bool(user.onboarding_completed)
+        "onboarding_completed": bool(user.onboarding_completed),
     }

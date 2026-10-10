@@ -1,40 +1,33 @@
 import uuid
 
-from fastapi import APIRouter
-from fastapi import Depends
-from fastapi import Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.auth.auth_dependency import get_current_user
 from app.core.errors import AppError
 from app.database.db import get_db
+from app.models import response_models as rm
 from app.models.platforms import PlatformName
 from app.scheduler.jobs import (
     ActiveJobExists,
+    JobNotQueued,
     enqueue_jobs,
     get_user_job,
     indexed_platforms,
     job_errors,
     latest_jobs_per_platform,
     prioritize_job,
-    JobNotQueued,
     recent_jobs,
     request_cancel,
-    serialize_job
+    serialize_job,
 )
 from app.scheduler.worker import notify_worker
-from app.models import response_models as rm
 
-
-router = APIRouter(
-    prefix="/index",
-    tags=["Index"]
-)
+router = APIRouter(prefix="/index", tags=["Index"])
 
 
 class IndexRequest(BaseModel):
-
     priority_platform: PlatformName
 
     platforms: list[PlatformName] = Field(min_length=1)
@@ -43,17 +36,11 @@ class IndexRequest(BaseModel):
 @router.get("/health")
 def health():
 
-    return {
-        "status": "Index API Ready"
-    }
+    return {"status": "Index API Ready"}
 
 
 @router.post("/", response_model=rm.IndexQueuedResponse)
-def index(
-    request: IndexRequest,
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+def index(request: IndexRequest, current_user=Depends(get_current_user), db: Session = Depends(get_db)):
     """Queue one new job per platform (priority platform first)."""
 
     priority_platform = request.priority_platform.value
@@ -65,8 +52,8 @@ def index(
         raise AppError(
             409,
             "Indexing is already queued or running for: " + ", ".join(conflict.platforms) + ".",
-            code="job_already_active"
-        )
+            code="job_already_active",
+        ) from conflict
 
     notify_worker()
 
@@ -75,7 +62,7 @@ def index(
         "message": "Indexing queued",
         "priority_platform": priority_platform,
         "platforms": [job.platform for job in jobs],
-        "jobs": [serialize_job(job) for job in jobs]
+        "jobs": [serialize_job(job) for job in jobs],
     }
 
 
@@ -83,7 +70,7 @@ def index(
 def get_jobs(
     history: int = Query(0, ge=0, le=20, description="Also return the last N jobs per platform."),
     current_user=Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Latest job per platform for the current user.
 
@@ -120,11 +107,7 @@ def _owned_job(db: Session, user_id, job_id: uuid.UUID):
 
 
 @router.get("/jobs/{job_id}/errors", response_model=rm.JobErrorsResponse)
-def get_job_errors(
-    job_id: uuid.UUID,
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+def get_job_errors(job_id: uuid.UUID, current_user=Depends(get_current_user), db: Session = Depends(get_db)):
 
     job = _owned_job(db, current_user["id"], job_id)
 
@@ -132,38 +115,26 @@ def get_job_errors(
         "job_id": str(job.id),
         "failed_files": job.failed_files,
         "errors": [
-            {
-                "file": error.file_ref,
-                "error": error.error,
-                "created_at": error.created_at
-            }
+            {"file": error.file_ref, "error": error.error, "created_at": error.created_at}
             for error in job_errors(db, job.id)
-        ]
+        ],
     }
 
 
 @router.post("/jobs/{job_id}/prioritize", response_model=rm.Job)
-def prioritize(
-    job_id: uuid.UUID,
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """"Index next": run this queued job before the user's other queued jobs."""
+def prioritize(job_id: uuid.UUID, current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """ "Index next": run this queued job before the user's other queued jobs."""
 
     try:
         job = prioritize_job(db, _owned_job(db, current_user["id"], job_id))
     except JobNotQueued:
-        raise AppError(409, "Only a queued job can be moved to the front.", code="job_not_queued")
+        raise AppError(409, "Only a queued job can be moved to the front.", code="job_not_queued") from None
 
     return serialize_job(job)
 
 
 @router.post("/jobs/{job_id}/cancel", response_model=rm.Job)
-def cancel_job(
-    job_id: uuid.UUID,
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+def cancel_job(job_id: uuid.UUID, current_user=Depends(get_current_user), db: Session = Depends(get_db)):
 
     job = request_cancel(db, _owned_job(db, current_user["id"], job_id))
 

@@ -1,8 +1,7 @@
 import re
-
-from pydantic import BaseModel, EmailStr, field_validator
 from uuid import UUID
 
+from pydantic import BaseModel, EmailStr, field_validator
 
 BCRYPT_MAX_BYTES = 72
 
@@ -20,8 +19,7 @@ def check_password_policy(value: str) -> str:
 
     if len(value.encode("utf-8")) > BCRYPT_MAX_BYTES:
         raise ValueError(
-            f"Password must be at most {BCRYPT_MAX_BYTES} bytes "
-            "(fewer characters if you use non-ASCII characters)."
+            f"Password must be at most {BCRYPT_MAX_BYTES} bytes (fewer characters if you use non-ASCII characters)."
         )
 
     if not re.search(r"[A-Za-z]", value) or not re.search(r"\d", value):
@@ -31,7 +29,6 @@ def check_password_policy(value: str) -> str:
 
 
 class RegisterRequest(BaseModel):
-
     name: str
     email: EmailStr
     password: str
@@ -61,7 +58,6 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-
     email: EmailStr
     password: str
 
@@ -89,7 +85,6 @@ class CurrentPasswordRequest(BaseModel):
 
 
 class ChangePasswordRequest(BaseModel):
-
     current_password: str
     new_password: str
 
@@ -101,7 +96,6 @@ class ChangePasswordRequest(BaseModel):
 
 
 class UserResponse(BaseModel):
-
     id: UUID
     name: str
     email: EmailStr
@@ -109,6 +103,5 @@ class UserResponse(BaseModel):
 
 
 class TokenResponse(BaseModel):
-
     access_token: str
     token_type: str

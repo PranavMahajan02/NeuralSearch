@@ -1,19 +1,18 @@
 """The one clock: timezone-aware UTC (the naive utcnow of the standard library is deprecated)."""
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 
 def utcnow() -> datetime:
 
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
-def iso(value: Optional[datetime]) -> Optional[str]:
+def iso(value: datetime | None) -> str | None:
     """ISO 8601 with an explicit offset. Naive values (legacy) are UTC."""
 
     if value is None:
         return None
     if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
+        value = value.replace(tzinfo=UTC)
     return value.isoformat()

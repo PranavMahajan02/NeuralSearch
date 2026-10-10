@@ -6,30 +6,28 @@ holds one row per source file. Both are always keyed by
 """
 
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, Iterable, List, Optional
 
 from qdrant_client.models import (
     FieldCondition,
     Filter,
     FilterSelector,
-    MatchValue,
     PointStruct,
     Range,
 )
 from sqlalchemy.orm import Session
 
+from app.core.clock import utcnow
 from app.core.config import settings
+from app.core.timing import span
 from app.database.db import SessionLocal
-from app.database.models import IndexedFile, LEDGER_SKIP_STATUSES
+from app.database.models import LEDGER_SKIP_STATUSES, IndexedFile
 from app.vectorstore.client import get_client
 from app.vectorstore.config import all_collections, collection_for_type
 from app.vectorstore.query import user_filter
 from app.vectorstore.schema import point_id
-from app.core.clock import utcnow
-from app.core.timing import span
-
 
 logger = logging.getLogger("cogniseek.index_store")
 
@@ -43,15 +41,15 @@ class FileMeta:
     source_id: str
     file_name: str
     display_path: str
-    file_type: str          # document | image | audio | video
-    version: Optional[str]
-    owner: Optional[str] = None
-    repo: Optional[str] = None
-    default_branch: Optional[str] = None     # GitHub
-    web_view_link: Optional[str] = None      # Google Drive
-    size_bytes: Optional[int] = None
-    modified_at: Optional[datetime] = None   # aware UTC
-    mime_type: Optional[str] = None
+    file_type: str  # document | image | audio | video
+    version: str | None
+    owner: str | None = None
+    repo: str | None = None
+    default_branch: str | None = None  # GitHub
+    web_view_link: str | None = None  # Google Drive
+    size_bytes: int | None = None
+    modified_at: datetime | None = None  # aware UTC
+    mime_type: str | None = None
 
 
 @dataclass
@@ -59,11 +57,11 @@ class IndexPoint:
     """One vector to store. `type` is document|image|audio|video|video_frame."""
 
     type: str
-    vector: List[float]
+    vector: list[float]
     chunk_index: int
     chunk: str
-    frame_number: Optional[int] = None
-    extra: Dict = field(default_factory=dict)
+    frame_number: int | None = None
+    extra: dict = field(default_factory=dict)
 
 
 def _payload(meta: FileMeta, point: IndexPoint) -> dict:
@@ -100,18 +98,17 @@ def _point_struct(meta: FileMeta, point: IndexPoint) -> PointStruct:
 
     return PointStruct(
         id=point_id(
-            str(meta.user_id), meta.platform, meta.source_id,
-            point.type, point.chunk_index, point.frame_number
+            str(meta.user_id), meta.platform, meta.source_id, point.type, point.chunk_index, point.frame_number
         ),
         vector=list(point.vector),
-        payload=_payload(meta, point)
+        payload=_payload(meta, point),
     )
 
 
 class Points(list):
     """A builder's points plus an optional ledger note (e.g. 'truncated: ...')."""
 
-    def __init__(self, items=(), note: Optional[str] = None):
+    def __init__(self, items=(), note: str | None = None):
 
         super().__init__(items)
         self.note = note
@@ -137,12 +134,12 @@ def _write_failed(action: str, error: Exception) -> VectorStoreWriteError:
     return VectorStoreWriteError(f"Could not save vectors ({reason})")
 
 
-def _batches(items: List, size: int):
+def _batches(items: list, size: int):
 
     size = max(1, int(size))
 
     for start in range(0, len(items), size):
-        yield items[start:start + size]
+        yield items[start : start + size]
 
 
 def _source_filter(user_id, platform: str, source_id: str, **extra) -> Filter:
@@ -154,7 +151,8 @@ def _source_filter(user_id, platform: str, source_id: str, **extra) -> Filter:
 # Writes
 # ----------------------------------------------------------------------
 
-def upsert_file(meta: FileMeta, points: List[IndexPoint], session_factory=SessionLocal) -> IndexedFile:
+
+def upsert_file(meta: FileMeta, points: list[IndexPoint], session_factory=SessionLocal) -> IndexedFile:
     """Store the points of one file, then drop its stale chunks, then record it.
 
     Order matters: new points are written first (deterministic ids overwrite
@@ -169,7 +167,7 @@ def upsert_file(meta: FileMeta, points: List[IndexPoint], session_factory=Sessio
 
     client = get_client()
 
-    by_type: Dict[str, List[IndexPoint]] = {}
+    by_type: dict[str, list[IndexPoint]] = {}
     for point in points:
         by_type.setdefault(point.type, []).append(point)
 
@@ -187,26 +185,30 @@ def upsert_file(meta: FileMeta, points: List[IndexPoint], session_factory=Sessio
     status = "indexed" if points else "no_content"
 
     with span("ledger"):
-        return _record(meta, status=status, chunk_count=len(points),
-                       error=getattr(points, "note", None), session_factory=session_factory)
+        return _record(
+            meta,
+            status=status,
+            chunk_count=len(points),
+            error=getattr(points, "note", None),
+            session_factory=session_factory,
+        )
 
 
-def _upsert_batches(client, meta: FileMeta, by_type: Dict[str, List[IndexPoint]]) -> None:
+def _upsert_batches(client, meta: FileMeta, by_type: dict[str, list[IndexPoint]]) -> None:
 
     for point_type, group in by_type.items():
         for batch in _batches(group, settings.QDRANT_UPSERT_BATCH):
             client.upsert(
                 collection_name=collection_for_type(point_type),
                 points=[_point_struct(meta, p) for p in batch],
-                wait=True
+                wait=True,
             )
 
 
-def _prune(client, meta: FileMeta, by_type: Dict[str, List[IndexPoint]]) -> None:
+def _prune(client, meta: FileMeta, by_type: dict[str, list[IndexPoint]]) -> None:
     """Per type, delete everything at or beyond the new chunk count."""
 
     for point_type in _types_for(meta.file_type):
-
         group = by_type.get(point_type, [])
         keep = (max(p.chunk_index for p in group) + 1) if group else 0
 
@@ -214,12 +216,13 @@ def _prune(client, meta: FileMeta, by_type: Dict[str, List[IndexPoint]]) -> None
             collection_name=collection_for_type(point_type),
             points_selector=FilterSelector(
                 filter=Filter(
-                    must=_source_filter(meta.user_id, meta.platform, meta.source_id).must + [
-                        FieldCondition(key="chunk_index", range=Range(gte=keep))
+                    must=[
+                        *_source_filter(meta.user_id, meta.platform, meta.source_id).must,
+                        FieldCondition(key="chunk_index", range=Range(gte=keep)),
                     ]
                 )
             ),
-            wait=True
+            wait=True,
         )
 
 
@@ -230,11 +233,16 @@ def _record_failure(meta: FileMeta, message: str, session_factory) -> None:
         row = _get_row(db, meta.user_id, meta.platform, meta.source_id)
         previous = row.version if row is not None else None
 
-    _record(FileMeta(**{**meta.__dict__, "version": previous}), status="failed", chunk_count=None,
-            error=message, session_factory=session_factory)
+    _record(
+        FileMeta(**{**meta.__dict__, "version": previous}),
+        status="failed",
+        chunk_count=None,
+        error=message,
+        session_factory=session_factory,
+    )
 
 
-def record_status(meta: FileMeta, status: str, error: Optional[str] = None, session_factory=SessionLocal) -> IndexedFile:
+def record_status(meta: FileMeta, status: str, error: str | None = None, session_factory=SessionLocal) -> IndexedFile:
     """Ledger-only update (failed / unsupported). Existing vectors are kept
     for 'failed' so a transient error does not drop a file from search."""
 
@@ -246,16 +254,10 @@ def _record(meta: FileMeta, status: str, chunk_count, error=None, session_factor
     now = utcnow()
 
     with session_factory() as db:
-
         row = _get_row(db, meta.user_id, meta.platform, meta.source_id)
 
         if row is None:
-            row = IndexedFile(
-                user_id=meta.user_id,
-                platform=meta.platform,
-                source_id=meta.source_id,
-                indexed_at=now
-            )
+            row = IndexedFile(user_id=meta.user_id, platform=meta.platform, source_id=meta.source_id, indexed_at=now)
             db.add(row)
 
         row.file_name = meta.file_name
@@ -298,9 +300,7 @@ def delete_file(user_id, platform: str, source_id: str, session_factory=SessionL
 
     with session_factory() as db:
         db.query(IndexedFile).filter(
-            IndexedFile.user_id == user_id,
-            IndexedFile.platform == platform,
-            IndexedFile.source_id == source_id
+            IndexedFile.user_id == user_id, IndexedFile.platform == platform, IndexedFile.source_id == source_id
         ).delete(synchronize_session=False)
         db.commit()
 
@@ -326,10 +326,11 @@ def purge_platform(user_id, platform: str, session_factory=SessionLocal) -> int:
         client.delete(collection_name=name, points_selector=selector, wait=True)
 
     with session_factory() as db:
-        count = db.query(IndexedFile).filter(
-            IndexedFile.user_id == user_id,
-            IndexedFile.platform == platform
-        ).delete(synchronize_session=False)
+        count = (
+            db.query(IndexedFile)
+            .filter(IndexedFile.user_id == user_id, IndexedFile.platform == platform)
+            .delete(synchronize_session=False)
+        )
         db.commit()
 
     return count
@@ -339,16 +340,17 @@ def purge_platform(user_id, platform: str, session_factory=SessionLocal) -> int:
 # Reads
 # ----------------------------------------------------------------------
 
-def _get_row(db: Session, user_id, platform: str, source_id: str) -> Optional[IndexedFile]:
 
-    return db.query(IndexedFile).filter(
-        IndexedFile.user_id == user_id,
-        IndexedFile.platform == platform,
-        IndexedFile.source_id == source_id
-    ).first()
+def _get_row(db: Session, user_id, platform: str, source_id: str) -> IndexedFile | None:
+
+    return (
+        db.query(IndexedFile)
+        .filter(IndexedFile.user_id == user_id, IndexedFile.platform == platform, IndexedFile.source_id == source_id)
+        .first()
+    )
 
 
-def get_source(user_id, platform: str, source_id: str, session_factory=SessionLocal) -> Optional[IndexedFile]:
+def get_source(user_id, platform: str, source_id: str, session_factory=SessionLocal) -> IndexedFile | None:
 
     with session_factory() as db:
         row = _get_row(db, user_id, platform, source_id)
@@ -357,13 +359,10 @@ def get_source(user_id, platform: str, source_id: str, session_factory=SessionLo
         return row
 
 
-def list_sources(user_id, platform: str, session_factory=SessionLocal) -> List[IndexedFile]:
+def list_sources(user_id, platform: str, session_factory=SessionLocal) -> list[IndexedFile]:
 
     with session_factory() as db:
-        rows = db.query(IndexedFile).filter(
-            IndexedFile.user_id == user_id,
-            IndexedFile.platform == platform
-        ).all()
+        rows = db.query(IndexedFile).filter(IndexedFile.user_id == user_id, IndexedFile.platform == platform).all()
         for row in rows:
             db.expunge(row)
         return rows
@@ -384,7 +383,7 @@ def needs_index(user_id, platform: str, source_id: str, version, session_factory
     return not (same_version and row.status in LEDGER_SKIP_STATUSES)
 
 
-def _types_for(file_type: str) -> List[str]:
+def _types_for(file_type: str) -> list[str]:
 
     if file_type == "video":
         return ["video", "video_frame"]

@@ -9,12 +9,11 @@ import re
 import pytest
 from fastapi.routing import APIRoute
 
-
 PUBLIC_ROUTES = {
     ("POST", "/auth/register"),
     ("POST", "/auth/login"),
     ("GET", "/"),
-    ("GET", "/ready"),     # readiness probe: booleans only
+    ("GET", "/ready"),  # readiness probe: booleans only
     ("GET", "/platforms/github/callback"),
     ("GET", "/platforms/google-drive/callback"),
 }
@@ -43,11 +42,7 @@ def discovered_routes(app):
         for method in operations:
             routes.add((method.upper(), path))
 
-    return sorted(
-        (method, path)
-        for method, path in routes
-        if path not in DOCS_PATHS
-    )
+    return sorted((method, path) for method, path in routes if path not in DOCS_PATHS)
 
 
 def walk_api_routes(routes):
@@ -64,11 +59,7 @@ def test_no_api_route_is_hidden_from_the_schema(app):
 
     api_routes = list(walk_api_routes(app.routes))
 
-    hidden = [
-        route.path
-        for route in api_routes
-        if not route.include_in_schema and route.path not in INTERNAL_ROUTES
-    ]
+    hidden = [route.path for route in api_routes if not route.include_in_schema and route.path not in INTERNAL_ROUTES]
 
     assert len(api_routes) >= 30
     assert hidden == []
@@ -96,7 +87,6 @@ def test_every_non_public_route_requires_auth(app, client):
     failures = []
 
     for method, path in discovered_routes(app):
-
         if is_public(method, path):
             continue
 
@@ -108,18 +98,17 @@ def test_every_non_public_route_requires_auth(app, client):
     assert not failures, "Routes reachable without a token:\n" + "\n".join(failures)
 
 
-@pytest.mark.parametrize("header", [
-    "Bearer not-a-jwt",
-    "Bearer ",
-    "Basic dXNlcjpwYXNz",
-])
+@pytest.mark.parametrize(
+    "header",
+    [
+        "Bearer not-a-jwt",
+        "Bearer ",
+        "Basic dXNlcjpwYXNz",
+    ],
+)
 def test_bad_credentials_are_rejected(client, header):
 
-    response = client.post(
-        "/search/",
-        json={"query": "java"},
-        headers={"Authorization": header}
-    )
+    response = client.post("/search/", json={"query": "java"}, headers={"Authorization": header})
 
     assert response.status_code == 401
     assert response.json()["code"] == "unauthorized"

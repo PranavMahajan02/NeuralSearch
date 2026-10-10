@@ -104,7 +104,7 @@ def test_the_in_flight_window_is_bounded(tmp_path):
     def items():
         for n in range(30):
             with lock:
-                worst[0] = max(worst[0], (n + 1) - finished[0])   # this item included
+                worst[0] = max(worst[0], (n + 1) - finished[0])  # this item included
             yield n
 
     process_files(ctx, items(), str, handle, workers=2, prefetch=3)
@@ -157,8 +157,8 @@ def test_a_precondition_error_aborts_the_job_after_in_flight_files(tmp_path):
     with pytest.raises(PlatformPreconditionError, match="revoked"):
         process_files(ctx, list(range(50)), str, handle, workers=4, prefetch=4)
 
-    assert len(ctx.started) < 50          # no new files after the abort
-    assert ctx.failed == []               # an abort is not a per-file failure
+    assert len(ctx.started) < 50  # no new files after the abort
+    assert ctx.failed == []  # an abort is not a per-file failure
 
 
 def test_workers_1_is_strictly_sequential(tmp_path):
@@ -193,6 +193,7 @@ def test_stage_timings_from_worker_threads_reach_the_job_timer(tmp_path):
 # ---------------------------------------------------------------------------
 # Rate limits are shared by parallel downloads
 # ---------------------------------------------------------------------------
+
 
 def test_a_429_seen_by_one_download_pauses_all_parallel_downloads(monkeypatch):
 
@@ -229,8 +230,14 @@ def test_a_429_seen_by_one_download_pauses_all_parallel_downloads(monkeypatch):
     # ... and every request sent during the pause waits it out too.
     http.gate.hold(5)
     results = []
-    threads = [threading.Thread(target=lambda n=n: results.append(
-        http.request("GET", f"https://api.example/p{n}", session=Session()).status_code)) for n in range(3)]
+    threads = [
+        threading.Thread(
+            target=lambda n=n: results.append(
+                http.request("GET", f"https://api.example/p{n}", session=Session()).status_code
+            )
+        )
+        for n in range(3)
+    ]
     for thread in threads:
         thread.start()
     for thread in threads:
@@ -244,6 +251,7 @@ def test_a_429_seen_by_one_download_pauses_all_parallel_downloads(monkeypatch):
 # Temp files are deleted per file, also in parallel
 # ---------------------------------------------------------------------------
 
+
 def test_parallel_sync_deletes_every_downloaded_file(tmp_path, monkeypatch):
 
     from app.platforms import sync
@@ -253,12 +261,20 @@ def test_parallel_sync_deletes_every_downloaded_file(tmp_path, monkeypatch):
     monkeypatch.setattr(sync.index_store, "list_sources", lambda *a: [])
     monkeypatch.setattr(sync.index_store, "delete_sources", lambda *a: 0)
     indexed = []
-    monkeypatch.setattr("app.services.indexing_pipeline.index_source",
-                        lambda meta, path, **kw: indexed.append(Path(path).read_text()))
+    monkeypatch.setattr(
+        "app.services.indexing_pipeline.index_source", lambda meta, path, **kw: indexed.append(Path(path).read_text())
+    )
 
     def remote(n):
-        meta = FileMeta(user_id="u", platform="google_drive", source_id=f"id{n}", file_name=f"f{n}.txt",
-                        display_path=f"f{n}.txt", file_type="document", version="1")
+        meta = FileMeta(
+            user_id="u",
+            platform="google_drive",
+            source_id=f"id{n}",
+            file_name=f"f{n}.txt",
+            display_path=f"f{n}.txt",
+            file_type="document",
+            version="1",
+        )
 
         def download(target):
             target.write_text(f"content {n}")
@@ -267,6 +283,7 @@ def test_parallel_sync_deletes_every_downloaded_file(tmp_path, monkeypatch):
         return sync.RemoteFile(meta=meta, extension=".txt", size=10, download=download)
 
     from app.core.config import settings
+
     monkeypatch.setattr(settings, "INDEX_IO_WORKERS", 4)
     ctx = FakeCtx(tmp_path)
 
@@ -280,10 +297,18 @@ def test_parallel_sync_deletes_every_downloaded_file(tmp_path, monkeypatch):
 # Schedule
 # ---------------------------------------------------------------------------
 
+
 def test_small_fast_files_go_first_and_the_order_is_deterministic():
 
-    files = [("video", 50, "v.mp4"), ("document", 900, "big.pdf"), ("image", 5, "a.png"),
-             ("audio", 1, "s.mp3"), ("document", 3, "notes.txt"), ("document", 3, "a.txt"), (None, None, "x")]
+    files = [
+        ("video", 50, "v.mp4"),
+        ("document", 900, "big.pdf"),
+        ("image", 5, "a.png"),
+        ("audio", 1, "s.mp3"),
+        ("document", 3, "notes.txt"),
+        ("document", 3, "a.txt"),
+        (None, None, "x"),
+    ]
 
     ordered = sorted(files, key=lambda f: schedule_key(*f))
 
