@@ -14,7 +14,7 @@ ENV VITE_API_BASE_URL=/api
 RUN npx vite build
 
 # ---------------------------------------------------------------------------
-FROM caddy:2.10-alpine
+FROM caddy:2.11-alpine
 
 COPY deploy/caddy/Caddyfile /etc/caddy/Caddyfile
 COPY --from=frontend /src/dist /srv
