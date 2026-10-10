@@ -271,7 +271,7 @@ Recommended **branch protection for `main`** (GitHub → Settings → Branches �
 | [docs/FINAL_QA.md](docs/FINAL_QA.md) | The final audit: before → after |
 | [docs/REMEDIATION_SUMMARY.md](docs/REMEDIATION_SUMMARY.md) | Every audit finding → fix, commit and test |
 | [docs/INTERVIEW_QA.md](docs/INTERVIEW_QA.md), [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) | Interview preparation and a 5-minute demo |
-| [CHANGELOG.md](CHANGELOG.md) | Release notes |
+| [CHANGELOG.md](CHANGELOG.md), [docs/RELEASE_NOTES_v1.0.0.md](docs/RELEASE_NOTES_v1.0.0.md) | Release notes |
 
 ## License
 

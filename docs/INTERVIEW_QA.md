@@ -53,8 +53,8 @@ Postgres.
 
 **Q8. Why five collections?**
 They separate the modalities, which have different vector spaces and different score
-distributions. Text chunks use MiniLM (384-d); images and video frames use CLIP (512-d); there are
-also transcript chunks, OCR text and code chunks. Each modality has its own calibrated threshold.
+distributions. There is one collection each for text (documents, code, OCR text; MiniLM 384-d), image (CLIP
+512-d), audio (transcript chunks), video (transcript chunks) and video_frames (CLIP). Each modality has its own calibrated threshold.
 
 **Q9. Why is the indexing worker in the API process?**
 The models take about 2 GB of memory. A separate worker would load them twice on a single machine.
