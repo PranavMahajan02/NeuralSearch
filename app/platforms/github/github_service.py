@@ -10,6 +10,7 @@
 
 import logging
 import re
+import threading
 from dataclasses import dataclass
 from typing import Dict, Iterator, List, Optional, Tuple
 from urllib.parse import quote
@@ -60,12 +61,30 @@ class GitHubClient:
     def __init__(self, token: str, user_id=None, session: Optional[requests.Session] = None):
 
         self.user_id = user_id
-        self.session = session or requests.Session()
-        self.session.headers.update({
+        self._headers = {
             "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
-        })
+        }
+        # An injected session (tests) is used as-is; otherwise one Session per
+        # thread: requests.Session is not documented as thread-safe, and the job
+        # downloads files from several threads at once.
+        self._injected = session
+        if session is not None:
+            session.headers.update(self._headers)
+        self._local = threading.local()
+
+    @property
+    def session(self) -> requests.Session:
+
+        if self._injected is not None:
+            return self._injected
+        session = getattr(self._local, "session", None)
+        if session is None:
+            session = requests.Session()
+            session.headers.update(self._headers)
+            self._local.session = session
+        return session
 
     # ------------------------------------------------------------------
 
