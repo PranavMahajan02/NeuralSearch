@@ -138,3 +138,18 @@ def test_development_exposes_docs_and_folder_picker(app):
 
     assert app.openapi_url == "/openapi.json"
     assert "/platforms/local/pick-folder" in app.openapi()["paths"]
+
+
+def test_the_folder_picker_degrades_without_tk(client, user, monkeypatch):
+    """Linux containers / CI have no Tk: the app must still start in development,
+    report picker_available=false and answer 503 instead of crashing."""
+
+    from app.routes import local_picker
+
+    monkeypatch.setattr(local_picker, "tk_available", lambda: False)
+
+    folders = client.get("/platforms/local/folders", headers=user["headers"]).json()
+    response = client.post("/platforms/local/pick-folder", headers=user["headers"])
+
+    assert folders["picker_available"] is False
+    assert response.status_code == 503
