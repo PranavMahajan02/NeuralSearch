@@ -9,6 +9,7 @@ on:
     - cron: "23 2 * * *"   # nightly 02:23 UTC
   push:
     tags: ["v*"]
+    branches: ["**"]
     # ... and whenever the stack or the test itself changes.
     paths:
       - .github/workflows/e2e.yml

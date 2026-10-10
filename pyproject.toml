@@ -31,6 +31,9 @@ known-first-party = ["app", "tests"]
 
 [tool.mypy]
 python_version = "3.12"
+# Type-check as Linux everywhere (CI and the Docker image): the baseline is then
+# identical on a Windows dev machine.
+platform = "linux"
 files = ["app"]
 ignore_missing_imports = true
 follow_imports = "silent"
