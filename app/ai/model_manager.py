@@ -9,14 +9,13 @@ thrashing it.
 
 import logging
 import os
+import sys
 import threading
-
 
 logger = logging.getLogger("cogniseek.models")
 
 
 class ModelManager:
-
     def __init__(self):
 
         self._device = None
@@ -44,6 +43,7 @@ class ModelManager:
 
         if self._device is None:
             import torch
+
             self._device = "cuda" if torch.cuda.is_available() else "cpu"
             logger.info("Using device: %s", self._device)
 
@@ -60,6 +60,7 @@ class ModelManager:
             with self._load_lock:
                 if self._semantic_model is None:
                     from sentence_transformers import SentenceTransformer
+
                     logger.info("Loading SentenceTransformer (all-MiniLM-L6-v2)...")
                     self._semantic_model = SentenceTransformer("all-MiniLM-L6-v2", device=self.device)
 
@@ -72,6 +73,7 @@ class ModelManager:
             with self._load_lock:
                 if self._clip_model is None:
                     from transformers import CLIPModel
+
                     logger.info("Loading CLIP model (openai/clip-vit-base-patch32)...")
                     model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
                     model.to(self.device)
@@ -87,6 +89,7 @@ class ModelManager:
             with self._load_lock:
                 if self._clip_processor is None:
                     from transformers import CLIPProcessor
+
                     logger.info("Loading CLIP processor...")
                     self._clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
 
@@ -99,6 +102,7 @@ class ModelManager:
             with self._load_lock:
                 if self._whisper_model is None:
                     from faster_whisper import WhisperModel
+
                     logger.info("Loading Whisper (base)...")
                     compute_type = "float16" if self.device == "cuda" else "int8"
                     self._whisper_model = WhisperModel("base", device=self.device, compute_type=compute_type)
@@ -116,8 +120,10 @@ class ModelManager:
                     # importing paddleocr first segfaults in zlib (inflateReset2) - also
                     # avoided by loading torch first.
                     import torch  # noqa: F401
+
                     use_gpu = ocr_uses_gpu()
                     from paddleocr import PaddleOCR
+
                     logger.info("Loading PaddleOCR (%s)...", "GPU" if use_gpu else "CPU")
                     self._ocr_model = PaddleOCR(use_angle_cls=True, lang="en", use_gpu=use_gpu, show_log=False)
                     self._ocr_on_gpu = use_gpu
@@ -154,9 +160,16 @@ class ModelManager:
     def ready(self) -> bool:
         """Every preloaded model is in memory (GET /ready)."""
 
-        return all(m is not None for m in (
-            self._semantic_model, self._clip_model, self._clip_processor, self._whisper_model, self._ocr_model
-        ))
+        return all(
+            m is not None
+            for m in (
+                self._semantic_model,
+                self._clip_model,
+                self._clip_processor,
+                self._whisper_model,
+                self._ocr_model,
+            )
+        )
 
     def preload(self) -> None:
 
@@ -173,7 +186,7 @@ def register_cuda_dll_dirs() -> list:
     nvidia-cudnn-cu12 wheel (requirements-gpu.txt) has cuDNN 8, which Paddle 2.6
     needs. No-op elsewhere."""
 
-    if os.name != "nt":
+    if sys.platform != "win32":  # sys.platform (not os.name) so type checkers understand the guard
         return []
 
     import importlib.util
@@ -188,7 +201,7 @@ def register_cuda_dll_dirs() -> list:
     added = [f for f in folders if os.path.isdir(f)]
     for folder in added:
         os.add_dll_directory(folder)
-    os.environ["PATH"] = os.pathsep.join(added + [os.environ.get("PATH", "")])
+    os.environ["PATH"] = os.pathsep.join([*added, os.environ.get("PATH", "")])
     return added
 
 

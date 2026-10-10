@@ -14,7 +14,6 @@ from sqlalchemy import text
 
 from app.core.config import settings
 
-
 router = APIRouter(tags=["Health"])
 
 

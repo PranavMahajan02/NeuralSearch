@@ -4,7 +4,7 @@ Indexers and search call these functions only. Tests replace `backend` with a
 deterministic fake, so no model is ever loaded in the test suite.
 """
 
-from typing import List, Sequence
+from collections.abc import Sequence
 
 from app.core.timing import span
 
@@ -12,25 +12,25 @@ from app.core.timing import span
 class ModelEmbedder:
     """Real models, imported lazily (they pull in torch/transformers)."""
 
-    def text(self, texts: Sequence[str]) -> List[List[float]]:
+    def text(self, texts: Sequence[str]) -> list[list[float]]:
 
         from app.ai.encoders import encode_texts
 
         return encode_texts(texts)
 
-    def clip_text(self, text: str) -> List[float]:
+    def clip_text(self, text: str) -> list[float]:
 
         from app.ai.encoders import encode_clip_text
 
         return encode_clip_text(text)
 
-    def clip_image(self, path: str) -> List[float]:
+    def clip_image(self, path: str) -> list[float]:
 
         from app.ai.encoders import encode_clip_image
 
         return encode_clip_image(path)
 
-    def clip_images(self, paths: Sequence[str]) -> List[List[float]]:
+    def clip_images(self, paths: Sequence[str]) -> list[list[float]]:
 
         from app.ai.encoders import encode_clip_images
 
@@ -40,7 +40,7 @@ class ModelEmbedder:
 backend = ModelEmbedder()
 
 
-def embed_texts(texts: Sequence[str]) -> List[List[float]]:
+def embed_texts(texts: Sequence[str]) -> list[list[float]]:
     """MiniLM (384-d) vectors for documents, audio and video transcripts."""
 
     if not texts:
@@ -50,24 +50,24 @@ def embed_texts(texts: Sequence[str]) -> List[List[float]]:
         return backend.text(texts)
 
 
-def embed_text(text: str) -> List[float]:
+def embed_text(text: str) -> list[float]:
 
     return embed_texts([text])[0]
 
 
-def embed_clip_text(text: str) -> List[float]:
+def embed_clip_text(text: str) -> list[float]:
     """CLIP (512-d) text vector, for image and video-frame search."""
 
     return backend.clip_text(text)
 
 
-def embed_clip_image(path: str) -> List[float]:
+def embed_clip_image(path: str) -> list[float]:
 
     with span("clip_image"):
         return backend.clip_image(path)
 
 
-def embed_clip_images(paths: Sequence[str]) -> List[List[float]]:
+def embed_clip_images(paths: Sequence[str]) -> list[list[float]]:
     """Batched CLIP image vectors (video frames). Backends without a batch
     method (test fakes) are called per image."""
 

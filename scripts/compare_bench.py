@@ -65,9 +65,11 @@ def main() -> int:
 
     print(f"| Metric | {a['label']} | {b['label']} | Change |")
     print("|---|---|---|---|")
-    for key, label in (("wall_seconds", "Total wall time (s)"),
-                       ("time_to_50pct_searchable_s", "50% of files searchable after (s)"),
-                       ("time_to_100pct_searchable_s", "100% searchable after (s)")):
+    for key, label in (
+        ("wall_seconds", "Total wall time (s)"),
+        ("time_to_50pct_searchable_s", "50% of files searchable after (s)"),
+        ("time_to_100pct_searchable_s", "100% searchable after (s)"),
+    ):
         print(f"| {label} | {a[key]:.1f} | {b[key]:.1f} | {speedup(a[key], b[key])} faster |")
     for t in sorted(set(a["by_type_seconds"]) | set(b["by_type_seconds"])):
         x, y = a["by_type_seconds"].get(t, 0), b["by_type_seconds"].get(t, 0)

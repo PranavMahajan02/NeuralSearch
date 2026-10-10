@@ -23,6 +23,7 @@ def compose(name="docker-compose.yml"):
 # docker-compose.yml
 # ---------------------------------------------------------------------------
 
+
 def test_only_caddy_publishes_ports():
 
     services = compose()["services"]
@@ -39,7 +40,7 @@ def test_data_services_are_only_on_the_internal_data_network():
     assert networks["data"]["internal"] is True and networks["app"]["internal"] is True
     for name in ("postgres", "qdrant", "redis"):
         assert services[name]["networks"] == ["data"], name
-    assert "data" not in services["caddy"]["networks"]          # Caddy reaches the backend only
+    assert "data" not in services["caddy"]["networks"]  # Caddy reaches the backend only
     assert set(services["backend"]["networks"]) == {"data", "app", "egress"}
 
 
@@ -48,7 +49,10 @@ def test_services_start_in_dependency_order_on_health():
     services = compose()["services"]
 
     assert {k: v["condition"] for k, v in services["backend"]["depends_on"].items()} == {
-        "postgres": "service_healthy", "qdrant": "service_healthy", "redis": "service_healthy"}
+        "postgres": "service_healthy",
+        "qdrant": "service_healthy",
+        "redis": "service_healthy",
+    }
     assert services["caddy"]["depends_on"] == {"backend": {"condition": "service_healthy"}}
     for name in ("postgres", "qdrant", "redis"):
         assert services[name]["healthcheck"]["test"], name
@@ -71,9 +75,23 @@ def test_container_settings_override_development_values_from_env_file():
     DATA_DIR=data; every path/host setting must be pinned in `environment`."""
 
     environment = compose()["services"]["backend"]["environment"]
-    for key in ("DATABASE_URL", "QDRANT_HOST", "QDRANT_LOCATION", "REDIS_URL", "DATA_DIR", "TEMP_DIR",
-                "ALLOWED_LOCAL_ROOTS", "POPPLER_PATH", "FRONTEND_URL", "BACKEND_PUBLIC_URL", "CORS_ORIGINS",
-                "GOOGLE_REDIRECT_URI", "GITHUB_OAUTH_CONFIG_PATH", "GOOGLE_CLIENT_SECRET_PATH", "ENV"):
+    for key in (
+        "DATABASE_URL",
+        "QDRANT_HOST",
+        "QDRANT_LOCATION",
+        "REDIS_URL",
+        "DATA_DIR",
+        "TEMP_DIR",
+        "ALLOWED_LOCAL_ROOTS",
+        "POPPLER_PATH",
+        "FRONTEND_URL",
+        "BACKEND_PUBLIC_URL",
+        "CORS_ORIGINS",
+        "GOOGLE_REDIRECT_URI",
+        "GITHUB_OAUTH_CONFIG_PATH",
+        "GOOGLE_CLIENT_SECRET_PATH",
+        "ENV",
+    ):
         assert key in environment, key
     assert environment["DATA_DIR"].startswith("/") and environment["TEMP_DIR"].startswith("/")
 
@@ -83,7 +101,7 @@ def test_the_app_database_role_is_not_a_superuser():
     postgres = compose()["services"]["postgres"]["environment"]
     script = (ROOT / "deploy/postgres/initdb/01-app-role.sh").read_text(encoding="utf-8")
 
-    assert postgres["POSTGRES_USER"] == "postgres"          # bootstrap superuser is separate
+    assert postgres["POSTGRES_USER"] == "postgres"  # bootstrap superuser is separate
     assert "NOSUPERUSER NOCREATEDB NOCREATEROLE" in script
     assert "CREATE EXTENSION IF NOT EXISTS pg_trgm" in script
     assert "CREATE EXTENSION IF NOT EXISTS pgcrypto" in script
@@ -124,7 +142,7 @@ def test_the_frontend_has_no_inline_scripts_or_third_party_assets():
     css = (ROOT / "frontend/src/index.css").read_text(encoding="utf-8")
 
     for script in re.findall(r"<script\b[^>]*>(.*?)</script>", html, re.S):
-        assert script.strip() == ""                       # only <script src=...>
+        assert script.strip() == ""  # only <script src=...>
     assert "<style" not in html
     assert "googleapis" not in css and "http" not in css
 
@@ -132,6 +150,7 @@ def test_the_frontend_has_no_inline_scripts_or_third_party_assets():
 # ---------------------------------------------------------------------------
 # Images
 # ---------------------------------------------------------------------------
+
 
 def test_backend_image_is_non_root_and_migrates_on_start():
 
@@ -147,7 +166,7 @@ def test_backend_image_is_non_root_and_migrates_on_start():
 def test_container_scripts_keep_lf_line_endings():
 
     attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8")
-    assert re.search(r"^\*\.sh\s+text eol=lf$", attributes, re.M)
+    assert re.search(r"^\*\s+text=auto eol=lf$", attributes, re.M)  # LF everywhere, incl. *.sh
     for path in ("backend/entrypoint.sh", "deploy/postgres/initdb/01-app-role.sh"):
         assert b"\r\n" not in (ROOT / path).read_bytes(), path
 
@@ -163,6 +182,7 @@ def test_secrets_and_data_never_enter_the_build_context():
 # scripts/generate_secrets.py
 # ---------------------------------------------------------------------------
 
+
 def _values(path: Path) -> dict:
 
     return dict(line.split("=", 1) for line in path.read_text(encoding="utf-8").splitlines() if "=" in line)
@@ -171,33 +191,38 @@ def _values(path: Path) -> dict:
 def test_generate_secrets_fills_empty_values_only_and_prints_no_values(tmp_path, capsys):
 
     env = tmp_path / ".env"
-    env.write_text("JWT_SECRET_KEY=\nPOSTGRES_USER=cogniseek\nPOSTGRES_PASSWORD=keep-me-please\n"
-                   "DATABASE_URL=postgresql://cogniseek:change-me@localhost:5432/cogniseek\n", encoding="utf-8")
+    env.write_text(
+        "JWT_SECRET_KEY=\nPOSTGRES_USER=cogniseek\nPOSTGRES_PASSWORD=keep-me-please\n"
+        "DATABASE_URL=postgresql://cogniseek:change-me@localhost:5432/cogniseek\n",
+        encoding="utf-8",
+    )
 
     generate_secrets.main(["--env-file", str(env)])
     first = env.read_text(encoding="utf-8")
     values = _values(env)
 
     assert len(values["JWT_SECRET_KEY"]) >= 32
-    assert values["POSTGRES_PASSWORD"] == "keep-me-please"          # never replaced
+    assert values["POSTGRES_PASSWORD"] == "keep-me-please"  # never replaced
     for key in generate_secrets.GENERATORS:
         assert values[key], key
     from cryptography.fernet import Fernet
+
     Fernet(values["TOKEN_ENCRYPTION_KEY"].encode())
     Fernet(values["BACKUP_ENCRYPTION_KEY"].encode())
 
     printed = capsys.readouterr().out
     assert values["JWT_SECRET_KEY"] not in printed and "JWT_SECRET_KEY" in printed
 
-    generate_secrets.main(["--env-file", str(env)])                 # idempotent
+    generate_secrets.main(["--env-file", str(env)])  # idempotent
     assert env.read_text(encoding="utf-8") == first
 
 
 def test_generate_secrets_keeps_the_dev_database_url_in_step(tmp_path):
 
     env = tmp_path / ".env"
-    env.write_text("POSTGRES_PASSWORD=\nDATABASE_URL=postgresql://cogniseek:change-me@localhost:5432/cogniseek\n",
-                   encoding="utf-8")
+    env.write_text(
+        "POSTGRES_PASSWORD=\nDATABASE_URL=postgresql://cogniseek:change-me@localhost:5432/cogniseek\n", encoding="utf-8"
+    )
 
     generate_secrets.main(["--env-file", str(env)])
     values = _values(env)

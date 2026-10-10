@@ -4,7 +4,6 @@ Platforms are fakes; the worker runs synchronously via run_once() except in
 the thread test. No model is loaded and the owner's data is never touched.
 """
 
-import threading
 import time
 import uuid
 from datetime import datetime
@@ -12,17 +11,17 @@ from pathlib import Path
 
 import pytest
 
+from app.core.clock import utcnow
 from app.database.models import IndexingJob, IndexingJobError
 from app.platforms.errors import PlatformPreconditionError
 from app.platforms.indexing import process_files
 from app.scheduler import jobs as job_service
 from app.scheduler.worker import IndexingWorker
-from app.core.clock import utcnow
-
 
 # ---------------------------------------------------------------------------
 # Fakes and helpers
 # ---------------------------------------------------------------------------
+
 
 class FakePlatform:
     """Processes `files`; any name in `fail` raises; `on_file` hooks run first."""
@@ -53,13 +52,11 @@ class FakePlatform:
 
 
 class Exploding:
-
     def index(self, ctx):
         raise RuntimeError("boom at C:\\Users\\someone\\secret.pdf with token=abc123")
 
 
 class NotConnected:
-
     def index(self, ctx):
         raise PlatformPreconditionError("Google Drive is not connected.")
 
@@ -75,9 +72,7 @@ def make_worker(**factories):
 def enqueue(client, user, platforms, priority=None):
 
     return client.post(
-        "/index/",
-        json={"priority_platform": priority or platforms[0], "platforms": platforms},
-        headers=user["headers"]
+        "/index/", json={"priority_platform": priority or platforms[0], "platforms": platforms}, headers=user["headers"]
     )
 
 
@@ -114,11 +109,15 @@ def drain(worker, limit=20):
 # Enqueue / validation
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("body", [
-    {"priority_platform": "dropbox", "platforms": ["dropbox"]},
-    {"priority_platform": "local", "platforms": ["local", "Local"]},
-    {"priority_platform": "local", "platforms": []},
-])
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"priority_platform": "dropbox", "platforms": ["dropbox"]},
+        {"priority_platform": "local", "platforms": ["local", "Local"]},
+        {"priority_platform": "local", "platforms": []},
+    ],
+)
 def test_invalid_platforms_are_422(client, user, body):
 
     response = client.post("/index/", json=body, headers=user["headers"])
@@ -134,18 +133,22 @@ def test_enqueue_creates_new_queued_jobs_priority_first(client, user, db):
     assert response.status_code == 200
     assert response.json()["platforms"] == ["github", "local"]
 
-    rows = (
-        db.query(IndexingJob)
-        .filter(IndexingJob.user_id == user["id"])
-        .order_by(IndexingJob.created_at)
-        .all()
-    )
+    rows = db.query(IndexingJob).filter(IndexingJob.user_id == user["id"]).order_by(IndexingJob.created_at).all()
     assert [(r.platform, r.status) for r in rows] == [("github", "queued"), ("local", "queued")]
 
     current = jobs_of(client, user)
     assert current["github"]["status"] == "queued"
-    for field in ("processed_files", "succeeded_files", "failed_files", "skipped_files",
-                  "error_message", "cancel_requested", "heartbeat_at", "created_at", "id"):
+    for field in (
+        "processed_files",
+        "succeeded_files",
+        "failed_files",
+        "skipped_files",
+        "error_message",
+        "cancel_requested",
+        "heartbeat_at",
+        "created_at",
+        "id",
+    ):
         assert field in current["github"]
 
 
@@ -193,6 +196,7 @@ def test_db_enforces_one_active_job_per_platform(user, db):
 # Worker: outcomes
 # ---------------------------------------------------------------------------
 
+
 def test_successful_job_is_completed_with_accurate_counters(client, user):
 
     enqueue(client, user, ["local"])
@@ -201,8 +205,13 @@ def test_successful_job_is_completed_with_accurate_counters(client, user):
 
     job = jobs_of(client, user)["local"]
     assert job["status"] == "completed"
-    assert (job["total_files"], job["processed_files"], job["succeeded_files"],
-            job["failed_files"], job["skipped_files"]) == (3, 3, 3, 0, 4)
+    assert (
+        job["total_files"],
+        job["processed_files"],
+        job["succeeded_files"],
+        job["failed_files"],
+        job["skipped_files"],
+    ) == (3, 3, 3, 0, 4)
     assert job["progress"] == 100
     assert job["error_message"] is None
     assert job["completed_at"] is not None
@@ -221,7 +230,11 @@ def test_per_file_error_gives_completed_with_errors(client, user):
     errors = client.get(f"/index/jobs/{job['id']}/errors", headers=user["headers"])
     assert errors.status_code == 200
     assert errors.json()["errors"] == [
-        {"file": "b.txt", "error": "ValueError: cannot parse b.txt", "created_at": errors.json()["errors"][0]["created_at"]}
+        {
+            "file": "b.txt",
+            "error": "ValueError: cannot parse b.txt",
+            "created_at": errors.json()["errors"][0]["created_at"],
+        }
     ]
 
 
@@ -253,9 +266,9 @@ def test_worker_survives_a_crashing_platform_and_runs_the_next_job(client, user)
 
     worker = make_worker(local=Exploding)
 
-    assert worker.run_once() is True     # local crashes
-    assert worker.run_once() is True     # github still runs
-    assert worker.run_once() is False    # queue empty
+    assert worker.run_once() is True  # local crashes
+    assert worker.run_once() is True  # github still runs
+    assert worker.run_once() is False  # queue empty
 
     jobs = jobs_of(client, user)
     assert jobs["local"]["status"] == "failed"
@@ -303,7 +316,7 @@ def test_worker_loop_survives_db_errors(monkeypatch):
     monkeypatch.setattr(worker, "run_once", flaky)
     monkeypatch.setattr("app.scheduler.worker.LOOP_ERROR_BACKOFF_SECONDS", 0.01)
 
-    worker._run_forever()   # returns only because flaky() sets the stop flag
+    worker._run_forever()  # returns only because flaky() sets the stop flag
 
     assert len(calls) == 2
 
@@ -328,9 +341,7 @@ def test_real_drive_platform_without_connection_fails_cleanly(client, user):
     drain(make_worker(google_drive=GoogleDrivePlatform))
 
     job = jobs_of(client, user)["google_drive"]
-    assert (job["status"], job["error_message"]) == (
-        "failed", "Google Drive is not connected."
-    )
+    assert (job["status"], job["error_message"]) == ("failed", "Google Drive is not connected.")
 
 
 def test_real_github_platform_without_connection_fails_cleanly(client, user):
@@ -342,9 +353,7 @@ def test_real_github_platform_without_connection_fails_cleanly(client, user):
     drain(make_worker(github=GitHubPlatform))
 
     job = jobs_of(client, user)["github"]
-    assert (job["status"], job["error_message"]) == (
-        "failed", "GitHub is not connected."
-    )
+    assert (job["status"], job["error_message"]) == ("failed", "GitHub is not connected.")
 
 
 def test_precondition_raised_mid_run_aborts_the_job(client, user):
@@ -381,6 +390,7 @@ def test_error_storage_is_capped(client, user, db):
 # ---------------------------------------------------------------------------
 # Cancel
 # ---------------------------------------------------------------------------
+
 
 def test_cancel_mid_run_stops_after_current_file_and_cancels_queued(client, user):
 
@@ -437,9 +447,9 @@ def test_logout_cancels_queued_and_running_jobs(client, make_user, db):
 
 
 class job_service_session:
-
     def __init__(self, db):
         from app.database.db import SessionLocal
+
         self.session = SessionLocal()
 
     def __enter__(self):
@@ -452,6 +462,7 @@ class job_service_session:
 # ---------------------------------------------------------------------------
 # Ownership
 # ---------------------------------------------------------------------------
+
 
 def test_other_users_jobs_are_invisible(client, make_user):
 
@@ -479,6 +490,7 @@ def test_other_users_jobs_are_invisible(client, make_user):
 # Startup recovery
 # ---------------------------------------------------------------------------
 
+
 def test_startup_recovery_fails_running_jobs_and_keeps_queued(app, user, db):
 
     from fastapi.testclient import TestClient
@@ -489,6 +501,7 @@ def test_startup_recovery_fails_running_jobs_and_keeps_queued(app, user, db):
     db.commit()
 
     from app.scheduler.worker import jobs_temp_root
+
     orphan = jobs_temp_root() / str(running.id)
     (orphan / "frames").mkdir(parents=True)
     (orphan / "frames" / "frame_0.jpg").write_bytes(b"x")
@@ -508,6 +521,7 @@ def test_startup_recovery_fails_running_jobs_and_keeps_queued(app, user, db):
 # ---------------------------------------------------------------------------
 # Temp dirs
 # ---------------------------------------------------------------------------
+
 
 def test_job_temp_dir_is_created_and_removed_even_on_exception(client, user):
 
@@ -558,6 +572,7 @@ def test_video_frames_go_to_a_private_dir_that_is_removed(monkeypatch, tmp_path)
 # Real local platform: counting + per-file errors
 # ---------------------------------------------------------------------------
 
+
 def test_local_platform_counts_only_supported_files(client, user, local_root, monkeypatch):
 
     import app.services.indexing_pipeline as pipeline
@@ -579,7 +594,10 @@ def test_local_platform_counts_only_supported_files(client, user, local_root, mo
 
     monkeypatch.setattr(pipeline, "index_local_file", fake_process)
 
-    assert client.post("/platforms/local/folders", json={"folder": str(folder)}, headers=user["headers"]).status_code == 200
+    assert (
+        client.post("/platforms/local/folders", json={"folder": str(folder)}, headers=user["headers"]).status_code
+        == 200
+    )
 
     from app.platforms.local.local_platform import LocalPlatform
 
@@ -607,14 +625,13 @@ def test_local_platform_without_folders_fails(client, user):
     drain(make_worker(local=LocalPlatform))
 
     job = jobs_of(client, user)["local"]
-    assert (job["status"], job["error_message"]) == (
-        "failed", "No valid local folders are registered."
-    )
+    assert (job["status"], job["error_message"]) == ("failed", "No valid local folders are registered.")
 
 
 # ---------------------------------------------------------------------------
 # JobContext throttling
 # ---------------------------------------------------------------------------
+
 
 def test_progress_writes_are_throttled(client, user, monkeypatch):
 
@@ -647,6 +664,7 @@ def test_progress_flushes_after_one_second(user):
     job_id = uuid.uuid4()
 
     from app.database.db import SessionLocal
+
     with SessionLocal() as session:
         session.add(IndexingJob(id=job_id, user_id=user["id"], platform="local", status="running"))
         session.commit()
@@ -697,7 +715,7 @@ def test_never_indexed_platform_is_not_indexed(client, user):
 
 def test_jobs_history_returns_the_last_n_jobs_per_platform(client, user, make_user):
 
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     from app.database.db import SessionLocal
 
@@ -706,8 +724,15 @@ def test_jobs_history_returns_the_last_n_jobs_per_platform(client, user, make_us
 
     with SessionLocal() as session:
         for i in range(4):
-            session.add(IndexingJob(user_id=user["id"], platform="github", status="completed",
-                                    total_files=i, created_at=base + timedelta(minutes=i)))
+            session.add(
+                IndexingJob(
+                    user_id=user["id"],
+                    platform="github",
+                    status="completed",
+                    total_files=i,
+                    created_at=base + timedelta(minutes=i),
+                )
+            )
         session.add(IndexingJob(user_id=other["id"], platform="github", status="failed", created_at=base))
         session.commit()
 

@@ -8,14 +8,12 @@ Thread safety (the indexing pipeline calls it from several threads):
 """
 
 import threading
-from typing import Optional
 
 from qdrant_client import QdrantClient
 
 from app.core.config import settings
 
-
-_client: Optional[QdrantClient] = None
+_client: QdrantClient | None = None
 _lock = threading.Lock()
 
 
@@ -70,7 +68,7 @@ def get_client() -> QdrantClient:
     return _client
 
 
-def set_client(client: Optional[QdrantClient]) -> None:
+def set_client(client: QdrantClient | None) -> None:
     """Tests only: install a client (e.g. QdrantClient(":memory:"))."""
 
     global _client

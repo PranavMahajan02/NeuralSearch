@@ -3,15 +3,12 @@
 import logging
 import os
 import time
-from pathlib import Path
-from typing import Optional
 
+from app.core.clock import iso
 from app.core.config import settings
 from app.search.normalize import normalize_text, query_terms
 from app.search.ranking import frame_z, possible_visual_matches, score_candidates
 from app.search.retrieval import retrieve
-from app.core.clock import iso
-
 
 logger = logging.getLogger("cogniseek.search")
 
@@ -20,14 +17,16 @@ def _display_path(candidate) -> str:
     """Never expose temporary download paths (BUG-23)."""
 
     path = candidate.path or ""
-    temp_root = os.path.normcase(os.path.abspath(settings.TEMP_DIR))
-    normalized = os.path.normcase(path)
 
-    if (
-        normalized.startswith(temp_root)
-        or normalized.startswith(os.path.normcase("temp" + os.sep))
-        or normalized.startswith("temp/")
-    ):
+    def comparable(value: str) -> str:
+        # Both separators on every OS: legacy rows written on Windows hold
+        # "temp\name" and must be caught on a Linux server too.
+        return value.replace("\\", "/").lower()
+
+    temp_root = comparable(os.path.abspath(settings.TEMP_DIR)).rstrip("/") + "/"
+    normalized = comparable(path)
+
+    if normalized.startswith(temp_root) or normalized.startswith("temp/"):
         return candidate.file
 
     return path
@@ -49,10 +48,14 @@ def ledger_metadata(user_id, keys) -> dict:
 
     with SessionLocal() as db:
         rows = (
-            db.query(IndexedFile.platform, IndexedFile.source_id, IndexedFile.size_bytes,
-                     IndexedFile.modified_at, IndexedFile.mime_type)
-            .filter(IndexedFile.user_id == user_id,
-                    tuple_(IndexedFile.platform, IndexedFile.source_id).in_(list(keys)))
+            db.query(
+                IndexedFile.platform,
+                IndexedFile.source_id,
+                IndexedFile.size_bytes,
+                IndexedFile.modified_at,
+                IndexedFile.mime_type,
+            )
+            .filter(IndexedFile.user_id == user_id, tuple_(IndexedFile.platform, IndexedFile.source_id).in_(list(keys)))
             .all()
         )
 
@@ -95,8 +98,7 @@ def suggestions(user_id, prefix: str, limit: int = 8) -> list:
                 ORDER BY starts DESC, sim DESC, length(file_name), file_name
                 LIMIT :limit
             """),
-            {"user_id": str(user_id), "q": prefix, "starts": f"{escaped}%",
-             "contains": f"%{escaped}%", "limit": limit}
+            {"user_id": str(user_id), "q": prefix, "starts": f"{escaped}%", "contains": f"%{escaped}%", "limit": limit},
         ).fetchall()
 
     return [{"file": r.file_name, "platform": r.platform, "type": r.file_type} for r in rows]
@@ -109,7 +111,7 @@ def search(
     search_type: str = "all",
     limit: int = 20,
     offset: int = 0,
-    debug: bool = False
+    debug: bool = False,
 ) -> dict:
     """Results for this user only: every Qdrant query carries a user_id
     must-filter (app/vectorstore/query.py) and the file-name query filters on
@@ -131,7 +133,7 @@ def search(
     candidates = retrieve(str(user_id), normalized, platform_filter, search_type)
     ranked = score_candidates(list(candidates.values()), normalized)
 
-    page = ranked[offset:offset + limit]
+    page = ranked[offset : offset + limit]
 
     # Low-confidence visual tier: only for searches that can return images/videos,
     # only with the first page, never counted in total.
@@ -146,7 +148,11 @@ def search(
 
     logger.info(
         "search: %d candidates -> %d results (%d returned, %d possible) in %.0f ms",
-        len(candidates), len(ranked), len(results), len(possible_matches), (time.perf_counter() - start) * 1000
+        len(candidates),
+        len(ranked),
+        len(results),
+        len(possible_matches),
+        (time.perf_counter() - start) * 1000,
     )
 
     return {"total": len(ranked), "results": results, "possible_matches": possible_matches}

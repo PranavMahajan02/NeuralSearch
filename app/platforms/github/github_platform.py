@@ -3,7 +3,6 @@
 import logging
 import os
 from pathlib import PurePosixPath
-from typing import List, Optional
 
 from app.core.config import settings
 from app.database.db import SessionLocal
@@ -12,19 +11,38 @@ from app.platforms.errors import PlatformPreconditionError
 from app.platforms.github.github_service import GitHubClient, TreeEntry
 from app.platforms.sync import RemoteFile, sync_remote
 
-
 logger = logging.getLogger("cogniseek.github")
 
 
 # Vendored / generated paths are never indexed (and drop out of the index).
 SKIP_DIRECTORIES = {
-    "node_modules", "dist", "build", ".git", "venv", ".venv", "env", "__pycache__",
-    "vendor", "bower_components", ".next", ".idea", ".vscode", "temp", "temp_frames",
+    "node_modules",
+    "dist",
+    "build",
+    ".git",
+    "venv",
+    ".venv",
+    "env",
+    "__pycache__",
+    "vendor",
+    "bower_components",
+    ".next",
+    ".idea",
+    ".vscode",
+    "temp",
+    "temp_frames",
 }
 
 LOCK_FILES = {
-    "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "poetry.lock", "pipfile.lock",
-    "cargo.lock", "composer.lock", "gemfile.lock", "go.sum",
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    "poetry.lock",
+    "pipfile.lock",
+    "cargo.lock",
+    "composer.lock",
+    "gemfile.lock",
+    "go.sum",
 }
 
 LFS_POINTER_PREFIX = b"version https://git-lfs.github.com/spec/"
@@ -53,15 +71,11 @@ def include_repository(repo: dict) -> bool:
     if repo.get("fork") and not settings.GITHUB_INCLUDE_FORKS:
         return False
 
-    if repo.get("archived") and not settings.GITHUB_INCLUDE_ARCHIVED:
-        return False
-
-    return True
+    return not (repo.get("archived") and not settings.GITHUB_INCLUDE_ARCHIVED)
 
 
 class GitHubPlatform(BasePlatform):
-
-    def __init__(self, client: Optional[GitHubClient] = None):
+    def __init__(self, client: GitHubClient | None = None):
 
         self._client = client
 
@@ -73,7 +87,7 @@ class GitHubPlatform(BasePlatform):
         from app.platforms.github.oauth import get_access_token
 
         with SessionLocal() as db:
-            token = get_access_token(db, user_id)      # PlatformPreconditionError if not connected
+            token = get_access_token(db, user_id)  # PlatformPreconditionError if not connected
 
         return GitHubClient(token, user_id=user_id)
 
@@ -83,13 +97,12 @@ class GitHubPlatform(BasePlatform):
 
         client = self._make_client(ctx.user_id)
 
-        remote_files: List[RemoteFile] = []
+        remote_files: list[RemoteFile] = []
         complete = True
 
         repos = [repo for repo in client.iter_repositories() if include_repository(repo)]
 
         for repo in repos:
-
             if ctx.is_cancelled():
                 return
 
@@ -111,22 +124,25 @@ class GitHubPlatform(BasePlatform):
             complete = complete and repo_complete
 
             for entry in entries:
-
                 if is_vendored(entry.path):
                     continue
 
                 meta = github_meta(
-                    ctx.user_id, owner, name,
+                    ctx.user_id,
+                    owner,
+                    name,
                     {"path": entry.path, "sha": entry.sha, "size": entry.size},
-                    default_branch=branch
+                    default_branch=branch,
                 )
 
-                remote_files.append(RemoteFile(
-                    meta=meta,
-                    extension=os.path.splitext(entry.path)[1],
-                    size=entry.size,
-                    download=self._downloader(client, owner, name, entry)
-                ))
+                remote_files.append(
+                    RemoteFile(
+                        meta=meta,
+                        extension=os.path.splitext(entry.path)[1],
+                        size=entry.size,
+                        download=self._downloader(client, owner, name, entry),
+                    )
+                )
 
         sync_remote(ctx, "github", remote_files, listing_complete=complete)
 
@@ -136,7 +152,7 @@ class GitHubPlatform(BasePlatform):
         def download(target):
             content = client.blob(owner, repo, entry.sha)
             if is_lfs_pointer(content):
-                return None                 # the real file lives in Git LFS
+                return None  # the real file lives in Git LFS
             target.write_bytes(content)
             return str(target)
 

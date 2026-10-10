@@ -1,0 +1,38 @@
+version: 2
+updates:
+  # Python: the Linux lock used by Docker and CI (the Windows dev freeze is
+  # requirements.txt; keep them in step by hand, see docs/OPERATIONS.md).
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      dev-tooling:
+        dependency-type: development
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /deploy/caddy
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /deploy/backup
+    schedule:
+      interval: weekly

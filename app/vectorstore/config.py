@@ -2,7 +2,6 @@
 
 from app.core.config import settings
 
-
 # point "type" -> (collection suffix, vector size)
 #   text / audio / video transcripts: all-MiniLM-L6-v2 (384)
 #   images / video frames: CLIP ViT-B/32 (512)

@@ -24,8 +24,8 @@ margin distributions measured on the owner's data; see docs/eval.
 
 import os
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 from rapidfuzz import fuzz
@@ -33,13 +33,12 @@ from rapidfuzz import fuzz
 from app.config.file_types import CODE_EXTENSIONS
 from app.search.normalize import normalize_name, normalize_text, query_terms, tokens
 
-
 # ---- calibration constants (measured; see the Phase 4 report) -------------
 
 # MiniLM margin: negatives peak at ~0.32, relevant documents reach 0.3-0.65.
-TEXT_MARGIN_FLOOR = 0.10        # semantic signal starts here
-TEXT_MARGIN_FULL = 0.60         # ... and saturates here
-TEXT_MARGIN_EVIDENCE = 0.35     # alone enough to return a result
+TEXT_MARGIN_FLOOR = 0.10  # semantic signal starts here
+TEXT_MARGIN_FULL = 0.60  # ... and saturates here
+TEXT_MARGIN_EVIDENCE = 0.35  # alone enough to return a result
 # Code/config files (Phase 6, docs/eval/phase6-code-gate.md): MiniLM separates
 # them poorly. Irrelevant code candidates: p99 0.351, max 0.502 over 33
 # negative queries; the target file of 14 descriptive code queries: 0.18-0.45.
@@ -51,7 +50,7 @@ TEXT_MARGIN_EVIDENCE_CODE = 0.52
 # (Phase 5, docs/eval): relevant images median 0.044, p10 0.012; irrelevant
 # images (n=873) median -0.047, p99 0.021; visual negatives' best <= -0.003.
 # 0.030 keeps 70% of relevant images and passes 0.5% of irrelevant ones.
-IMAGE_MARGIN_EVIDENCE = 0.030   # alone enough to return an image
+IMAGE_MARGIN_EVIDENCE = 0.030  # alone enough to return an image
 IMAGE_MARGIN_FLOOR = 0.0
 IMAGE_MARGIN_FULL = 0.10
 # z-score among the query's images: ordering only (a small share of the signal).
@@ -86,9 +85,9 @@ VIDEO_FRAME_Z_FLOOR = 3.0
 VIDEO_FRAME_Z_FULL = 9.0
 
 # Lexical evidence.
-NAME_EVIDENCE = 0.5             # half of the query terms in the file name
-CONTENT_EVIDENCE = 0.6          # most of the query terms in the content
-TRIGRAM_NAME_FLOOR = 0.6        # pg_trgm similarity counted as a name match
+NAME_EVIDENCE = 0.5  # half of the query terms in the file name
+CONTENT_EVIDENCE = 0.6  # most of the query terms in the content
+TRIGRAM_NAME_FLOOR = 0.6  # pg_trgm similarity counted as a name match
 
 # Noisy-OR weights.
 W_SEMANTIC = 0.80
@@ -101,19 +100,19 @@ SNIPPET_LENGTH = 200
 
 @dataclass
 class Scored:
-
     candidate: object
     score: float
     semantic: float
     name: float
     content: float
-    reasons: List[str] = field(default_factory=list)
-    match: Dict = field(default_factory=dict)
+    reasons: list[str] = field(default_factory=list)
+    match: dict = field(default_factory=dict)
 
 
 # ----------------------------------------------------------------------
 # Lexical matching
 # ----------------------------------------------------------------------
+
 
 def term_match(term: str, word: str) -> float:
     """1.0 exact, 0.9 prefix (format/formatted), 0.85 typo (jva/java), else 0."""
@@ -122,21 +121,21 @@ def term_match(term: str, word: str) -> float:
         return 1.0
 
     if term.isdigit() or word.isdigit():
-        return 0.0                      # numbers must match exactly
+        return 0.0  # numbers must match exactly
 
     shorter, longer = sorted((term, word), key=len)
 
     if len(shorter) >= 5 and longer.startswith(shorter) and len(shorter) / len(longer) >= 0.6:
         return 0.9
 
-    if len(term) >= 3 and abs(len(term) - len(word)) <= (1 if len(term) == 3 else 2):
-        if fuzz.ratio(term, word) >= 85:
-            return 0.85
+    close_length = abs(len(term) - len(word)) <= (1 if len(term) == 3 else 2)
+    if len(term) >= 3 and close_length and fuzz.ratio(term, word) >= 85:
+        return 0.85
 
     return 0.0
 
 
-def coverage(terms: Sequence[str], words: Sequence[str], phrase: str, text: str) -> Tuple[float, List[str]]:
+def coverage(terms: Sequence[str], words: Sequence[str], phrase: str, text: str) -> tuple[float, list[str]]:
     """Share of query terms present in `words` (best match per term), and the
     words that matched. A contiguous phrase match counts as full coverage."""
 
@@ -168,7 +167,7 @@ def coverage(terms: Sequence[str], words: Sequence[str], phrase: str, text: str)
     return score, matched
 
 
-def _scale(value: Optional[float], floor: float, full: float) -> float:
+def _scale(value: float | None, floor: float, full: float) -> float:
 
     if value is None:
         return 0.0
@@ -180,13 +179,14 @@ def _scale(value: Optional[float], floor: float, full: float) -> float:
 # Snippets
 # ----------------------------------------------------------------------
 
+
 def _word_pattern(word: str) -> str:
     """Whole-word match where '_' and '-' count as separators (file names)."""
 
     return r"(?<![a-z0-9])" + re.escape(word) + r"(?![a-z0-9])"
 
 
-def _highlights(snippet: str, words: Sequence[str]) -> List[List[int]]:
+def _highlights(snippet: str, words: Sequence[str]) -> list[list[int]]:
 
     spans = []
     lowered = snippet.lower()
@@ -207,7 +207,7 @@ def _highlights(snippet: str, words: Sequence[str]) -> List[List[int]]:
     return merged
 
 
-def make_snippet(text: str, words: Sequence[str]) -> Tuple[str, List[List[int]]]:
+def make_snippet(text: str, words: Sequence[str]) -> tuple[str, list[list[int]]]:
     """Up to 200 chars around the first matched word; highlight offsets."""
 
     clean = re.sub(r"\s+", " ", text or "").strip()
@@ -216,13 +216,10 @@ def make_snippet(text: str, words: Sequence[str]) -> Tuple[str, List[List[int]]]
         return "", []
 
     lowered = clean.lower()
-    first = min(
-        (m.start() for w in words for m in [re.search(_word_pattern(w), lowered)] if m),
-        default=0
-    )
+    first = min((m.start() for w in words for m in [re.search(_word_pattern(w), lowered)] if m), default=0)
 
     start = max(0, first - 60)
-    snippet = clean[start:start + SNIPPET_LENGTH]
+    snippet = clean[start : start + SNIPPET_LENGTH]
 
     return snippet, _highlights(snippet, words)
 
@@ -234,7 +231,7 @@ def make_snippet(text: str, words: Sequence[str]) -> Tuple[str, List[List[int]]]
 CONTENT_FIELD = {"document": "content", "image": "ocr", "audio": "transcript", "video": "transcript"}
 
 
-def image_zscores(candidates) -> Dict[Tuple[str, str], float]:
+def image_zscores(candidates) -> dict[tuple[str, str], float]:
     """z-score of each image candidate's CLIP margin among this query's images."""
 
     images = [c for c in candidates if c.file_type == "image" and c.clip_margin is not None]
@@ -269,7 +266,7 @@ def name_for_matching(candidate) -> str:
     return name
 
 
-def frame_z(candidate) -> Optional[float]:
+def frame_z(candidate) -> float | None:
     """Best retrieved frame vs this video's null distribution (None without frames or null)."""
 
     if candidate.clip_margin is None or candidate.frame_null_mean is None or not candidate.frame_null_std:
@@ -286,7 +283,7 @@ def is_document_photo(candidate) -> bool:
     return words >= DOCUMENT_PHOTO_OCR_WORDS
 
 
-def score_candidates(candidates, query: str) -> List[Scored]:
+def score_candidates(candidates, query: str) -> list[Scored]:
 
     phrase = normalize_text(query)
     terms = query_terms(query)
@@ -295,7 +292,6 @@ def score_candidates(candidates, query: str) -> List[Scored]:
     results = []
 
     for c in candidates:
-
         # --- semantic -------------------------------------------------------
         semantic_text = _scale(c.text_margin, TEXT_MARGIN_FLOOR, TEXT_MARGIN_FULL)
         text_evidence = text_evidence_threshold(c)
@@ -304,11 +300,11 @@ def score_candidates(candidates, query: str) -> List[Scored]:
         visual = False
 
         if c.file_type == "image":
-            visual_signal = ((1 - IMAGE_Z_SHARE) * _scale(c.clip_margin, IMAGE_MARGIN_FLOOR, IMAGE_MARGIN_FULL)
-                             + IMAGE_Z_SHARE * _scale(zscores.get(c.key), IMAGE_Z_FLOOR, IMAGE_Z_FULL))
+            visual_signal = (1 - IMAGE_Z_SHARE) * _scale(
+                c.clip_margin, IMAGE_MARGIN_FLOOR, IMAGE_MARGIN_FULL
+            ) + IMAGE_Z_SHARE * _scale(zscores.get(c.key), IMAGE_Z_FLOOR, IMAGE_Z_FULL)
             semantic = max(semantic, visual_signal)
-            if (c.clip_margin is not None and c.clip_margin >= IMAGE_MARGIN_EVIDENCE
-                    and not is_document_photo(c)):
+            if c.clip_margin is not None and c.clip_margin >= IMAGE_MARGIN_EVIDENCE and not is_document_photo(c):
                 evidence = visual = True
 
         elif c.file_type == "video":
@@ -350,19 +346,26 @@ def score_candidates(candidates, query: str) -> List[Scored]:
 
         match = _match(c, chunks, name_words, content_words, reasons)
         if visual and c.file_type == "video" and c.frame_time_s is not None:
-            match["frame_time_s"] = c.frame_time_s   # "Looks similar (frame at mm:ss)"
+            match["frame_time_s"] = c.frame_time_s  # "Looks similar (frame at mm:ss)"
 
-        results.append(Scored(
-            candidate=c, score=round(float(score), 4), semantic=semantic, name=name, content=content,
-            reasons=reasons, match=match
-        ))
+        results.append(
+            Scored(
+                candidate=c,
+                score=round(float(score), 4),
+                semantic=semantic,
+                name=name,
+                content=content,
+                reasons=reasons,
+                match=match,
+            )
+        )
 
     results.sort(key=lambda r: r.score, reverse=True)
 
     return results
 
 
-def possible_visual_matches(candidates, returned_keys, limit: int = POSSIBLE_LIMIT) -> List[Scored]:
+def possible_visual_matches(candidates, returned_keys, limit: int = POSSIBLE_LIMIT) -> list[Scored]:
     """Images/videos just below the visual evidence gates: video floor <= z < threshold,
     image floor <= CLIP margin < threshold (document photos excluded, as in the gate).
     Only candidates that are not already results; best `limit` by score; match.confidence="low"."""
@@ -370,7 +373,6 @@ def possible_visual_matches(candidates, returned_keys, limit: int = POSSIBLE_LIM
     possible = []
 
     for c in candidates:
-
         if c.key in returned_keys:
             continue
 
@@ -389,28 +391,34 @@ def possible_visual_matches(candidates, returned_keys, limit: int = POSSIBLE_LIM
         else:
             continue
 
-        match = {"reasons": ["visual"], "field": "filename", "snippet": c.file,
-                 "highlights": [], "confidence": "low"}
+        match = {"reasons": ["visual"], "field": "filename", "snippet": c.file, "highlights": [], "confidence": "low"}
         if c.file_type == "video" and c.frame_time_s is not None:
             match["frame_time_s"] = c.frame_time_s
 
-        possible.append(Scored(candidate=c, score=round(float(W_SEMANTIC * semantic), 4), semantic=semantic,
-                               name=0.0, content=0.0, reasons=["visual"], match=match))
+        possible.append(
+            Scored(
+                candidate=c,
+                score=round(float(W_SEMANTIC * semantic), 4),
+                semantic=semantic,
+                name=0.0,
+                content=0.0,
+                reasons=["visual"],
+                match=match,
+            )
+        )
 
     possible.sort(key=lambda r: r.score, reverse=True)
 
     return possible[:limit]
 
 
-def _match(c, chunks, name_words, content_words, reasons) -> Dict:
+def _match(c, chunks, name_words, content_words, reasons) -> dict:
 
     best_chunk = None
 
     if content_words:
         best_chunk = max(
-            chunks,
-            key=lambda ch: (sum(1 for w in set(content_words) if w in ch.text.lower()), ch.score),
-            default=None
+            chunks, key=lambda ch: (sum(1 for w in set(content_words) if w in ch.text.lower()), ch.score), default=None
         )
     elif chunks:
         best_chunk = chunks[0]

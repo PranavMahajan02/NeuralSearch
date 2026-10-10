@@ -5,16 +5,15 @@ GPU instead of contending for it. CLIP text is always truncated to CLIP's
 77-token context (a long query used to raise and return HTTP 500 - BUG-07).
 """
 
-from typing import List, Sequence
+from collections.abc import Sequence
 
 from app.ai.model_manager import model_manager
 from app.core.timing import waiting_for
 
-
 CLIP_MAX_TOKENS = 77
 
 
-def encode_texts(texts: Sequence[str]) -> List[List[float]]:
+def encode_texts(texts: Sequence[str]) -> list[list[float]]:
 
     model = model_manager.semantic_model
 
@@ -24,20 +23,14 @@ def encode_texts(texts: Sequence[str]) -> List[List[float]]:
     return [vector.tolist() for vector in vectors]
 
 
-def encode_clip_text(text: str) -> List[float]:
+def encode_clip_text(text: str) -> list[float]:
 
     import torch
 
     processor = model_manager.clip_processor
     model = model_manager.clip_model
 
-    inputs = processor(
-        text=[text],
-        return_tensors="pt",
-        padding=True,
-        truncation=True,
-        max_length=CLIP_MAX_TOKENS
-    )
+    inputs = processor(text=[text], return_tensors="pt", padding=True, truncation=True, max_length=CLIP_MAX_TOKENS)
     inputs = {key: value.to(model_manager.device) for key, value in inputs.items()}
 
     with waiting_for(model_manager.clip_lock), torch.no_grad():
@@ -46,7 +39,7 @@ def encode_clip_text(text: str) -> List[float]:
     return features.cpu().numpy()[0].tolist()
 
 
-def encode_clip_images(paths: Sequence[str], batch_size: int = 32) -> List[List[float]]:
+def encode_clip_images(paths: Sequence[str], batch_size: int = 32) -> list[list[float]]:
     """CLIP image vectors, `batch_size` images per forward pass (video frames).
     Same preprocessing as encode_clip_image; the vectors match it to float
     precision (cosine >= 0.9999 on the benchmark frames)."""
@@ -56,11 +49,11 @@ def encode_clip_images(paths: Sequence[str], batch_size: int = 32) -> List[List[
 
     processor = model_manager.clip_processor
     model = model_manager.clip_model
-    vectors: List[List[float]] = []
+    vectors: list[list[float]] = []
 
     for start in range(0, len(paths), batch_size):
         images = []
-        for path in paths[start:start + batch_size]:
+        for path in paths[start : start + batch_size]:
             with Image.open(path) as image:
                 images.append(image.convert("RGB"))
         inputs = processor(images=images, return_tensors="pt")
@@ -74,7 +67,7 @@ def encode_clip_images(paths: Sequence[str], batch_size: int = 32) -> List[List[
     return vectors
 
 
-def encode_clip_image(path: str) -> List[float]:
+def encode_clip_image(path: str) -> list[float]:
 
     import torch
     from PIL import Image

@@ -2,11 +2,10 @@
 
 from sqlalchemy import func
 
+from app.core.clock import iso
 from app.database.db import SessionLocal
 from app.database.local_storage_service import get_local_folders
 from app.database.models import IndexedFile, PlatformConnection
-from app.core.clock import iso
-
 
 PLATFORMS = ("local", "google_drive", "github")
 
@@ -17,19 +16,22 @@ def _platform_detail(platform, by_platform, last_by_platform):
 
     last = last_by_platform.get(platform)
 
-    return {"indexed_files": by_platform.get(platform, 0),
-            "last_indexed_at": iso(last)}
+    return {"indexed_files": by_platform.get(platform, 0), "last_indexed_at": iso(last)}
 
 
 def get_dashboard_stats(user_id):
 
     with SessionLocal() as db:
-
         # ONE query (one snapshot) for every count and timestamp: separate queries
         # could see a file indexed in between ("0 files, last indexed just now").
         rows = (
-            db.query(IndexedFile.platform, IndexedFile.file_type, IndexedFile.status,
-                     func.count(), func.max(IndexedFile.indexed_at))
+            db.query(
+                IndexedFile.platform,
+                IndexedFile.file_type,
+                IndexedFile.status,
+                func.count(),
+                func.max(IndexedFile.indexed_at),
+            )
             .filter(IndexedFile.user_id == user_id)
             .group_by(IndexedFile.platform, IndexedFile.file_type, IndexedFile.status)
             .all()
@@ -38,15 +40,14 @@ def get_dashboard_stats(user_id):
         connections = {
             row.platform
             for row in db.query(PlatformConnection.platform).filter(
-                PlatformConnection.user_id == user_id,
-                PlatformConnection.connected.is_(True)
+                PlatformConnection.user_id == user_id, PlatformConnection.connected.is_(True)
             )
         }
 
         folders = [folder.folder_path for folder in get_local_folders(db, user_id)]
 
-    by_type = {file_type: 0 for file_type in TYPES}
-    by_platform = {platform: 0 for platform in PLATFORMS}
+    by_type = dict.fromkeys(TYPES, 0)
+    by_platform = dict.fromkeys(PLATFORMS, 0)
     by_status = {"indexed": 0, "no_content": 0, "failed": 0, "unsupported": 0, "too_large": 0, "excluded": 0}
 
     last_by_platform = {}
@@ -76,13 +77,20 @@ def get_dashboard_stats(user_id):
         "ready_platforms": sum(1 for count in by_platform.values() if count > 0),
         "supported_platforms": len(PLATFORMS),
         "platforms": {
-            "google_drive": {"connected": "google_drive" in connections,
-                             **_platform_detail("google_drive", by_platform, last_by_platform)},
-            "github": {"connected": "github" in connections,
-                       **_platform_detail("github", by_platform, last_by_platform)},
-            "local": {"connected": len(folders) > 0, "folders": folders,
-                      **_platform_detail("local", by_platform, last_by_platform)}
-        }
+            "google_drive": {
+                "connected": "google_drive" in connections,
+                **_platform_detail("google_drive", by_platform, last_by_platform),
+            },
+            "github": {
+                "connected": "github" in connections,
+                **_platform_detail("github", by_platform, last_by_platform),
+            },
+            "local": {
+                "connected": len(folders) > 0,
+                "folders": folders,
+                **_platform_detail("local", by_platform, last_by_platform),
+            },
+        },
     }
 
 

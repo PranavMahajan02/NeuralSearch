@@ -27,7 +27,6 @@ from app.vectorstore.client import get_client  # noqa: E402
 from app.vectorstore.config import collection_for_type  # noqa: E402
 from app.vectorstore.query import user_filter  # noqa: E402
 
-
 ALNUM = re.compile(r"[A-Za-z0-9]")
 
 
@@ -36,7 +35,9 @@ def stored_alnum(user_id, row) -> int:
     points, _ = get_client().scroll(
         collection_for_type("document"),
         scroll_filter=user_filter(user_id, row.platform, source_id=row.source_id),
-        limit=200, with_payload=True, with_vectors=False
+        limit=200,
+        with_payload=True,
+        with_vectors=False,
     )
 
     return sum(len(ALNUM.findall(p.payload.get("chunk", ""))) for p in points)
@@ -60,10 +61,17 @@ def ocr_pages(path: str):
 def meta_of(row) -> FileMeta:
 
     return FileMeta(
-        user_id=str(row.user_id), platform=row.platform, source_id=row.source_id,
-        file_name=row.file_name, display_path=row.display_path, file_type=row.file_type,
-        version=row.version, owner=row.owner, repo=row.repo,
-        default_branch=row.default_branch, web_view_link=row.web_view_link
+        user_id=str(row.user_id),
+        platform=row.platform,
+        source_id=row.source_id,
+        file_name=row.file_name,
+        display_path=row.display_path,
+        file_type=row.file_type,
+        version=row.version,
+        owner=row.owner,
+        repo=row.repo,
+        default_branch=row.default_branch,
+        web_view_link=row.web_view_link,
     )
 
 
@@ -80,8 +88,12 @@ def main():
         user_id = str(user.id)
         rows = (
             db.query(IndexedFile)
-            .filter(IndexedFile.user_id == user.id, IndexedFile.status.in_(("indexed", "failed")),
-                    IndexedFile.file_name.ilike("%.pdf"), IndexedFile.chunk_count <= args.max_chunks)
+            .filter(
+                IndexedFile.user_id == user.id,
+                IndexedFile.status.in_(("indexed", "failed")),
+                IndexedFile.file_name.ilike("%.pdf"),
+                IndexedFile.chunk_count <= args.max_chunks,
+            )
             .order_by(IndexedFile.platform, IndexedFile.file_name)
             .all()
         )
@@ -96,9 +108,7 @@ def main():
     from app.services.indexing_pipeline import index_source
 
     with tempfile.TemporaryDirectory(prefix="reindex-") as tmp:
-
         for row in rows:
-
             if row.platform == "local":
                 path = row.display_path
                 if not os.path.isfile(path):
@@ -108,9 +118,11 @@ def main():
             elif row.platform == "google_drive":
                 if drive is None:
                     from app.platforms.google_drive.drive_service import client_for_user
+
                     drive = client_for_user(user_id)
-                path = drive.download({"id": row.source_id, "mimeType": "application/pdf"},
-                                      Path(tmp) / f"{abs(hash(row.source_id))}.pdf")
+                path = drive.download(
+                    {"id": row.source_id, "mimeType": "application/pdf"}, Path(tmp) / f"{abs(hash(row.source_id))}.pdf"
+                )
             else:
                 continue
 

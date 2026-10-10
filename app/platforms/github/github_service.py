@@ -11,8 +11,8 @@
 import logging
 import re
 import threading
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Dict, Iterator, List, Optional, Tuple
 from urllib.parse import quote
 
 import requests
@@ -22,7 +22,6 @@ from app.database.platform_connection_service import disconnect_platform
 from app.platforms import http
 from app.platforms.errors import PlatformPreconditionError
 
-
 logger = logging.getLogger("cogniseek.github")
 
 API = "https://api.github.com"
@@ -31,14 +30,12 @@ _LINK_NEXT = re.compile(r'<([^>]+)>;\s*rel="next"')
 
 
 class GitHubAuthExpired(PlatformPreconditionError):
-
     def __init__(self):
 
         super().__init__("GitHub authorization expired — reconnect GitHub.")
 
 
 class GitHubPermissionMissing(PlatformPreconditionError):
-
     def __init__(self):
 
         super().__init__("GitHub permission missing — reconnect and allow repository access.")
@@ -50,15 +47,13 @@ class GitHubError(RuntimeError):
 
 @dataclass
 class TreeEntry:
-
     path: str
     sha: str
-    size: Optional[int]
+    size: int | None
 
 
 class GitHubClient:
-
-    def __init__(self, token: str, user_id=None, session: Optional[requests.Session] = None):
+    def __init__(self, token: str, user_id=None, session: requests.Session | None = None):
 
         self.user_id = user_id
         self._headers = {
@@ -88,10 +83,12 @@ class GitHubClient:
 
     # ------------------------------------------------------------------
 
-    def _get(self, url: str, accept: Optional[str] = None, allow: Tuple[int, ...] = ()) -> requests.Response:
+    def _get(self, url: str, accept: str | None = None, allow: tuple[int, ...] = ()) -> requests.Response:
 
         headers = {"Accept": accept} if accept else None
-        response = http.request("GET", url if url.startswith("http") else API + url, session=self.session, headers=headers)
+        response = http.request(
+            "GET", url if url.startswith("http") else API + url, session=self.session, headers=headers
+        )
 
         if response.status_code == 401:
             self._mark_disconnected()
@@ -125,11 +122,11 @@ class GitHubClient:
 
     # ------------------------------------------------------------------
 
-    def user(self) -> Dict:
+    def user(self) -> dict:
 
         return self._get("/user").json()
 
-    def iter_repositories(self) -> Iterator[Dict]:
+    def iter_repositories(self) -> Iterator[dict]:
         """Every repository the user can access, across all pages."""
 
         url = f"{API}/user/repos?per_page=100&affiliation=owner,collaborator,organization_member"
@@ -140,7 +137,7 @@ class GitHubClient:
             match = _LINK_NEXT.search(response.headers.get("Link", ""))
             url = match.group(1) if match else None
 
-    def tree(self, owner: str, repo: str, branch: str) -> Tuple[List[TreeEntry], bool]:
+    def tree(self, owner: str, repo: str, branch: str) -> tuple[list[TreeEntry], bool]:
         """(file entries, complete). An empty repository (409) is ([], True)."""
 
         base = f"/repos/{quote(owner)}/{quote(repo)}/git/trees/"
@@ -167,10 +164,10 @@ class GitHubClient:
             logger.warning("Sub-tree walk of %s/%s failed (%s): listing incomplete", owner, repo, error)
             return _blobs(data.get("tree", [])), False
 
-    def _walk(self, base: str, sha: str, prefix: str) -> List[TreeEntry]:
+    def _walk(self, base: str, sha: str, prefix: str) -> list[TreeEntry]:
 
         data = self._get(base + sha).json()
-        entries: List[TreeEntry] = []
+        entries: list[TreeEntry] = []
 
         for item in data.get("tree", []):
             path = f"{prefix}{item['path']}"
@@ -188,7 +185,7 @@ class GitHubClient:
         return self._get(url, accept="application/vnd.github.raw+json").content
 
 
-def _blobs(items) -> List[TreeEntry]:
+def _blobs(items) -> list[TreeEntry]:
 
     return [
         TreeEntry(path=item["path"], sha=item["sha"], size=item.get("size"))
@@ -204,6 +201,6 @@ def client_for_user(db, user_id) -> GitHubClient:
     return GitHubClient(get_access_token(db, user_id), user_id=user_id)
 
 
-def get_user(db, user_id) -> Dict:
+def get_user(db, user_id) -> dict:
 
     return client_for_user(db, user_id).user()

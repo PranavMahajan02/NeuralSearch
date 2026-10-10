@@ -1,26 +1,25 @@
-from sqlalchemy import (
-    Column,
-    String,
-    Boolean,
-    Integer,
-    BigInteger,
-    DateTime,
-    Text,
-    ForeignKey,
-    CheckConstraint,
-    Index,
-    UniqueConstraint,
-    text
-)
+import uuid
 
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.sql import func
 
-import uuid
-
-from .db import Base
 from app.core.crypto import EncryptedText
 
+from .db import Base
 
 # Mirrors the live schema (see alembic/versions/0001_baseline.py).
 # Python-side defaults are kept so ORM inserts behave as before.
@@ -30,74 +29,40 @@ from app.core.crypto import EncryptedText
 # USERS
 # ==========================================================
 
-class User(Base):
 
+class User(Base):
     __tablename__ = "users"
 
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        server_default=text("gen_random_uuid()")
-    )
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, server_default=text("gen_random_uuid()"))
 
-    email = Column(
-        String(255),
-        unique=True,
-        nullable=False
-    )
+    email = Column(String(255), unique=True, nullable=False)
 
     full_name = Column(String(255))
 
     password_hash = Column(Text)
 
     # False until the user finishes or skips the first-run onboarding.
-    onboarding_completed = Column(
-        Boolean,
-        nullable=False,
-        default=False,
-        server_default=text("false")
-    )
+    onboarding_completed = Column(Boolean, nullable=False, default=False, server_default=text("false"))
 
     # Bumped on logout; tokens carrying an older "tv" claim are rejected.
-    token_version = Column(
-        Integer,
-        nullable=False,
-        default=0,
-        server_default=text("0")
-    )
+    token_version = Column(Integer, nullable=False, default=0, server_default=text("0"))
 
-    created_at = Column(
-        DateTime(timezone=True),
-        server_default=text("CURRENT_TIMESTAMP")
-    )
+    created_at = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
 
-    last_login = Column(
-        DateTime(timezone=True),
-        server_default=text("CURRENT_TIMESTAMP"),
-        onupdate=func.now()
-    )
+    last_login = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"), onupdate=func.now())
 
 
 # ==========================================================
 # PLATFORM CONNECTIONS
 # ==========================================================
 
-class PlatformConnection(Base):
 
+class PlatformConnection(Base):
     __tablename__ = "platform_connections"
 
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
-    user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("users.id"),
-        nullable=False
-    )
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
     platform = Column(String)
 
@@ -114,29 +79,16 @@ class PlatformConnection(Base):
 
     token_type = Column(Text)
 
-    connected = Column(
-        Boolean,
-        default=True
-    )
+    connected = Column(Boolean, default=True)
 
-    created_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now()
-    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 # ==========================================================
 # INDEXING JOBS
 # ==========================================================
 
-JOB_STATUSES = (
-    "queued",
-    "running",
-    "completed",
-    "completed_with_errors",
-    "failed",
-    "cancelled"
-)
+JOB_STATUSES = ("queued", "running", "completed", "completed_with_errors", "failed", "cancelled")
 
 ACTIVE_JOB_STATUSES = ("queued", "running")
 
@@ -153,8 +105,7 @@ class IndexingJob(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "status IN (" + ", ".join(f"'{s}'" for s in JOB_STATUSES) + ")",
-            name="ck_indexing_jobs_status"
+            "status IN (" + ", ".join(f"'{s}'" for s in JOB_STATUSES) + ")", name="ck_indexing_jobs_status"
         ),
         Index("ix_indexing_jobs_status_created_at", "status", "created_at"),
         Index("ix_indexing_jobs_user_platform", "user_id", "platform"),
@@ -164,55 +115,26 @@ class IndexingJob(Base):
             "user_id",
             "platform",
             unique=True,
-            postgresql_where=text("status IN ('queued', 'running')")
+            postgresql_where=text("status IN ('queued', 'running')"),
         ),
     )
 
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        server_default=text("gen_random_uuid()")
-    )
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, server_default=text("gen_random_uuid()"))
 
-    user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False
-    )
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
-    platform = Column(
-        String(50),
-        nullable=False
-    )
+    platform = Column(String(50), nullable=False)
 
     # Higher runs first (Indexing Center "Index next"); ties: oldest first.
     priority = Column(Integer, nullable=False, default=0, server_default=text("0"))
 
-    status = Column(
-        String(30),
-        nullable=False,
-        default="queued",
-        server_default=text("'queued'::character varying")
-    )
+    status = Column(String(30), nullable=False, default="queued", server_default=text("'queued'::character varying"))
 
-    total_files = Column(
-        Integer,
-        default=0,
-        server_default=text("0")
-    )
+    total_files = Column(Integer, default=0, server_default=text("0"))
 
-    indexed_files = Column(
-        Integer,
-        default=0,
-        server_default=text("0")
-    )
+    indexed_files = Column(Integer, default=0, server_default=text("0"))
 
-    current_file = Column(
-        Text,
-        default="",
-        server_default=text("''::text")
-    )
+    current_file = Column(Text, default="", server_default=text("''::text"))
 
     started_at = Column(DateTime(timezone=True))
 
@@ -220,11 +142,7 @@ class IndexingJob(Base):
 
     last_index_time = Column(DateTime(timezone=True))
 
-    needs_reindex = Column(
-        Boolean,
-        default=False,
-        server_default=text("false")
-    )
+    needs_reindex = Column(Boolean, default=False, server_default=text("false"))
 
     # Progress: total_files counts supported files only; processed =
     # succeeded + failed. Unsupported files and folders go to skipped_files.
@@ -255,26 +173,15 @@ class IndexingJob(Base):
 # INDEXING JOB ERRORS (per-file failures, capped per job)
 # ==========================================================
 
-class IndexingJobError(Base):
 
+class IndexingJobError(Base):
     __tablename__ = "indexing_job_errors"
 
-    __table_args__ = (
-        Index("ix_indexing_job_errors_job_id", "job_id"),
-    )
+    __table_args__ = (Index("ix_indexing_job_errors_job_id", "job_id"),)
 
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        server_default=text("gen_random_uuid()")
-    )
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, server_default=text("gen_random_uuid()"))
 
-    job_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("indexing_jobs.id", ondelete="CASCADE"),
-        nullable=False
-    )
+    job_id = Column(UUID(as_uuid=True), ForeignKey("indexing_jobs.id", ondelete="CASCADE"), nullable=False)
 
     file_ref = Column(Text, nullable=False)
 
@@ -287,40 +194,19 @@ class IndexingJobError(Base):
 # LOCAL STORAGE FOLDERS
 # ==========================================================
 
-class LocalStorageFolder(Base):
 
+class LocalStorageFolder(Base):
     __tablename__ = "local_storage_folders"
 
-    __table_args__ = (
-        UniqueConstraint(
-            "user_id",
-            "folder_path",
-            name="uq_local_storage_folders_user_path"
-        ),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "folder_path", name="uq_local_storage_folders_user_path"),)
 
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        server_default=text("gen_random_uuid()")
-    )
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, server_default=text("gen_random_uuid()"))
 
-    user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False
-    )
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
-    folder_path = Column(
-        Text,
-        nullable=False
-    )
+    folder_path = Column(Text, nullable=False)
 
-    created_at = Column(
-        DateTime(timezone=True),
-        server_default=text("CURRENT_TIMESTAMP")
-    )
+    created_at = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
 
 
 # ==========================================================
@@ -346,8 +232,7 @@ class IndexedFile(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "platform", "source_id", name="uq_indexed_files_source"),
         CheckConstraint(
-            "status IN (" + ", ".join(f"'{s}'" for s in LEDGER_STATUSES) + ")",
-            name="ck_indexed_files_status"
+            "status IN (" + ", ".join(f"'{s}'" for s in LEDGER_STATUSES) + ")", name="ck_indexed_files_status"
         ),
         Index("ix_indexed_files_user_platform", "user_id", "platform"),
         # Trigram index: fuzzy file-name candidates for search (BUG-21).
@@ -355,22 +240,13 @@ class IndexedFile(Base):
             "ix_indexed_files_file_name_trgm",
             "file_name",
             postgresql_using="gin",
-            postgresql_ops={"file_name": "gin_trgm_ops"}
+            postgresql_ops={"file_name": "gin_trgm_ops"},
         ),
     )
 
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        server_default=text("gen_random_uuid()")
-    )
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, server_default=text("gen_random_uuid()"))
 
-    user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False
-    )
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
     platform = Column(String(50), nullable=False)
 
@@ -413,22 +289,13 @@ class IndexedFile(Base):
 # INDEXING HISTORY
 # ==========================================================
 
-class IndexingHistory(Base):
 
+class IndexingHistory(Base):
     __tablename__ = "indexing_history"
 
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        server_default=text("gen_random_uuid()")
-    )
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, server_default=text("gen_random_uuid()"))
 
-    user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False
-    )
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
     platform = Column(String(50))
 
@@ -436,11 +303,7 @@ class IndexingHistory(Base):
 
     completed_at = Column(DateTime(timezone=True))
 
-    files_indexed = Column(
-        Integer,
-        default=0,
-        server_default=text("0")
-    )
+    files_indexed = Column(Integer, default=0, server_default=text("0"))
 
     status = Column(String(30))
 
@@ -451,42 +314,21 @@ class IndexingHistory(Base):
 # OAUTH STATES (single-use CSRF state for OAuth redirects)
 # ==========================================================
 
-class OAuthState(Base):
 
+class OAuthState(Base):
     __tablename__ = "oauth_states"
 
-    state = Column(
-        String(128),
-        primary_key=True
-    )
+    state = Column(String(128), primary_key=True)
 
-    user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False
-    )
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
-    platform = Column(
-        String(50),
-        nullable=False
-    )
+    platform = Column(String(50), nullable=False)
 
-    expires_at = Column(
-        DateTime(timezone=True),
-        nullable=False
-    )
+    expires_at = Column(DateTime(timezone=True), nullable=False)
 
-    used = Column(
-        Boolean,
-        nullable=False,
-        default=False,
-        server_default=text("false")
-    )
+    used = Column(Boolean, nullable=False, default=False, server_default=text("false"))
 
     # PKCE code_verifier (Google); kept server-side with the single-use state.
     code_verifier = Column(Text)
 
-    created_at = Column(
-        DateTime(timezone=True),
-        server_default=text("CURRENT_TIMESTAMP")
-    )
+    created_at = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))

@@ -54,8 +54,9 @@ def purge(dry_run: bool, email=None, show_names=False, session_factory=SessionLo
                 for _, name in rows:
                     print(f"    {name}")
             if not dry_run:
-                index_store.delete_sources(user_id, platform, [source_id for source_id, _ in rows],
-                                           session_factory=session_factory)
+                index_store.delete_sources(
+                    user_id, platform, [source_id for source_id, _ in rows], session_factory=session_factory
+                )
 
     print(f"{'would delete' if dry_run else 'deleted'} {sum(totals.values())} file(s): {dict(totals)}")
 
@@ -63,7 +64,6 @@ def purge(dry_run: bool, email=None, show_names=False, session_factory=SessionLo
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--email")

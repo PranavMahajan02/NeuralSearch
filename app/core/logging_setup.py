@@ -13,7 +13,6 @@ from contextvars import ContextVar
 from app.core.clock import utcnow
 from app.scheduler.errors import redact_secrets
 
-
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
 
 _UVICORN_LOGGERS = ("uvicorn", "uvicorn.error", "uvicorn.access")
@@ -38,14 +37,12 @@ class RedactingFilter(logging.Filter):
 
 
 class TextFormatter(logging.Formatter):
-
     def formatException(self, ei) -> str:
 
         return redact_secrets(super().formatException(ei))
 
 
 class JsonFormatter(TextFormatter):
-
     def format(self, record: logging.LogRecord) -> str:
 
         entry = {

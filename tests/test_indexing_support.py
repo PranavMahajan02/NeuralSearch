@@ -6,13 +6,11 @@ import pytest
 
 from app.scheduler.errors import sanitize_error
 
-
 # ---------------------------------------------------------------------------
 # The pickle indexes are gone (Phase 3)
 # ---------------------------------------------------------------------------
 
 ROOT = Path(__file__).resolve().parent.parent
-
 
 
 def test_no_pickle_anywhere_in_the_app():
@@ -33,8 +31,13 @@ def test_legacy_index_modules_are_deleted():
 
     import importlib
 
-    for module in ("app.cache.search_cache", "app.services.index_manager",
-                   "app.services.pickle_store", "app.services.index_delete", "clip_utils"):
+    for module in (
+        "app.cache.search_cache",
+        "app.services.index_manager",
+        "app.services.pickle_store",
+        "app.services.index_delete",
+        "clip_utils",
+    ):
         with pytest.raises(ModuleNotFoundError):
             importlib.import_module(module)
 
@@ -43,17 +46,21 @@ def test_legacy_index_modules_are_deleted():
 # Error sanitizing
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("message, expected", [
-    ("Bearer abc.def.ghi rejected", "RuntimeError: <redacted> rejected"),
-    ("token gho_" + "A" * 30 + " invalid", "RuntimeError: token <redacted> invalid"),
-    ("url https://x/y?access_token=secret123&a=1", "RuntimeError: url <url>"),
-    ("creds {'refresh_token': '1//abcdef'}", "RuntimeError: creds {'refresh_token': '<redacted>'}"),
-    ("open C:\\Users\\other\\private.pdf failed", "RuntimeError: open <path> failed"),
-    ("open /home/other/private.pdf failed", "RuntimeError: open <path> failed"),
-    ("open \\\\server\\share\\x.pdf failed", "RuntimeError: open <path> failed"),
-    ("open C:\\Users\\Jane Doe\\Private Docs\\x.pdf failed", "RuntimeError: open <path> failed"),
-    ("see https://example.com/a/b?q=1 for help", "RuntimeError: see <url> for help"),
-])
+
+@pytest.mark.parametrize(
+    "message, expected",
+    [
+        ("Bearer abc.def.ghi rejected", "RuntimeError: <redacted> rejected"),
+        ("token gho_" + "A" * 30 + " invalid", "RuntimeError: token <redacted> invalid"),
+        ("url https://x/y?access_token=secret123&a=1", "RuntimeError: url <url>"),
+        ("creds {'refresh_token': '1//abcdef'}", "RuntimeError: creds {'refresh_token': '<redacted>'}"),
+        ("open C:\\Users\\other\\private.pdf failed", "RuntimeError: open <path> failed"),
+        ("open /home/other/private.pdf failed", "RuntimeError: open <path> failed"),
+        ("open \\\\server\\share\\x.pdf failed", "RuntimeError: open <path> failed"),
+        ("open C:\\Users\\Jane Doe\\Private Docs\\x.pdf failed", "RuntimeError: open <path> failed"),
+        ("see https://example.com/a/b?q=1 for help", "RuntimeError: see <url> for help"),
+    ],
+)
 def test_sanitize_error_removes_secrets_and_paths(message, expected):
 
     assert sanitize_error(RuntimeError(message)) == expected
@@ -77,6 +84,7 @@ def test_sanitize_error_truncates_and_handles_empty_messages():
 # ---------------------------------------------------------------------------
 # Indexing pipeline: errors propagate and are recorded
 # ---------------------------------------------------------------------------
+
 
 def test_index_source_reraises_and_records_failed(monkeypatch, user, tmp_path):
 

@@ -2,7 +2,7 @@
 
 import importlib.util
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import text
@@ -27,26 +27,35 @@ def test_no_naive_utcnow_left():
 
 def test_clock_is_aware_and_iso_has_an_offset():
 
-    assert utcnow().tzinfo is timezone.utc
-    assert iso(datetime(2026, 1, 2, 3, 4, 5)) == "2026-01-02T03:04:05+00:00"   # legacy naive = UTC
+    assert utcnow().tzinfo is UTC
+    assert iso(datetime(2026, 1, 2, 3, 4, 5)) == "2026-01-02T03:04:05+00:00"  # legacy naive = UTC
     assert iso(None) is None
 
 
 def test_every_timestamp_column_is_timestamptz():
 
     with SessionLocal() as db:
-        naive = db.execute(text(
-            "SELECT table_name || '.' || column_name FROM information_schema.columns "
-            "WHERE table_schema = current_schema() AND data_type = 'timestamp without time zone'"
-        )).scalars().all()
+        naive = (
+            db.execute(
+                text(
+                    "SELECT table_name || '.' || column_name FROM information_schema.columns "
+                    "WHERE table_schema = current_schema() AND data_type = 'timestamp without time zone'"
+                )
+            )
+            .scalars()
+            .all()
+        )
     assert naive == []
 
 
 def test_api_timestamps_carry_an_offset(client, user):
 
     with SessionLocal() as db:
-        db.add(IndexingJob(user_id=user["id"], platform="local", status="completed",
-                           started_at=utcnow(), completed_at=utcnow()))
+        db.add(
+            IndexingJob(
+                user_id=user["id"], platform="local", status="completed", started_at=utcnow(), completed_at=utcnow()
+            )
+        )
         db.commit()
 
     jobs = client.get("/index/jobs", headers=user["headers"]).json()
@@ -65,15 +74,17 @@ def test_the_migration_keeps_the_utc_wall_clock(user):
     from alembic.migration import MigrationContext
     from alembic.operations import Operations
 
-    with engine.begin() as conn:
-        with Operations.context(MigrationContext.configure(conn)):
-            migration.downgrade()
-            conn.execute(text(
+    with engine.begin() as conn, Operations.context(MigrationContext.configure(conn)):
+        migration.downgrade()
+        conn.execute(
+            text(
                 "INSERT INTO oauth_states (state, user_id, platform, expires_at) "
                 "VALUES ('utc-check', :u, 'github', TIMESTAMP '2026-05-01 12:00:00')"
-            ), {"u": user["id"]})
-            migration.upgrade()
-            value = conn.execute(text("SELECT expires_at FROM oauth_states WHERE state = 'utc-check'")).scalar()
-            conn.execute(text("DELETE FROM oauth_states WHERE state = 'utc-check'"))
+            ),
+            {"u": user["id"]},
+        )
+        migration.upgrade()
+        value = conn.execute(text("SELECT expires_at FROM oauth_states WHERE state = 'utc-check'")).scalar()
+        conn.execute(text("DELETE FROM oauth_states WHERE state = 'utc-check'"))
 
-    assert value == datetime(2026, 5, 1, 12, 0, tzinfo=timezone.utc)
+    assert value == datetime(2026, 5, 1, 12, 0, tzinfo=UTC)

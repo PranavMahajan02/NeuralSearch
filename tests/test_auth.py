@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from jose import jwt
@@ -9,11 +9,7 @@ from app.core.config import settings
 
 def register(client, **overrides):
 
-    body = {
-        "name": "Alice",
-        "email": f"a-{uuid.uuid4().hex[:8]}@example.com",
-        "password": "Password123"
-    }
+    body = {"name": "Alice", "email": f"a-{uuid.uuid4().hex[:8]}@example.com", "password": "Password123"}
     body.update(overrides)
 
     return client.post("/auth/register", json=body)
@@ -23,16 +19,20 @@ def register(client, **overrides):
 # Registration validation
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("overrides, fragment", [
-    ({"name": "   "}, "Name must be 1-100"),
-    ({"name": "x" * 101}, "Name must be 1-100"),
-    ({"password": "short1"}, "8-128"),
-    ({"password": "a" * 129 + "1"}, "8-128"),
-    ({"password": "onlyletters"}, "letter and one digit"),
-    ({"password": "1234567890"}, "letter and one digit"),
-    ({"password": "é" * 40 + "1"}, "72 bytes"),
-    ({"email": "not-an-email"}, "email"),
-])
+
+@pytest.mark.parametrize(
+    "overrides, fragment",
+    [
+        ({"name": "   "}, "Name must be 1-100"),
+        ({"name": "x" * 101}, "Name must be 1-100"),
+        ({"password": "short1"}, "8-128"),
+        ({"password": "a" * 129 + "1"}, "8-128"),
+        ({"password": "onlyletters"}, "letter and one digit"),
+        ({"password": "1234567890"}, "letter and one digit"),
+        ({"password": "é" * 40 + "1"}, "72 bytes"),
+        ({"email": "not-an-email"}, "email"),
+    ],
+)
 def test_registration_validation(client, overrides, fragment):
 
     response = register(client, **overrides)
@@ -81,6 +81,7 @@ def test_login_with_overlong_password_is_422_not_a_crash(client, user):
 # Tokens
 # ---------------------------------------------------------------------------
 
+
 def test_token_claims(user):
 
     claims = jwt.decode(user["token"], settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
@@ -120,7 +121,7 @@ def forge(claims):
 
 def test_token_version_mismatch_is_rejected(client, user):
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     headers = forge({"user_id": user["id"], "tv": 7, "jti": "x", "iat": now, "exp": now + timedelta(minutes=5)})
 
@@ -132,7 +133,7 @@ def test_token_version_mismatch_is_rejected(client, user):
 
 def test_user_is_looked_up_by_user_id_claim(client, user):
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     exp = now + timedelta(minutes=5)
 
     # A token naming the user by email only is not accepted.
@@ -148,18 +149,21 @@ def test_user_is_looked_up_by_user_id_claim(client, user):
 
 def test_expired_and_wrongly_signed_tokens_are_rejected(client, user):
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     expired = forge({"user_id": user["id"], "tv": 0, "iat": now - timedelta(hours=2), "exp": now - timedelta(hours=1)})
     assert client.get("/auth/profile", headers=expired).status_code == 401
 
-    wrong_key = jwt.encode({"user_id": user["id"], "tv": 0, "exp": now + timedelta(minutes=5)}, "another-key-" * 4, algorithm="HS256")
+    wrong_key = jwt.encode(
+        {"user_id": user["id"], "tv": 0, "exp": now + timedelta(minutes=5)}, "another-key-" * 4, algorithm="HS256"
+    )
     assert client.get("/auth/profile", headers={"Authorization": f"Bearer {wrong_key}"}).status_code == 401
 
 
 # ---------------------------------------------------------------------------
 # Rate limiting
 # ---------------------------------------------------------------------------
+
 
 def test_login_is_rate_limited(client, user):
 

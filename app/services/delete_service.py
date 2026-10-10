@@ -12,7 +12,7 @@ def delete_file(user_id, filename):
         file_path = resolve_upload(user_id, filename)
     except UnsafePathError:
         # 404 for anything outside the user's dir: do not reveal what exists.
-        raise AppError(404, "File not found.")
+        raise AppError(404, "File not found.") from None
 
     source_id = local_source_id(str(file_path))
 
@@ -21,7 +21,4 @@ def delete_file(user_id, filename):
     # Vectors in every collection + the ledger row, for this user only.
     index_store.delete_file(user_id, "local", source_id)
 
-    return {
-        "status": "success",
-        "message": "File deleted successfully."
-    }
+    return {"status": "success", "message": "File deleted successfully."}

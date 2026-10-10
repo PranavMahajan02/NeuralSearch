@@ -13,28 +13,22 @@ State machine (every other transition is a bug):
 completed / completed_with_errors / failed / cancelled are final.
 """
 
+from collections.abc import Iterable
 from datetime import timedelta
-from typing import Iterable, List, Optional
 
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.database.models import (
-    ACTIVE_JOB_STATUSES,
-    IndexingJob,
-    IndexingJobError
-)
 from app.core import metrics
 from app.core.clock import utcnow
-
+from app.database.models import ACTIVE_JOB_STATUSES, IndexingJob, IndexingJobError
 
 INTERRUPTED_MESSAGE = "Interrupted by server restart"
 
 
 class ActiveJobExists(Exception):
-
-    def __init__(self, platforms: List[str]):
+    def __init__(self, platforms: list[str]):
 
         super().__init__(", ".join(platforms))
         self.platforms = platforms
@@ -44,14 +38,15 @@ class ActiveJobExists(Exception):
 # Enqueue
 # ----------------------------------------------------------------------
 
-def active_platforms(db: Session, user_id, platforms: Iterable[str]) -> List[str]:
+
+def active_platforms(db: Session, user_id, platforms: Iterable[str]) -> list[str]:
 
     rows = (
         db.query(IndexingJob.platform)
         .filter(
             IndexingJob.user_id == user_id,
             IndexingJob.platform.in_(list(platforms)),
-            IndexingJob.status.in_(ACTIVE_JOB_STATUSES)
+            IndexingJob.status.in_(ACTIVE_JOB_STATUSES),
         )
         .all()
     )
@@ -59,7 +54,7 @@ def active_platforms(db: Session, user_id, platforms: Iterable[str]) -> List[str
     return sorted({row.platform for row in rows})
 
 
-def enqueue_jobs(db: Session, user_id, priority_platform: str, platforms: List[str]) -> List[IndexingJob]:
+def enqueue_jobs(db: Session, user_id, priority_platform: str, platforms: list[str]) -> list[IndexingJob]:
     """Create one NEW queued job per platform, priority platform first.
 
     Raises ActiveJobExists (-> 409) if any platform already has a queued or
@@ -84,7 +79,7 @@ def enqueue_jobs(db: Session, user_id, priority_platform: str, platforms: List[s
             platform=platform,
             status="queued",
             created_at=base + timedelta(microseconds=position),
-            current_file=""
+            current_file="",
         )
         for position, platform in enumerate(ordered)
     ]
@@ -95,7 +90,7 @@ def enqueue_jobs(db: Session, user_id, priority_platform: str, platforms: List[s
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise ActiveJobExists(active_platforms(db, user_id, ordered) or ordered)
+        raise ActiveJobExists(active_platforms(db, user_id, ordered) or ordered) from None
 
     for job in jobs:
         db.refresh(job)
@@ -107,7 +102,8 @@ def enqueue_jobs(db: Session, user_id, priority_platform: str, platforms: List[s
 # Worker side
 # ----------------------------------------------------------------------
 
-def claim_next_job(db: Session) -> Optional[IndexingJob]:
+
+def claim_next_job(db: Session) -> IndexingJob | None:
     """Atomically move the next queued job to running: highest priority
     first ("Index next"), then the oldest.
 
@@ -141,7 +137,7 @@ def claim_next_job(db: Session) -> Optional[IndexingJob]:
     return job
 
 
-def final_status(job: IndexingJob, error_message: Optional[str]) -> str:
+def final_status(job: IndexingJob, error_message: str | None) -> str:
 
     if job.cancel_requested:
         return "cancelled"
@@ -158,7 +154,7 @@ def final_status(job: IndexingJob, error_message: Optional[str]) -> str:
     return "failed"
 
 
-def finalize_job(db: Session, job_id, error_message: Optional[str] = None) -> IndexingJob:
+def finalize_job(db: Session, job_id, error_message: str | None = None) -> IndexingJob:
     """Set the final status from the stored counters. Counters are never
     overwritten here (the old code forced indexed_files = total_files)."""
 
@@ -200,9 +196,9 @@ def recover_interrupted_jobs(db: Session) -> int:
             {
                 IndexingJob.status: "failed",
                 IndexingJob.error_message: INTERRUPTED_MESSAGE,
-                IndexingJob.completed_at: utcnow()
+                IndexingJob.completed_at: utcnow(),
             },
-            synchronize_session=False
+            synchronize_session=False,
         )
     )
 
@@ -215,22 +211,20 @@ def recover_interrupted_jobs(db: Session) -> int:
 # Cancel
 # ----------------------------------------------------------------------
 
+
 def _cancel_queued(db: Session, user_id) -> int:
 
     return (
         db.query(IndexingJob)
-        .filter(
-            IndexingJob.user_id == user_id,
-            IndexingJob.status == "queued"
-        )
+        .filter(IndexingJob.user_id == user_id, IndexingJob.status == "queued")
         .update(
             {
                 IndexingJob.status: "cancelled",
                 IndexingJob.cancel_requested: True,
                 IndexingJob.error_message: "Cancelled by user.",
-                IndexingJob.completed_at: utcnow()
+                IndexingJob.completed_at: utcnow(),
             },
-            synchronize_session=False
+            synchronize_session=False,
         )
     )
 
@@ -239,14 +233,8 @@ def _flag_running(db: Session, user_id) -> int:
 
     return (
         db.query(IndexingJob)
-        .filter(
-            IndexingJob.user_id == user_id,
-            IndexingJob.status == "running"
-        )
-        .update(
-            {IndexingJob.cancel_requested: True},
-            synchronize_session=False
-        )
+        .filter(IndexingJob.user_id == user_id, IndexingJob.status == "running")
+        .update({IndexingJob.cancel_requested: True}, synchronize_session=False)
     )
 
 
@@ -287,13 +275,11 @@ def cancel_user_jobs(db: Session, user_id) -> None:
 # Read side
 # ----------------------------------------------------------------------
 
-def latest_jobs_per_platform(db: Session, user_id) -> List[IndexingJob]:
+
+def latest_jobs_per_platform(db: Session, user_id) -> list[IndexingJob]:
 
     newest = (
-        db.query(
-            IndexingJob.platform,
-            func.max(IndexingJob.created_at).label("created_at")
-        )
+        db.query(IndexingJob.platform, func.max(IndexingJob.created_at).label("created_at"))
         .filter(IndexingJob.user_id == user_id)
         .group_by(IndexingJob.platform)
         .subquery()
@@ -301,11 +287,7 @@ def latest_jobs_per_platform(db: Session, user_id) -> List[IndexingJob]:
 
     return (
         db.query(IndexingJob)
-        .join(
-            newest,
-            (IndexingJob.platform == newest.c.platform)
-            & (IndexingJob.created_at == newest.c.created_at)
-        )
+        .join(newest, (IndexingJob.platform == newest.c.platform) & (IndexingJob.created_at == newest.c.created_at))
         .filter(IndexingJob.user_id == user_id)
         .order_by(IndexingJob.platform)
         .all()
@@ -338,7 +320,7 @@ def prioritize_job(db: Session, job: IndexingJob) -> IndexingJob:
     return locked
 
 
-def recent_jobs(db: Session, user_id, platform: str, limit: int) -> List[IndexingJob]:
+def recent_jobs(db: Session, user_id, platform: str, limit: int) -> list[IndexingJob]:
     """The user's last `limit` jobs on one platform, newest first."""
 
     return (
@@ -350,15 +332,12 @@ def recent_jobs(db: Session, user_id, platform: str, limit: int) -> List[Indexin
     )
 
 
-def indexed_platforms(db: Session, user_id) -> List[str]:
+def indexed_platforms(db: Session, user_id) -> list[str]:
     """Platforms with at least one successful run, whatever is running now."""
 
     rows = (
         db.query(IndexingJob.platform)
-        .filter(
-            IndexingJob.user_id == user_id,
-            IndexingJob.status.in_(("completed", "completed_with_errors"))
-        )
+        .filter(IndexingJob.user_id == user_id, IndexingJob.status.in_(("completed", "completed_with_errors")))
         .distinct()
         .all()
     )
@@ -366,7 +345,7 @@ def indexed_platforms(db: Session, user_id) -> List[str]:
     return sorted(row.platform for row in rows)
 
 
-def get_user_job(db: Session, user_id, job_id) -> Optional[IndexingJob]:
+def get_user_job(db: Session, user_id, job_id) -> IndexingJob | None:
 
     job = db.get(IndexingJob, job_id)
 
@@ -376,7 +355,7 @@ def get_user_job(db: Session, user_id, job_id) -> Optional[IndexingJob]:
     return job
 
 
-def job_errors(db: Session, job_id, limit: int = 200) -> List[IndexingJobError]:
+def job_errors(db: Session, job_id, limit: int = 200) -> list[IndexingJobError]:
 
     return (
         db.query(IndexingJobError)
@@ -413,5 +392,5 @@ def serialize_job(job: IndexingJob) -> dict:
         "started_at": job.started_at,
         "completed_at": job.completed_at,
         "heartbeat_at": job.heartbeat_at,
-        "stage_timings": job.stage_timings
+        "stage_timings": job.stage_timings,
     }

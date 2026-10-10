@@ -1,17 +1,16 @@
 """GitHub OAuth state (SEC-06) and token encryption at rest."""
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 from sqlalchemy import text
 
 import app.platforms.github.oauth as oauth
+from app.core.clock import utcnow
 from app.core.config import settings
 from app.database.models import OAuthState
-from app.core.clock import utcnow
-
 
 FRONTEND = settings.FRONTEND_URL
 
@@ -118,7 +117,10 @@ def test_unknown_state_and_user_uuid_as_state_are_rejected(client, user, fake_gi
     assert redirect_params(callback(client, code="good", state=user["id"]))["reason"] == "invalid_state"
 
     assert fake_github == []
-    assert client.get("/platforms/github/status", headers=user["headers"]).json() == {"connected": False, "account_name": None}
+    assert client.get("/platforms/github/status", headers=user["headers"]).json() == {
+        "connected": False,
+        "account_name": None,
+    }
 
 
 def test_expired_state_is_rejected(client, user, db, fake_github):
@@ -163,6 +165,7 @@ def test_denied_consent_redirects_with_error(client, user):
 # Token encryption
 # ---------------------------------------------------------------------------
 
+
 def test_crypto_round_trip():
 
     from app.core.crypto import decrypt, encrypt, is_encrypted
@@ -183,14 +186,15 @@ def test_platform_tokens_are_ciphertext_in_the_db(user, db):
     from app.database.platform_connection_service import get_platform_connection, save_platform_connection
 
     save_platform_connection(
-        db, user["id"], "github",
-        access_token="plain-access", refresh_token="plain-refresh", token_json='{"k": "v"}'
+        db, user["id"], "github", access_token="plain-access", refresh_token="plain-refresh", token_json='{"k": "v"}'
     )
 
     raw = db.execute(
-        text("SELECT access_token, refresh_token, token_json FROM platform_connections "
-             "WHERE user_id = :u AND platform = 'github'"),
-        {"u": user["id"]}
+        text(
+            "SELECT access_token, refresh_token, token_json FROM platform_connections "
+            "WHERE user_id = :u AND platform = 'github'"
+        ),
+        {"u": user["id"]},
     ).one()
 
     assert all(value.startswith("gAAAAA") for value in raw)
@@ -226,9 +230,11 @@ def test_encrypt_migration_is_idempotent_and_reversible(user, db):
 
     # Simulate a legacy plaintext row written before the migration.
     db.execute(
-        text("INSERT INTO platform_connections (id, user_id, platform, access_token, connected) "
-             "VALUES (:id, :u, 'legacy', 'legacy-plain', true)"),
-        {"id": connection_id, "u": user["id"]}
+        text(
+            "INSERT INTO platform_connections (id, user_id, platform, access_token, connected) "
+            "VALUES (:id, :u, 'legacy', 'legacy-plain', true)"
+        ),
+        {"id": connection_id, "u": user["id"]},
     )
     db.commit()
 
@@ -239,8 +245,7 @@ def test_encrypt_migration_is_idempotent_and_reversible(user, db):
     from alembic.operations import Operations
 
     spec = importlib.util.spec_from_file_location(
-        "m0005",
-        Path(__file__).resolve().parent.parent / "alembic" / "versions" / "0005_encrypt_platform_tokens.py"
+        "m0005", Path(__file__).resolve().parent.parent / "alembic" / "versions" / "0005_encrypt_platform_tokens.py"
     )
     migration = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(migration)
@@ -258,8 +263,92 @@ def test_encrypt_migration_is_idempotent_and_reversible(user, db):
             migration.upgrade()
             first = read()
             migration.upgrade()
-            assert read() == first          # idempotent
+            assert read() == first  # idempotent
             assert is_encrypted(first)
             migration.downgrade()
             assert read() == "legacy-plain"  # reversible
-            migration.upgrade()               # leave every row encrypted again
+            migration.upgrade()  # leave every row encrypted again
+
+
+def test_token_key_rotation_re_encrypts_every_stored_token(user, db):
+    """scripts/rotate_token_key.py: old key -> new key in one transaction, verified."""
+
+    import importlib.util
+    from pathlib import Path
+
+    from cryptography.fernet import Fernet
+
+    from app.core.config import settings
+    from app.database.db import engine
+    from app.database.models import PlatformConnection
+
+    spec = importlib.util.spec_from_file_location(
+        "rotate_token_key", Path(__file__).resolve().parent.parent / "scripts" / "rotate_token_key.py"
+    )
+    rotation = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rotation)
+
+    db.add(
+        PlatformConnection(
+            user_id=user["id"],
+            platform="github",
+            connected=True,
+            access_token="gho_access",
+            refresh_token="refresh-1",
+            token_json='{"token": "x"}',
+        )
+    )
+    db.commit()
+    old_key, new_key = settings.TOKEN_ENCRYPTION_KEY, Fernet.generate_key().decode()
+
+    def raw():
+        return db.execute(
+            text("SELECT access_token, refresh_token, token_json FROM platform_connections WHERE user_id = :u"),
+            {"u": user["id"]},
+        ).one()
+
+    before = raw()
+    assert rotation.rotate(engine, old_key, new_key, dry_run=True)["values"] >= 3
+    db.expire_all()
+    assert raw() == before  # dry run writes nothing
+
+    rotation.rotate(engine, old_key, new_key)
+    db.expire_all()
+    after = raw()
+    new = Fernet(new_key.encode())
+    assert [new.decrypt(v.encode()).decode() for v in after] == ["gho_access", "refresh-1", '{"token": "x"}']
+
+    # Back to the test key so the rest of the session can read its rows.
+    rotation.rotate(engine, new_key, old_key)
+
+
+def test_rotation_with_a_wrong_old_key_changes_nothing(user, db):
+
+    import importlib.util
+    from pathlib import Path
+
+    from cryptography.fernet import Fernet
+
+    from app.database.db import engine
+    from app.database.models import PlatformConnection
+
+    spec = importlib.util.spec_from_file_location(
+        "rotate_token_key", Path(__file__).resolve().parent.parent / "scripts" / "rotate_token_key.py"
+    )
+    rotation = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rotation)
+
+    db.add(PlatformConnection(user_id=user["id"], platform="google_drive", connected=True, access_token="ya29.x"))
+    db.commit()
+    before = db.execute(
+        text("SELECT access_token FROM platform_connections WHERE user_id = :u"), {"u": user["id"]}
+    ).scalar()
+
+    with pytest.raises(SystemExit, match="OLD key"):
+        rotation.rotate(engine, Fernet.generate_key().decode(), Fernet.generate_key().decode())
+
+    db.expire_all()
+    assert (
+        db.execute(text("SELECT access_token FROM platform_connections WHERE user_id = :u"), {"u": user["id"]}).scalar()
+        == before
+    )

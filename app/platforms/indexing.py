@@ -1,11 +1,11 @@
 """Shared per-file loop for platform indexing."""
 
 import os
-from typing import Callable, Iterable, Optional, TypeVar
+from collections.abc import Callable, Iterable
+from typing import TypeVar
 
 from app.config.file_types import AUDIOS, DOCUMENTS, IMAGES, VIDEOS
 from app.platforms.errors import PlatformPreconditionError
-
 
 SUPPORTED_EXTENSIONS = frozenset(ext.lower() for ext in DOCUMENTS + IMAGES + AUDIOS + VIDEOS)
 
@@ -45,19 +45,19 @@ def is_supported(name: str) -> bool:
 TYPE_ORDER = {"document": 0, "image": 1, "audio": 2, "video": 3}
 
 
-def schedule_key(file_type: Optional[str], size: Optional[int], ref: str):
+def schedule_key(file_type: str | None, size: int | None, ref: str):
     """Deterministic order: documents/code -> images -> audio -> video, then by size, then name."""
 
     return (TYPE_ORDER.get(file_type or "", 4), size if size is not None else 0, ref)
 
 
-def process_files(
+def process_files[T](
     ctx,
     items: Iterable[T],
     file_ref: Callable[[T], str],
     handle: Callable[[int, T], None],
-    workers: Optional[int] = None,
-    prefetch: Optional[int] = None
+    workers: int | None = None,
+    prefetch: int | None = None,
 ) -> None:
     """Run `handle` for every item; one failure never stops the others.
 
@@ -104,12 +104,11 @@ def process_files(
 
     window = max(workers, prefetch)
     pending = set()
-    abort: Optional[BaseException] = None
+    abort: BaseException | None = None
     queue = iter(enumerate(items))
     exhausted = False
 
     with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="index-io") as pool:
-
         while True:
             while not exhausted and abort is None and len(pending) < window:
                 if ctx.is_cancelled():
@@ -132,7 +131,7 @@ def process_files(
                 if isinstance(error, PlatformPreconditionError) and abort is None:
                     abort = error
                 elif error is not None and abort is None:
-                    abort = error   # a bug in the loop itself: fail the job, as before
+                    abort = error  # a bug in the loop itself: fail the job, as before
 
     ctx.report_progress(force=True)
 

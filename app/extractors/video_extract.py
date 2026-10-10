@@ -13,7 +13,6 @@ import tempfile
 from app.core.timing import span
 from app.extractors.audio_extract import extract_audio_text
 
-
 logger = logging.getLogger("cogniseek.extractors.video")
 
 
@@ -33,8 +32,9 @@ def extract_video_text(video_path: str) -> str:
             return ""
         return extract_audio_text(video_path)
     except Exception as error:
-        logger.debug("direct audio decode failed for %s (%s); using moviepy",
-                     os.path.basename(video_path), type(error).__name__)
+        logger.debug(
+            "direct audio decode failed for %s (%s); using moviepy", os.path.basename(video_path), type(error).__name__
+        )
         return _via_wav(video_path)
 
 
