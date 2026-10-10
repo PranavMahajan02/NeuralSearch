@@ -6,14 +6,13 @@ from pathlib import Path
 import pytest
 
 from app.database.db import SessionLocal
-from app.database.models import IndexedFile, IndexingJob, IndexingJobError
+from app.database.models import IndexingJob, IndexingJobError
 from app.services import index_store
 from app.services.index_store import FileMeta, IndexPoint, VectorStoreWriteError
 from app.vectorstore.client import get_client
 from app.vectorstore.config import collection_for_type
 from app.vectorstore.query import user_filter
 from tests.conftest import _bag_of_words_vector
-
 
 VECTOR = _bag_of_words_vector("large generated text", 384)
 

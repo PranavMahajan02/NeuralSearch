@@ -1,35 +1,22 @@
 import uuid
 
-from fastapi import APIRouter
-from fastapi import Depends
-from fastapi import HTTPException
-from fastapi import Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
+from app.auth.auth_dependency import get_current_user
+from app.auth.auth_service import login_user, register_user, revoke_user_tokens
 from app.core.config import settings
 from app.core.rate_limit import limiter
 from app.database.db import get_db
-from app.scheduler.jobs import cancel_user_jobs
-
 from app.models.auth_models import (
-    RegisterRequest,
-    LoginRequest,
-    UserResponse,
-    TokenResponse,
     ChangePasswordRequest,
-    CurrentPasswordRequest
+    CurrentPasswordRequest,
+    LoginRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserResponse,
 )
-
-from app.auth.auth_service import (
-    register_user,
-    login_user,
-    revoke_user_tokens
-)
-
-from app.auth.auth_dependency import (
-    get_current_user
-)
-
+from app.scheduler.jobs import cancel_user_jobs
 
 router = APIRouter(
     prefix="/auth",
@@ -60,7 +47,7 @@ def register(
         raise HTTPException(
             status_code=400,
             detail=str(e)
-        )
+        ) from e
 
 
 @router.post(
@@ -85,7 +72,7 @@ def login(
         raise HTTPException(
             status_code=401,
             detail=str(e)
-        )
+        ) from e
 
 
 @router.get(
@@ -238,7 +225,7 @@ def delete_my_account(
         raise HTTPException(
             status_code=409,
             detail="An indexing job is still running. It has been asked to stop - try again in a moment."
-        )
+        ) from None
 
     return {
         "status": "success",

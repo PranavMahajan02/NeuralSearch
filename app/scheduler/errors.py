@@ -1,9 +1,8 @@
 """Turn exceptions into messages that are safe to store and show to the user."""
 
 import re
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
-
 
 MAX_MESSAGE_LENGTH = 500
 
@@ -91,10 +90,7 @@ def sanitize_error(error: BaseException, allowed_roots: Iterable[Path] = (), wit
 
     message = str(error).strip()
 
-    if with_type:
-        text = type(error).__name__ + (f": {message}" if message else "")
-    else:
-        text = message or type(error).__name__
+    text = type(error).__name__ + (f": {message}" if message else "") if with_type else message or type(error).__name__
 
     text = _redact_urls(text)
     text = redact_secrets(text)

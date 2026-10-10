@@ -13,8 +13,8 @@ import shutil
 import threading
 import time
 import traceback
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Dict, Optional
 
 from app.core.config import settings
 from app.core.timing import collecting
@@ -24,7 +24,6 @@ from app.scheduler.context import JobContext
 from app.scheduler.errors import sanitize_error
 from app.scheduler.jobs import claim_next_job, finalize_job
 
-
 logger = logging.getLogger("cogniseek.worker")
 
 POLL_INTERVAL_SECONDS = 5.0
@@ -33,7 +32,7 @@ POLL_INTERVAL_SECONDS = 5.0
 LOOP_ERROR_BACKOFF_SECONDS = 2.0
 
 
-def default_platform_factories() -> Dict[str, Callable[[], object]]:
+def default_platform_factories() -> dict[str, Callable[[], object]]:
 
     # Imported lazily: the platforms pull in the ML stack.
     from app.platforms.github.github_platform import GitHubPlatform
@@ -75,7 +74,7 @@ class IndexingWorker:
 
     def __init__(
         self,
-        platform_factories: Optional[Dict[str, Callable[[], object]]] = None,
+        platform_factories: dict[str, Callable[[], object]] | None = None,
         session_factory=SessionLocal,
         poll_interval: float = POLL_INTERVAL_SECONDS
     ):
@@ -86,7 +85,7 @@ class IndexingWorker:
 
         self._wake = threading.Event()
         self._stop = threading.Event()
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
         self.current_job_id = None
 
@@ -165,7 +164,7 @@ class IndexingWorker:
 
         return True
 
-    def _platforms(self) -> Dict[str, Callable[[], object]]:
+    def _platforms(self) -> dict[str, Callable[[], object]]:
 
         if self._platform_factories is None:
             self._platform_factories = default_platform_factories()
@@ -220,7 +219,7 @@ class IndexingWorker:
 
             self.current_job_id = None
 
-    def _finish(self, context: JobContext, error_message: Optional[str]) -> None:
+    def _finish(self, context: JobContext, error_message: str | None) -> None:
         """Persist the last counters and the final status, whatever happened."""
 
         for attempt in range(3):

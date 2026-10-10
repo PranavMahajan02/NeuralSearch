@@ -4,7 +4,6 @@ Platforms are fakes; the worker runs synchronously via run_once() except in
 the thread test. No model is loaded and the owner's data is never touched.
 """
 
-import threading
 import time
 import uuid
 from datetime import datetime
@@ -12,13 +11,12 @@ from pathlib import Path
 
 import pytest
 
+from app.core.clock import utcnow
 from app.database.models import IndexingJob, IndexingJobError
 from app.platforms.errors import PlatformPreconditionError
 from app.platforms.indexing import process_files
 from app.scheduler import jobs as job_service
 from app.scheduler.worker import IndexingWorker
-from app.core.clock import utcnow
-
 
 # ---------------------------------------------------------------------------
 # Fakes and helpers
@@ -697,7 +695,7 @@ def test_never_indexed_platform_is_not_indexed(client, user):
 
 def test_jobs_history_returns_the_last_n_jobs_per_platform(client, user, make_user):
 
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     from app.database.db import SessionLocal
 

@@ -6,7 +6,6 @@ import pytest
 
 from app.scheduler.errors import sanitize_error
 
-
 # ---------------------------------------------------------------------------
 # The pickle indexes are gone (Phase 3)
 # ---------------------------------------------------------------------------

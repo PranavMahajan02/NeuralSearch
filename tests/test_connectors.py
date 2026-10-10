@@ -6,19 +6,17 @@ No real Google or GitHub API is ever called: GitHub HTTP goes through the
 
 import json
 import re
-import time
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 import responses
 
-from app.database.models import IndexedFile, PlatformConnection
+from app.core.clock import utcnow
+from app.database.models import PlatformConnection
 from app.platforms import http
 from app.services import index_store
 from tests.test_jobs import drain, enqueue, isolated_queue, jobs_of, make_worker  # noqa: F401
-from app.core.clock import utcnow
-
 
 API = "https://api.github.com"
 
@@ -169,7 +167,7 @@ def mock_repo_files(mocked, owner, repo, files, branch="main"):
 
     mocked.add(responses.GET, f"{API}/repos/{owner}/{repo}/git/trees/{branch}?recursive=1", json=gh_tree(files))
 
-    for path, (sha, content) in files.items():
+    for _path, (sha, content) in files.items():
         mocked.add(responses.GET, f"{API}/repos/{owner}/{repo}/git/blobs/{sha}", body=content)
 
 
@@ -696,6 +694,7 @@ def test_drive_client_paginates(user, db):
 def test_drive_export_mapping(user, db, tmp_path, monkeypatch, mime, expected):
 
     import googleapiclient.http as gapi_http
+
     from app.platforms.google_drive.drive_service import DriveClient
 
     class FakeDownloader:
@@ -871,7 +870,7 @@ def test_drive_callback_rejects_bad_states(client, fake_google, params, reason):
 
 def test_drive_callback_expired_state_and_failed_exchange(client, user, fake_google, db):
 
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     from app.database.models import OAuthState
 
@@ -922,7 +921,7 @@ def test_drive_open_uses_stored_web_view_link(client, user):
 # Scanned / image-heavy PDFs (OCR fallback)
 # ---------------------------------------------------------------------------
 
-def make_image_pdf(path: Path, pages: int = 1, text_layer: str = None, image_fraction: float = 1.0):
+def make_image_pdf(path: Path, pages: int = 1, text_layer: str | None = None, image_fraction: float = 1.0):
     """A PDF whose pages are images (optionally with a small text layer)."""
 
     from PIL import Image
@@ -1184,8 +1183,9 @@ def test_callback_without_drive_scope_saves_nothing_and_revokes(client, user, db
 
 def test_token_json_stores_the_granted_scopes(client, user, db, mocked, real_google_client):
 
-    from app.core.crypto import decrypt
     from sqlalchemy import text
+
+    from app.core.crypto import decrypt
 
     state = _connect_state(client, user)
 

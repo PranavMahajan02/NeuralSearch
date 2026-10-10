@@ -8,15 +8,13 @@ as `chunk`, so search can score spoken content.
 import shutil
 import uuid
 from pathlib import Path
-from typing import List
 
 from app.ai.embedder import embed_clip_images, embed_texts
 from app.core.config import settings
+from app.core.timing import span
 from app.search.frame_null import frame_time_s, null_stats
 from app.services.index_store import IndexPoint
 from app.services.indexers.document_indexer import chunk_text
-from app.core.timing import span
-
 
 CHUNK_SIZE = 500
 
@@ -28,7 +26,7 @@ def extract_video_transcript(path: str) -> str:
     return extract_video_text(path) or ""
 
 
-def extract_frames(path: str, output_folder: str) -> List[str]:
+def extract_frames(path: str, output_folder: str) -> list[str]:
 
     from app.extractors.video_frames import extract_frames as extract
 
@@ -36,9 +34,9 @@ def extract_frames(path: str, output_folder: str) -> List[str]:
         return extract(path, output_folder)
 
 
-def build_video_points(path: str, temp_dir=None) -> List[IndexPoint]:
+def build_video_points(path: str, temp_dir=None) -> list[IndexPoint]:
 
-    points: List[IndexPoint] = []
+    points: list[IndexPoint] = []
 
     transcript = extract_video_transcript(path)
 
@@ -47,7 +45,7 @@ def build_video_points(path: str, temp_dir=None) -> List[IndexPoint]:
         vectors = embed_texts(chunks)
         points.extend(
             IndexPoint(type="video", vector=vector, chunk_index=index, chunk=chunk)
-            for index, (chunk, vector) in enumerate(zip(chunks, vectors))
+            for index, (chunk, vector) in enumerate(zip(chunks, vectors, strict=True))
         )
 
     # Private frame folder per call (no shared temp_frames - BUG-18).

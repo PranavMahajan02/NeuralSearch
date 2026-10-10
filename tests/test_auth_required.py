@@ -9,7 +9,6 @@ import re
 import pytest
 from fastapi.routing import APIRoute
 
-
 PUBLIC_ROUTES = {
     ("POST", "/auth/register"),
     ("POST", "/auth/login"),

@@ -13,7 +13,6 @@ import tempfile
 from app.core.timing import span
 from app.extractors.audio_extract import extract_audio_text
 
-
 logger = logging.getLogger("cogniseek.extractors.video")
 
 

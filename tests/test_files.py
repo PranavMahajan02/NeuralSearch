@@ -372,6 +372,7 @@ def test_folder_is_normalized_and_deduplicated(client, user, folder):
 def test_unique_constraint_on_user_folder(db, user, folder):
 
     from sqlalchemy.exc import IntegrityError
+
     from app.database.models import LocalStorageFolder
 
     db.add(LocalStorageFolder(user_id=user["id"], folder_path=str(folder)))

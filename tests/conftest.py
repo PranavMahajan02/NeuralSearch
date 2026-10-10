@@ -26,7 +26,6 @@ from cryptography.fernet import Fernet
 from dotenv import dotenv_values
 from sqlalchemy import create_engine, text
 
-
 ROOT = Path(__file__).resolve().parent.parent
 
 sys.path.insert(0, str(ROOT))
@@ -131,8 +130,9 @@ def _create_test_database():
 
     admin.dispose()
 
-    from alembic import command
     from alembic.config import Config
+
+    from alembic import command
 
     config = Config(str(ROOT / "alembic.ini"))
     config.set_main_option("script_location", str(ROOT / "alembic"))
@@ -290,9 +290,9 @@ def user(make_user):
 # Deterministic fake embeddings (no models)
 # ---------------------------------------------------------------------------
 
-import hashlib
-import math
-import re as _re
+import hashlib  # noqa: E402 - after the env setup above, on purpose
+import math  # noqa: E402
+import re as _re  # noqa: E402
 
 
 def _bag_of_words_vector(text: str, size: int):
@@ -323,7 +323,7 @@ class FakeEmbedder:
 
     def clip_image(self, path):
         # Test images are text files: their content stands in for pixels.
-        with open(path, "r", encoding="utf-8", errors="replace") as f:
+        with open(path, encoding="utf-8", errors="replace") as f:
             return _bag_of_words_vector(f.read(), 512)
 
 
@@ -331,7 +331,6 @@ class FakeEmbedder:
 def fake_embedder(monkeypatch):
 
     import app.ai.embedder as embedder
-
     from app.search import calibration, query_vectors
 
     monkeypatch.setattr(embedder, "backend", FakeEmbedder())

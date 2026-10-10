@@ -2,7 +2,6 @@
 
 from starlette.middleware.base import BaseHTTPMiddleware
 
-
 # The API only returns JSON and file downloads. The interactive docs (dev only)
 # load Swagger UI from a CDN, so they get a slightly wider policy.
 API_CSP = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"

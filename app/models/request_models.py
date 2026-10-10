@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -73,7 +72,7 @@ class FolderRequest(BaseModel):
 class OpenRequest(BaseModel):
 
     platform: str
-    path: Optional[str] = None
-    file_id: Optional[str] = None
+    path: str | None = None
+    file_id: str | None = None
     # Preferred: the result's source_id (local path / Drive id / owner/repo:path).
-    source_id: Optional[str] = None
+    source_id: str | None = None

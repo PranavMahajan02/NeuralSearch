@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from jose import jwt
@@ -120,7 +120,7 @@ def forge(claims):
 
 def test_token_version_mismatch_is_rejected(client, user):
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     headers = forge({"user_id": user["id"], "tv": 7, "jti": "x", "iat": now, "exp": now + timedelta(minutes=5)})
 
@@ -132,7 +132,7 @@ def test_token_version_mismatch_is_rejected(client, user):
 
 def test_user_is_looked_up_by_user_id_claim(client, user):
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     exp = now + timedelta(minutes=5)
 
     # A token naming the user by email only is not accepted.
@@ -148,7 +148,7 @@ def test_user_is_looked_up_by_user_id_claim(client, user):
 
 def test_expired_and_wrongly_signed_tokens_are_rejected(client, user):
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     expired = forge({"user_id": user["id"], "tv": 0, "iat": now - timedelta(hours=2), "exp": now - timedelta(hours=1)})
     assert client.get("/auth/profile", headers=expired).status_code == 401

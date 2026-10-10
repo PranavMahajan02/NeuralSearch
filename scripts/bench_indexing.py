@@ -22,6 +22,7 @@ Writes docs/perf/<label>.json (median over --runs).
 """
 
 import argparse
+import contextlib
 import json
 import os
 import secrets
@@ -32,7 +33,7 @@ import sys
 import threading
 import time
 import urllib.parse
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -77,8 +78,9 @@ def isolate(db_name: str, prefix: str, temp_dir: Path, allowed_root: Path) -> st
         "ALLOWED_LOCAL_ROOTS": str(allowed_root),
     })
 
-    from alembic import command
     from alembic.config import Config
+
+    from alembic import command
 
     config = Config(str(ROOT / "alembic.ini"))
     config.set_main_option("script_location", str(ROOT / "alembic"))
@@ -160,10 +162,8 @@ class Sampler(threading.Thread):
         total = 0
         for dirpath, _, files in os.walk(self.temp_root):
             for name in files:
-                try:
+                with contextlib.suppress(OSError):
                     total += os.path.getsize(os.path.join(dirpath, name))
-                except OSError:
-                    pass
         return total
 
     def run(self):
@@ -410,7 +410,7 @@ def main() -> int:
     from app.vectorstore.schema import ensure_collections
     ensure_collections()
 
-    print(f"warming models ...", flush=True)
+    print("warming models ...", flush=True)
     warm_models()
 
     runs = []
@@ -426,7 +426,7 @@ def main() -> int:
     summary = median_of(runs)
     summary.update({
         "label": args.label,
-        "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "runs": len(runs),
         "run_walls": [r["wall_seconds"] for r in runs],
         "file_count": len(files),

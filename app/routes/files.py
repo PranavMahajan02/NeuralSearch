@@ -1,6 +1,4 @@
-from fastapi import APIRouter
-from fastapi import Depends
-from fastapi import Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -10,7 +8,6 @@ from app.core.ownership import resolve_user_file
 from app.database.db import get_db
 from app.services.index_store import get_source
 from app.services.indexing_pipeline import local_source_id
-
 
 router = APIRouter(
     prefix="/files",

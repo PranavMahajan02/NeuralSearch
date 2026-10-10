@@ -12,13 +12,13 @@ virtualenv exists).
 
 import argparse
 import base64
+import contextlib
 import os
 import re
 import secrets
 import shutil
 import sys
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -95,10 +95,8 @@ def main(argv=None) -> int:
 
     text, filled = fill(env_file.read_text(encoding="utf-8"))
     env_file.write_text(text, encoding="utf-8")
-    try:
+    with contextlib.suppress(OSError):
         os.chmod(env_file, 0o600)
-    except OSError:
-        pass
 
     if filled:
         print("generated: " + ", ".join(filled))

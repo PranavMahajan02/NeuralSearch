@@ -17,7 +17,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from qdrant_client.models import FieldCondition, Filter, MatchValue  # noqa: E402
 
 from app.search.frame_null import frame_time_s, null_stats  # noqa: E402
 from app.vectorstore.client import get_client  # noqa: E402
@@ -39,7 +38,7 @@ def backfill(dry_run: bool) -> int:
         if offset is None:
             break
 
-    for (user_id, platform, source_id), points in videos.items():
+    for (user_id, platform, _source_id), points in videos.items():
         mean, std = null_stats([p.vector for p in points])
         print(f"user {str(user_id)[:8]}... {platform} video: {len(points)} frames, null mean {mean:.4f} std {std:.4f}")
         if dry_run:

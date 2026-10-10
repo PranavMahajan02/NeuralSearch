@@ -1,16 +1,9 @@
-from fastapi import APIRouter
-from fastapi import BackgroundTasks
-from fastapi import Depends
-from fastapi import File
-from fastapi import Request
-from fastapi import UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Request, UploadFile
 
 from app.auth.auth_dependency import get_current_user
 from app.core.config import settings
 from app.core.errors import AppError
-from app.services.upload_service import index_upload_in_background
-from app.services.upload_service import save_uploaded_file
-
+from app.services.upload_service import index_upload_in_background, save_uploaded_file
 
 router = APIRouter(
     prefix="/upload",

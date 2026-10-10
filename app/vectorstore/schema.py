@@ -1,13 +1,11 @@
 """Collections, payload indexes and deterministic point IDs."""
 
 import uuid
-from typing import Optional
 
 from qdrant_client.models import Distance, PayloadSchemaType, VectorParams
 
 from app.vectorstore.client import get_client
 from app.vectorstore.config import COLLECTION_SPECS, INDEXED_PAYLOAD_FIELDS, collection_name
-
 
 # Fixed namespace: the same (user, platform, source, type, chunk) always maps
 # to the same point id, so re-indexing overwrites instead of duplicating.
@@ -20,7 +18,7 @@ def point_id(
     source_id: str,
     point_type: str,
     chunk_index: int,
-    frame_number: Optional[int] = None
+    frame_number: int | None = None
 ) -> str:
 
     key = f"{user_id}|{platform}|{source_id}|{point_type}|{chunk_index}|{'' if frame_number is None else frame_number}"

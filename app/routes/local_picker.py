@@ -1,11 +1,10 @@
-from fastapi import APIRouter
-from fastapi import Depends
+import tkinter as tk
+from tkinter import filedialog
+
+from fastapi import APIRouter, Depends
 
 from app.auth.auth_dependency import get_current_user
 from app.models import response_models as rm
-
-import tkinter as tk
-from tkinter import filedialog
 
 router = APIRouter(
     prefix="/platforms/local",

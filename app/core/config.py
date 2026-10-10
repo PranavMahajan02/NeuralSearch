@@ -4,17 +4,16 @@ import secrets
 import warnings
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import Literal
 
 from cryptography.fernet import Fernet
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 MIN_JWT_SECRET_LENGTH = 32
 
 
-def _split_csv(value: str) -> List[str]:
+def _split_csv(value: str) -> list[str]:
 
     return [
         item.strip()
@@ -43,7 +42,7 @@ class Settings(BaseSettings):
     # Collections are <prefix>_text, _image, _audio, _video, _video_frames.
     QDRANT_COLLECTION_PREFIX: str = "cogniseek_v2"
     # Qdrant API key (QDRANT__SERVICE__API_KEY on the server). Required in production.
-    QDRANT_API_KEY: Optional[str] = None
+    QDRANT_API_KEY: str | None = None
 
     # Redis for shared rate-limit counters. Required in production; empty in
     # development = in-memory counters (per process, reset on restart).
@@ -61,12 +60,12 @@ class Settings(BaseSettings):
     METRICS_ENABLED: bool = True
 
     # Auth
-    JWT_SECRET_KEY: Optional[str] = None
+    JWT_SECRET_KEY: str | None = None
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
     # Fernet key for OAuth tokens stored in the DB.
-    TOKEN_ENCRYPTION_KEY: Optional[str] = None
+    TOKEN_ENCRYPTION_KEY: str | None = None
 
     # Rate limit for /auth/login and /auth/register (slowapi syntax).
     AUTH_RATE_LIMIT: str = "5/minute"
@@ -133,12 +132,12 @@ class Settings(BaseSettings):
     ALLOWED_LOCAL_ROOTS: str = ""
 
     @property
-    def cors_origins_list(self) -> List[str]:
+    def cors_origins_list(self) -> list[str]:
 
         return _split_csv(self.CORS_ORIGINS)
 
     @property
-    def allowed_local_roots_list(self) -> List[str]:
+    def allowed_local_roots_list(self) -> list[str]:
 
         return _split_csv(self.ALLOWED_LOCAL_ROOTS) or [str(Path.home())]
 

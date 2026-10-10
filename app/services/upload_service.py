@@ -1,4 +1,3 @@
-import os
 
 
 from pathlib import Path
@@ -8,7 +7,6 @@ from app.core.config import settings
 from app.core.errors import AppError
 from app.core.ownership import user_upload_dir
 from app.core.paths import UnsafePathError, safe_filename
-
 
 ALLOWED_UPLOAD_EXTENSIONS = frozenset(
     ext.lower() for ext in DOCUMENTS + IMAGES + AUDIOS + VIDEOS
@@ -37,7 +35,7 @@ def save_uploaded_file(file, user_id):
     try:
         filename = safe_filename(file.filename)
     except UnsafePathError:
-        raise AppError(400, "Invalid file name.")
+        raise AppError(400, "Invalid file name.") from None
 
     extension = Path(filename).suffix.lower()
 

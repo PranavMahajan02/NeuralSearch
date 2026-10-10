@@ -2,11 +2,10 @@
 
 from sqlalchemy import func
 
+from app.core.clock import iso
 from app.database.db import SessionLocal
 from app.database.local_storage_service import get_local_folders
 from app.database.models import IndexedFile, PlatformConnection
-from app.core.clock import iso
-
 
 PLATFORMS = ("local", "google_drive", "github")
 
@@ -45,8 +44,8 @@ def get_dashboard_stats(user_id):
 
         folders = [folder.folder_path for folder in get_local_folders(db, user_id)]
 
-    by_type = {file_type: 0 for file_type in TYPES}
-    by_platform = {platform: 0 for platform in PLATFORMS}
+    by_type = dict.fromkeys(TYPES, 0)
+    by_platform = dict.fromkeys(PLATFORMS, 0)
     by_status = {"indexed": 0, "no_content": 0, "failed": 0, "unsupported": 0, "too_large": 0, "excluded": 0}
 
     last_by_platform = {}

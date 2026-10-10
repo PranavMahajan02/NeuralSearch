@@ -3,15 +3,12 @@
 import logging
 import os
 import time
-from pathlib import Path
-from typing import Optional
 
+from app.core.clock import iso
 from app.core.config import settings
 from app.search.normalize import normalize_text, query_terms
 from app.search.ranking import frame_z, possible_visual_matches, score_candidates
 from app.search.retrieval import retrieve
-from app.core.clock import iso
-
 
 logger = logging.getLogger("cogniseek.search")
 

@@ -1,19 +1,18 @@
 import logging
-from typing import Optional
 from urllib.parse import urlencode
 
-from fastapi import APIRouter
-from fastapi import Depends
-from fastapi import Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
+from app.auth.auth_dependency import get_current_user
 from app.core.config import settings
 from app.core.rate_limit import limiter, user_key
 from app.database.db import get_db
-from app.services.index_store import purge_platform
-from app.auth.auth_dependency import get_current_user
-
+from app.database.platform_connection_service import get_platform_connection
+from app.models import response_models as rm
+from app.platforms.github.github_credentials import disconnect_github, save_github_credentials
+from app.platforms.github.github_service import GitHubClient, get_user
 from app.platforms.github.oauth import (
     InvalidOAuthState,
     consume_oauth_state,
@@ -21,18 +20,9 @@ from app.platforms.github.oauth import (
     exchange_code_for_token,
     get_authorization_url,
     is_connected,
-    revoke_grant
+    revoke_grant,
 )
-
-from app.platforms.github.github_credentials import (
-    save_github_credentials,
-    disconnect_github
-)
-
-from app.database.platform_connection_service import get_platform_connection
-from app.platforms.github.github_service import GitHubClient, get_user
-from app.models import response_models as rm
-
+from app.services.index_store import purge_platform
 
 logger = logging.getLogger("cogniseek.github")
 
@@ -94,9 +84,9 @@ def connect_github(
 @limiter.limit(settings.OAUTH_RATE_LIMIT)
 def github_callback(
     request: Request,
-    code: Optional[str] = None,
-    state: Optional[str] = None,
-    error: Optional[str] = None,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
     db: Session = Depends(get_db)
 ):
 

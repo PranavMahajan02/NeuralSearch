@@ -17,13 +17,12 @@ import logging
 import random
 import threading
 import time
-from datetime import datetime, timezone
-from typing import Callable, Optional
+from collections.abc import Callable
+from datetime import UTC, datetime
 
 import requests
 
 from app.platforms.errors import PlatformPreconditionError
-
 
 logger = logging.getLogger("cogniseek.http")
 
@@ -105,7 +104,7 @@ def backoff_delay(attempt: int) -> float:
     return random.uniform(0, min(MAX_DELAY, BASE_DELAY * (2 ** attempt)))
 
 
-def _retry_after_seconds(headers) -> Optional[float]:
+def _retry_after_seconds(headers) -> float | None:
 
     value = (headers or {}).get("Retry-After")
 
@@ -124,7 +123,7 @@ def _retry_after_seconds(headers) -> Optional[float]:
         return None
 
 
-def rate_limit_wait(status: int, headers) -> Optional[float]:
+def rate_limit_wait(status: int, headers) -> float | None:
     """Seconds to wait for a GitHub primary rate limit, or None if not one.
 
     Raises RateLimited when the reset is too far away to wait for."""
@@ -142,7 +141,7 @@ def rate_limit_wait(status: int, headers) -> Optional[float]:
     wait = float(reset) - now()
 
     if wait > MAX_RATE_LIMIT_WAIT:
-        until = datetime.fromtimestamp(float(reset), tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        until = datetime.fromtimestamp(float(reset), tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
         raise RateLimited(f"GitHub API rate limited until {until}. Try again later.")
 
     return max(0.0, wait) + 1.0
@@ -151,7 +150,7 @@ def rate_limit_wait(status: int, headers) -> Optional[float]:
 def request(
     method: str,
     url: str,
-    session: Optional[requests.Session] = None,
+    session: requests.Session | None = None,
     max_tries: int = MAX_TRIES,
     timeout=DEFAULT_TIMEOUT,
     **kwargs
@@ -202,10 +201,10 @@ def request(
 
 def call_with_retry(
     fn: Callable,
-    status_of: Callable[[Exception], Optional[int]],
+    status_of: Callable[[Exception], int | None],
     headers_of: Callable[[Exception], dict] = lambda error: {},
     max_tries: int = MAX_TRIES,
-    on_retry: Optional[Callable[[Exception], None]] = None
+    on_retry: Callable[[Exception], None] | None = None
 ):
     """Retry a client-library call (e.g. googleapiclient .execute()) that
     raises on HTTP errors. Non-retryable errors are re-raised immediately.

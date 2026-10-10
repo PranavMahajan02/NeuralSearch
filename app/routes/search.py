@@ -1,17 +1,13 @@
-from fastapi import APIRouter
-from fastapi import Depends
-from fastapi import Query
-from fastapi import Request
+from fastapi import APIRouter, Depends, Query, Request
 
 from app.auth.auth_dependency import get_current_user
 from app.core.config import settings
 from app.core.errors import AppError
 from app.core.metrics import SEARCH_LATENCY
 from app.core.rate_limit import limiter, user_key
+from app.models import response_models as rm
 from app.models.request_models import SearchRequest
 from app.services.search_service import search, suggestions
-from app.models import response_models as rm
-
 
 router = APIRouter(
     prefix="/search",

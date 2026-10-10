@@ -11,7 +11,6 @@ import logging
 import os
 import threading
 
-
 logger = logging.getLogger("cogniseek.models")
 
 
@@ -188,7 +187,7 @@ def register_cuda_dll_dirs() -> list:
     added = [f for f in folders if os.path.isdir(f)]
     for folder in added:
         os.add_dll_directory(folder)
-    os.environ["PATH"] = os.pathsep.join(added + [os.environ.get("PATH", "")])
+    os.environ["PATH"] = os.pathsep.join([*added, os.environ.get("PATH", "")])
     return added
 
 

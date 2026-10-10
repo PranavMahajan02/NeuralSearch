@@ -1,9 +1,7 @@
-from fastapi import APIRouter
-from fastapi import Depends
+from fastapi import APIRouter, Depends
 
 from app.auth.auth_dependency import get_current_user
 from app.services.delete_service import delete_file
-
 
 router = APIRouter()
 
