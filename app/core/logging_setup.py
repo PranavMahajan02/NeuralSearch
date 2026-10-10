@@ -37,14 +37,12 @@ class RedactingFilter(logging.Filter):
 
 
 class TextFormatter(logging.Formatter):
-
     def formatException(self, ei) -> str:
 
         return redact_secrets(super().formatException(ei))
 
 
 class JsonFormatter(TextFormatter):
-
     def format(self, record: logging.LogRecord) -> str:
 
         entry = {

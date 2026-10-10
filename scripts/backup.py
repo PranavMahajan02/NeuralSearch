@@ -42,6 +42,7 @@ FORMAT = "cogniseek-backup-v1"
 # index and a "last" flag, so chunks cannot be dropped, reordered or truncated.
 # ---------------------------------------------------------------------------
 
+
 def _fernet(key: str):
 
     from cryptography.fernet import Fernet
@@ -113,6 +114,7 @@ def sha256_file(path: Path) -> str:
 # Postgres
 # ---------------------------------------------------------------------------
 
+
 def pg_command(tool: str, database_url: str, pg_container: str, *args: str) -> list:
     """pg_dump/pg_restore/psql, locally or through `docker exec` (the URL then
     refers to the container's own view, e.g. postgresql://user:pw@localhost/db)."""
@@ -143,8 +145,8 @@ def _safe(text: str, *secrets_: str) -> str:
 # Qdrant (HTTP API; stdlib only)
 # ---------------------------------------------------------------------------
 
-class Qdrant:
 
+class Qdrant:
     def __init__(self, url: str, api_key: str = ""):
 
         self.url = url.rstrip("/")
@@ -190,6 +192,7 @@ class Qdrant:
 
 # ---------------------------------------------------------------------------
 
+
 def database_name(database_url: str) -> str:
 
     return urllib.parse.urlparse(database_url).path.lstrip("/")
@@ -197,8 +200,14 @@ def database_name(database_url: str) -> str:
 
 def build_archive(args, workdir: Path) -> dict:
 
-    manifest = {"format": FORMAT, "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
-                "database": database_name(args.database_url), "prefix": args.prefix, "files": {}, "collections": {}}
+    manifest = {
+        "format": FORMAT,
+        "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "database": database_name(args.database_url),
+        "prefix": args.prefix,
+        "files": {},
+        "collections": {},
+    }
 
     started = time.monotonic()
     dump = workdir / "postgres.dump"
@@ -238,12 +247,19 @@ def parse_args(argv=None):
     parser.add_argument("--out-dir", default=env.get("BACKUP_DIR", "backups"))
     parser.add_argument("--database-url", default=default_db, help="default: $BACKUP_DATABASE_URL or $DATABASE_URL")
     parser.add_argument("--pg-container", default="", help="run pg_dump via `docker exec` in this container")
-    parser.add_argument("--qdrant-url",
-                        default=env.get("QDRANT_URL") or f"http://{env.get('QDRANT_HOST', 'localhost')}:{env.get('QDRANT_PORT', '6333')}")
+    parser.add_argument(
+        "--qdrant-url",
+        default=env.get("QDRANT_URL")
+        or f"http://{env.get('QDRANT_HOST', 'localhost')}:{env.get('QDRANT_PORT', '6333')}",
+    )
     parser.add_argument("--qdrant-api-key", default=env.get("QDRANT_API_KEY", ""))
     parser.add_argument("--prefix", default=env.get("QDRANT_COLLECTION_PREFIX", "cogniseek_v2"))
-    parser.add_argument("--keep", type=int, default=int(env.get("BACKUP_KEEP", "14")),
-                        help="keep the newest N archives in --out-dir (0 = keep all)")
+    parser.add_argument(
+        "--keep",
+        type=int,
+        default=int(env.get("BACKUP_KEEP", "14")),
+        help="keep the newest N archives in --out-dir (0 = keep all)",
+    )
     return parser.parse_args(argv)
 
 
@@ -251,7 +267,7 @@ def main(argv=None) -> int:
 
     args = parse_args(argv)
     key = os.environ.get("BACKUP_ENCRYPTION_KEY", "")
-    _fernet(key)   # fail fast, before any work
+    _fernet(key)  # fail fast, before any work
     if not args.database_url:
         raise SystemExit("No database URL (--database-url or DATABASE_URL).")
 
@@ -281,8 +297,10 @@ def main(argv=None) -> int:
     with contextlib.suppress(OSError):
         os.chmod(target, 0o600)
     removed = prune(out_dir, args.keep)
-    print(f"backup written: {target} ({target.stat().st_size / 1e6:.1f} MB, {time.monotonic() - started:.1f}s)"
-          + (f"; pruned {len(removed)} old archive(s)" if removed else ""))
+    print(
+        f"backup written: {target} ({target.stat().st_size / 1e6:.1f} MB, {time.monotonic() - started:.1f}s)"
+        + (f"; pruned {len(removed)} old archive(s)" if removed else "")
+    )
     return 0
 
 

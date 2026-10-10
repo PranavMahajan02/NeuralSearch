@@ -56,17 +56,17 @@ def test_the_archive_is_not_readable_without_the_key(key):
 
 def _chunks(blob: bytes):
 
-    body, chunks = blob[len(backup.MAGIC):], []
+    body, chunks = blob[len(backup.MAGIC) :], []
     while body:
         size = struct.unpack(">I", body[:4])[0]
-        chunks.append(body[:4 + size])
-        body = body[4 + size:]
+        chunks.append(body[: 4 + size])
+        body = body[4 + size :]
     return chunks
 
 
 def test_truncation_reordering_and_tampering_are_detected(key, monkeypatch):
 
-    monkeypatch.setattr(backup, "CHUNK", 4)   # several chunks from a tiny input
+    monkeypatch.setattr(backup, "CHUNK", 4)  # several chunks from a tiny input
     sealed = io.BytesIO()
     backup.encrypt_stream(io.BytesIO(b"abcdefghijkl"), sealed, key)
     chunks = _chunks(sealed.getvalue())
@@ -76,7 +76,7 @@ def test_truncation_reordering_and_tampering_are_detected(key, monkeypatch):
         backup.decrypt_stream(io.BytesIO(blob), io.BytesIO(), key)
 
     with pytest.raises(ValueError, match="truncated"):
-        opens(backup.MAGIC + chunks[0] + chunks[1])          # last chunk dropped
+        opens(backup.MAGIC + chunks[0] + chunks[1])  # last chunk dropped
     with pytest.raises(ValueError, match="out of order"):
         opens(backup.MAGIC + chunks[1] + chunks[0] + chunks[2])
     tampered = bytearray(sealed.getvalue())
@@ -99,8 +99,14 @@ def _archive(tmp_path, key, files, manifest_override=None):
 
     content = tmp_path / "content"
     content.mkdir()
-    manifest = {"format": backup.FORMAT, "created_at": "2026-10-08T00:00:00+00:00", "database": "cogniseek",
-                "prefix": "cogniseek_v2", "files": {}, "collections": {}}
+    manifest = {
+        "format": backup.FORMAT,
+        "created_at": "2026-10-08T00:00:00+00:00",
+        "database": "cogniseek",
+        "prefix": "cogniseek_v2",
+        "files": {},
+        "collections": {},
+    }
     for name, data in files.items():
         (content / name).parent.mkdir(parents=True, exist_ok=True)
         (content / name).write_bytes(data)
@@ -127,8 +133,9 @@ def test_restore_verifies_every_checksum(tmp_path, key):
     assert restore.extract(sealed, out, key)["prefix"] == "cogniseek_v2"
 
     (tmp_path / "b").mkdir()
-    bad = _archive(tmp_path / "b", key, {"postgres.dump": b"PGDMP"},
-                   {"files": {"postgres.dump": {"sha256": "0" * 64, "bytes": 5}}})
+    bad = _archive(
+        tmp_path / "b", key, {"postgres.dump": b"PGDMP"}, {"files": {"postgres.dump": {"sha256": "0" * 64, "bytes": 5}}}
+    )
     out2 = tmp_path / "out2"
     out2.mkdir()
     with pytest.raises(ValueError, match="checksum mismatch"):

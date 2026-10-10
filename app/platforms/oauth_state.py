@@ -18,7 +18,6 @@ OAUTH_STATE_TTL = timedelta(minutes=10)
 
 
 class InvalidOAuthState(Exception):
-
     def __init__(self, code: str):
 
         super().__init__(code)
@@ -36,7 +35,7 @@ def create_oauth_state(db: Session, user_id, platform: str, code_verifier: str |
             platform=platform,
             expires_at=utcnow() + OAUTH_STATE_TTL,
             used=False,
-            code_verifier=code_verifier
+            code_verifier=code_verifier,
         )
     )
 

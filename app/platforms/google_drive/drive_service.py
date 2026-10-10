@@ -37,29 +37,27 @@ GOOGLE_NATIVE_PREFIX = "application/vnd.google-apps."
 
 # Google-native types we can export, and to what.
 EXPORTS = {
-    "application/vnd.google-apps.document":
-        ("application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"),
-    "application/vnd.google-apps.presentation":
-        ("application/vnd.openxmlformats-officedocument.presentationml.presentation", ".pptx"),
-    "application/vnd.google-apps.spreadsheet":
-        ("text/csv", ".csv"),
+    "application/vnd.google-apps.document": (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".docx",
+    ),
+    "application/vnd.google-apps.presentation": (
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        ".pptx",
+    ),
+    "application/vnd.google-apps.spreadsheet": ("text/csv", ".csv"),
 }
 
-LIST_FIELDS = (
-    "nextPageToken, files(id, name, mimeType, modifiedTime, size, md5Checksum, "
-    "webViewLink, shortcutDetails)"
-)
+LIST_FIELDS = "nextPageToken, files(id, name, mimeType, modifiedTime, size, md5Checksum, webViewLink, shortcutDetails)"
 
 
 class GoogleAuthExpired(PlatformPreconditionError):
-
     def __init__(self):
 
         super().__init__("Google authorization expired — reconnect Google Drive.")
 
 
 class GoogleDrivePermissionMissing(PlatformPreconditionError):
-
     def __init__(self):
 
         super().__init__("Google Drive permission missing — reconnect and allow Drive access.")
@@ -175,6 +173,7 @@ class DriveClient:
 
         if service is None:
             from googleapiclient.discovery import build
+
             service = build("drive", "v3", credentials=credentials, cache_discovery=False)
 
         self.service = service
@@ -247,7 +246,10 @@ class DriveClient:
         try:
             result = http.call_with_retry(
                 lambda: request_factory().execute(http=self.thread_http()),
-                http_status, http_headers, on_retry=self.reset_thread_http)
+                http_status,
+                http_headers,
+                on_retry=self.reset_thread_http,
+            )
         except RefreshError as error:
             if is_invalid_grant(error):
                 _mark_disconnected(self.user_id)
@@ -282,13 +284,15 @@ class DriveClient:
         page_token = None
 
         while True:
-            response = self._call(lambda token=page_token: self.service.files().list(
-                q="trashed=false",
-                pageSize=1000,
-                pageToken=token,
-                fields=LIST_FIELDS,
-                supportsAllDrives=False,
-            ))
+            response = self._call(
+                lambda token=page_token: self.service.files().list(
+                    q="trashed=false",
+                    pageSize=1000,
+                    pageToken=token,
+                    fields=LIST_FIELDS,
+                    supportsAllDrives=False,
+                )
+            )
             files.extend(response.get("files", []))
             page_token = response.get("nextPageToken")
             if not page_token:
@@ -320,7 +324,8 @@ class DriveClient:
         while not done:
             try:
                 _status, done = http.call_with_retry(
-                    lambda: downloader.next_chunk(), http_status, http_headers, on_retry=fresh_connection)
+                    lambda: downloader.next_chunk(), http_status, http_headers, on_retry=fresh_connection
+                )
             except Exception as error:
                 self._raise_auth_problem(error)
                 raise
@@ -345,13 +350,13 @@ def revoke_token(token: str) -> bool:
             "https://oauth2.googleapis.com/revoke",
             data={"token": token},
             headers={"Content-Type": "application/x-www-form-urlencoded"},
-            max_tries=2
+            max_tries=2,
         )
     except Exception as error:
         logger.warning("Google token revoke failed: %s", type(error).__name__)
         return False
 
-    if response.status_code not in (200, 400):   # 400 = already invalid
+    if response.status_code not in (200, 400):  # 400 = already invalid
         logger.warning("Google token revoke returned HTTP %s", response.status_code)
         return False
 

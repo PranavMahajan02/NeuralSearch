@@ -19,8 +19,7 @@ def no_indexing(monkeypatch):
     indexed = []
 
     monkeypatch.setattr(
-        upload_route, "index_upload_in_background",
-        lambda user_id, path: indexed.append((user_id, path))
+        upload_route, "index_upload_in_background", lambda user_id, path: indexed.append((user_id, path))
     )
 
     return indexed
@@ -37,9 +36,7 @@ def index_now(user, path):
 def upload(client, user, name="doc.txt", content=b"hello"):
 
     return client.post(
-        "/upload/",
-        files={"file": (name, io.BytesIO(content), "application/octet-stream")},
-        headers=user["headers"]
+        "/upload/", files={"file": (name, io.BytesIO(content), "application/octet-stream")}, headers=user["headers"]
     )
 
 
@@ -51,6 +48,7 @@ def upload_dir(user) -> Path:
 # ---------------------------------------------------------------------------
 # Upload
 # ---------------------------------------------------------------------------
+
 
 def test_upload_stores_in_user_dir_and_queues_indexing(client, user, no_indexing):
 
@@ -72,10 +70,18 @@ def test_duplicate_names_get_numeric_suffix(client, user):
     assert names == ["same.txt", "same (1).txt", "same (2).txt"]
 
 
-@pytest.mark.parametrize("name", [
-    "../evil.txt", "..\\evil.txt", "sub/evil.txt", "sub\\evil.txt",
-    "%2e%2e%2fevil.txt", "C:evil.txt", "..",
-])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "../evil.txt",
+        "..\\evil.txt",
+        "sub/evil.txt",
+        "sub\\evil.txt",
+        "%2e%2e%2fevil.txt",
+        "C:evil.txt",
+        "..",
+    ],
+)
 def test_upload_rejects_path_tricks(client, user, name):
 
     response = upload(client, user, name)
@@ -119,6 +125,7 @@ def test_upload_requires_auth(client):
 # Delete
 # ---------------------------------------------------------------------------
 
+
 def test_delete_own_upload_removes_file_vectors_and_ledger_row(client, user):
 
     from app.services import index_store
@@ -133,11 +140,15 @@ def test_delete_own_upload_removes_file_vectors_and_ledger_row(client, user):
     source_id = local_source_id(str(stored))
 
     def points():
-        return get_client().count(
-            collection_for_type("document"),
-            count_filter=user_filter(user["id"], "local", source_id=source_id),
-            exact=True
-        ).count
+        return (
+            get_client()
+            .count(
+                collection_for_type("document"),
+                count_filter=user_filter(user["id"], "local", source_id=source_id),
+                exact=True,
+            )
+            .count
+        )
 
     assert points() == 1
 
@@ -160,12 +171,15 @@ def test_delete_other_users_file_is_404(client, make_user):
     assert (upload_dir(alice) / "private.txt").exists()
 
 
-@pytest.mark.parametrize("attack", [
-    "..%2F..%2Fsecret.txt",
-    "..%5C..%5Csecret.txt",
-    "%2E%2E%2F%2E%2E%2Fsecret.txt",
-    "C:%5CWindows%5Cwin.ini",
-])
+@pytest.mark.parametrize(
+    "attack",
+    [
+        "..%2F..%2Fsecret.txt",
+        "..%5C..%5Csecret.txt",
+        "%2E%2E%2F%2E%2E%2Fsecret.txt",
+        "C:%5CWindows%5Cwin.ini",
+    ],
+)
 def test_delete_traversal_is_404(client, user, attack):
 
     secret = Path(settings.DATA_DIR) / "secret.txt"
@@ -187,6 +201,7 @@ def test_delete_missing_is_404(client, user):
 # ---------------------------------------------------------------------------
 # /files/local and /open/
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def folder(local_root):
@@ -244,11 +259,11 @@ def test_files_local_outside_users_folders_is_404(client, make_user, folder, loc
     outside.write_text("not registered")
 
     for path in (
-        folder / "report.txt",                     # someone else's folder
-        upload_dir(owner) / "owner.txt",           # someone else's upload
-        outside,                                   # not registered by anyone
-        Path(settings.DATA_DIR) / "uploads",       # a directory
-        folder / ".." / "loose.txt",               # traversal
+        folder / "report.txt",  # someone else's folder
+        upload_dir(owner) / "owner.txt",  # someone else's upload
+        outside,  # not registered by anyone
+        Path(settings.DATA_DIR) / "uploads",  # a directory
+        folder / ".." / "loose.txt",  # traversal
     ):
         response = client.get("/files/local", params={"path": str(path)}, headers=other["headers"])
         assert response.status_code == 404, path
@@ -261,9 +276,7 @@ def test_open_local_returns_download_url(client, user, folder):
     index_now(user, folder / "report.txt")
 
     response = client.post(
-        "/open/",
-        json={"platform": "local", "path": str(folder / "report.txt")},
-        headers=user["headers"]
+        "/open/", json={"platform": "local", "path": str(folder / "report.txt")}, headers=user["headers"]
     )
 
     assert response.status_code == 200
@@ -304,8 +317,15 @@ def test_open_drive_returns_url_for_an_indexed_drive_file(client, make_user):
 
     user, other = make_user(), make_user()
 
-    meta = FileMeta(user_id=user["id"], platform="google_drive", source_id="FILE123",
-                    file_name="notes.docx", display_path="notes.docx", file_type="document", version="t1")
+    meta = FileMeta(
+        user_id=user["id"],
+        platform="google_drive",
+        source_id="FILE123",
+        file_name="notes.docx",
+        display_path="notes.docx",
+        file_type="document",
+        version="t1",
+    )
     index_store.upsert_file(meta, [IndexPoint(type="document", vector=[1.0] + [0.0] * 383, chunk_index=0, chunk="x")])
 
     # Someone else's Drive file id: 404.
@@ -326,6 +346,7 @@ def test_open_drive_returns_url_for_an_indexed_drive_file(client, make_user):
 # ---------------------------------------------------------------------------
 # Local folder registration
 # ---------------------------------------------------------------------------
+
 
 def test_folder_must_exist_be_a_dir_and_be_under_allowed_roots(client, user, local_root, tmp_path):
 
@@ -357,14 +378,14 @@ def test_folder_is_normalized_and_deduplicated(client, user, folder):
     (folder / "sub").mkdir()
 
     first = client.post("/platforms/local/folders", json={"folder": messy}, headers=user["headers"])
-    second = client.post("/platforms/local/folders", json={"folder": str(folder).replace("\\", "/")}, headers=user["headers"])
+    second = client.post(
+        "/platforms/local/folders", json={"folder": str(folder).replace("\\", "/")}, headers=user["headers"]
+    )
 
     assert first.status_code == second.status_code == 200
     assert second.json()["folders"].count(str(folder.resolve())) == 1
 
-    removed = client.request(
-        "DELETE", "/platforms/local/folders", json={"folder": messy}, headers=user["headers"]
-    )
+    removed = client.request("DELETE", "/platforms/local/folders", json={"folder": messy}, headers=user["headers"])
     assert removed.status_code == 200
     assert str(folder.resolve()) not in removed.json()["folders"]
 
@@ -431,8 +452,14 @@ def test_openapi_documents_the_response_models(app):
 
     paths = app.openapi()["paths"]
 
-    for path, method in [("/search/", "post"), ("/search/suggestions", "get"), ("/dashboard/stats", "get"),
-                         ("/dashboard/recent", "get"), ("/index/jobs", "get"), ("/open/", "post"),
-                         ("/platforms/local/folders", "get")]:
+    for path, method in [
+        ("/search/", "post"),
+        ("/search/suggestions", "get"),
+        ("/dashboard/stats", "get"),
+        ("/dashboard/recent", "get"),
+        ("/index/jobs", "get"),
+        ("/open/", "post"),
+        ("/platforms/local/folders", "get"),
+    ]:
         schema = paths[path][method]["responses"]["200"]["content"]["application/json"]["schema"]
         assert schema, (path, method)

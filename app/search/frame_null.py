@@ -21,8 +21,18 @@ import numpy as np
 FRAME_INTERVAL_S = 5
 
 NULL_PROMPTS = (
-    "a bicycle", "a sandwich", "a guitar", "a umbrella", "a clock", "a shoe",
-    "a bridge at night", "a train", "a cup of tea", "a keyboard", "a football", "a tractor in a field",
+    "a bicycle",
+    "a sandwich",
+    "a guitar",
+    "a umbrella",
+    "a clock",
+    "a shoe",
+    "a bridge at night",
+    "a train",
+    "a cup of tea",
+    "a keyboard",
+    "a football",
+    "a tractor in a field",
 )
 
 

@@ -28,7 +28,6 @@ FLUSH_EVERY_N_FILES = 10
 
 
 class JobContext:
-
     def __init__(
         self,
         job_id: uuid.UUID,
@@ -36,7 +35,7 @@ class JobContext:
         platform: str,
         temp_dir: Path,
         session_factory=SessionLocal,
-        clock=time.monotonic
+        clock=time.monotonic,
     ):
 
         self.job_id = job_id
@@ -135,10 +134,7 @@ class JobContext:
     def record_error(self, file_ref: str, error: BaseException) -> None:
 
         logger.warning(
-            "Job %s: failed on %s",
-            self.job_id,
-            file_ref,
-            exc_info=(type(error), error, error.__traceback__)
+            "Job %s: failed on %s", self.job_id, file_ref, exc_info=(type(error), error, error.__traceback__)
         )
 
         with self._lock:
@@ -146,17 +142,12 @@ class JobContext:
                 return
             self.stored_errors += 1
 
-        message = sanitize_error(error, allowed_roots=self.allowed_roots,
-                                 with_type=not getattr(error, "user_facing", False))
+        message = sanitize_error(
+            error, allowed_roots=self.allowed_roots, with_type=not getattr(error, "user_facing", False)
+        )
 
         with self._session_factory() as db:
-            db.add(
-                IndexingJobError(
-                    job_id=self.job_id,
-                    file_ref=str(file_ref)[:1000],
-                    error=message
-                )
-            )
+            db.add(IndexingJobError(job_id=self.job_id, file_ref=str(file_ref)[:1000], error=message))
             db.commit()
 
     # ------------------------------------------------------------------
@@ -167,9 +158,7 @@ class JobContext:
         """Checked by platforms between files (one cheap SELECT)."""
 
         with self._session_factory() as db:
-            requested = db.query(IndexingJob.cancel_requested).filter(
-                IndexingJob.id == self.job_id
-            ).scalar()
+            requested = db.query(IndexingJob.cancel_requested).filter(IndexingJob.id == self.job_id).scalar()
 
         return bool(requested)
 
@@ -179,10 +168,7 @@ class JobContext:
 
     def _maybe_flush(self) -> None:
 
-        if (
-            self._dirty_files >= FLUSH_EVERY_N_FILES
-            or self._clock() - self._last_flush >= FLUSH_INTERVAL_SECONDS
-        ):
+        if self._dirty_files >= FLUSH_EVERY_N_FILES or self._clock() - self._last_flush >= FLUSH_INTERVAL_SECONDS:
             self.flush()
 
     def flush(self) -> None:
@@ -205,9 +191,9 @@ class JobContext:
                     IndexingJob.indexed_files: self.processed_files,
                     IndexingJob.current_file: self.current_file,
                     IndexingJob.heartbeat_at: utcnow(),
-                    IndexingJob.stage_timings: self.timer.snapshot()
+                    IndexingJob.stage_timings: self.timer.snapshot(),
                 },
-                synchronize_session=False
+                synchronize_session=False,
             )
             db.commit()
 

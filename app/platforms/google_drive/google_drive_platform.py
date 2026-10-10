@@ -31,13 +31,12 @@ def local_extension(file: dict) -> str | None:
         return EXPORTS[mime][1]
 
     if mime.startswith(GOOGLE_NATIVE_PREFIX):
-        return None      # forms, sites, maps, drawings, ... can't be exported
+        return None  # forms, sites, maps, drawings, ... can't be exported
 
     return os.path.splitext(file.get("name", ""))[1]
 
 
 class GoogleDrivePlatform(BasePlatform):
-
     def __init__(self, client_factory: Callable[[object], DriveClient] | None = None):
 
         self._client_factory = client_factory or client_for_user
@@ -46,7 +45,7 @@ class GoogleDrivePlatform(BasePlatform):
 
         from app.services.indexing_pipeline import drive_meta
 
-        client = self._client_factory(ctx.user_id)      # one client per job
+        client = self._client_factory(ctx.user_id)  # one client per job
 
         files, complete = client.list_files()
 
@@ -54,7 +53,6 @@ class GoogleDrivePlatform(BasePlatform):
         not_fetchable = 0
 
         for file in files:
-
             extension = local_extension(file)
 
             if extension is None:
@@ -63,12 +61,14 @@ class GoogleDrivePlatform(BasePlatform):
 
             size = file.get("size")
 
-            remote_files.append(RemoteFile(
-                meta=drive_meta(ctx.user_id, file, extension),
-                extension=extension,
-                size=int(size) if size is not None else None,
-                download=self._downloader(client, file)
-            ))
+            remote_files.append(
+                RemoteFile(
+                    meta=drive_meta(ctx.user_id, file, extension),
+                    extension=extension,
+                    size=int(size) if size is not None else None,
+                    download=self._downloader(client, file),
+                )
+            )
 
         ctx.add_skipped(not_fetchable)
 

@@ -25,6 +25,7 @@ API = "https://api.github.com"
 # Shared fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def no_sleep(monkeypatch):
 
@@ -60,6 +61,7 @@ def calls_to(mocked, pattern):
 # ---------------------------------------------------------------------------
 # http helper
 # ---------------------------------------------------------------------------
+
 
 def test_retry_honours_retry_after(mocked, no_sleep):
 
@@ -131,9 +133,17 @@ def test_call_with_retry_for_client_libraries(no_sleep):
 # GitHub
 # ---------------------------------------------------------------------------
 
+
 def gh_repo(name, owner="octo", branch="main", **extra):
 
-    return {"name": name, "owner": {"login": owner}, "default_branch": branch, "fork": False, "archived": False, **extra}
+    return {
+        "name": name,
+        "owner": {"login": owner},
+        "default_branch": branch,
+        "fork": False,
+        "archived": False,
+        **extra,
+    }
 
 
 def gh_tree(files):
@@ -143,8 +153,7 @@ def gh_tree(files):
         "sha": "root",
         "truncated": False,
         "tree": [
-            {"path": path, "type": "blob", "sha": sha, "size": len(content)}
-            for path, (sha, content) in files.items()
+            {"path": path, "type": "blob", "sha": sha, "size": len(content)} for path, (sha, content) in files.items()
         ],
     }
 
@@ -211,12 +220,20 @@ def test_github_second_run_downloads_nothing_and_changed_sha_only_that_file(clie
     assert run_github(client, gh_user)["downloaded_files"] == 2
 
     second = run_github(client, gh_user)
-    assert (second["status"], second["downloaded_files"], second["total_files"], second["skipped_files"]) == ("completed", 0, 0, 2)
-    assert len(calls_to(mocked, r"/git/blobs/")) == 2           # no new blob downloads
+    assert (second["status"], second["downloaded_files"], second["total_files"], second["skipped_files"]) == (
+        "completed",
+        0,
+        0,
+        2,
+    )
+    assert len(calls_to(mocked, r"/git/blobs/")) == 2  # no new blob downloads
 
     # one.py changes on GitHub (new blob sha)
-    mocked.replace(responses.GET, f"{API}/repos/octo/app/git/trees/main?recursive=1",
-                   json=gh_tree({"one.py": ("s1-new", "print('one v2')"), "two.py": ("s2", "print('two')")}))
+    mocked.replace(
+        responses.GET,
+        f"{API}/repos/octo/app/git/trees/main?recursive=1",
+        json=gh_tree({"one.py": ("s1-new", "print('one v2')"), "two.py": ("s2", "print('two')")}),
+    )
     mocked.add(responses.GET, f"{API}/repos/octo/app/git/blobs/s1-new", body="print('one v2')")
 
     third = run_github(client, gh_user)
@@ -234,8 +251,9 @@ def test_github_deleted_path_is_removed_from_qdrant_and_ledger(client, gh_user, 
     run_github(client, gh_user)
     assert count_points(gh_user["id"], "github", "octo/app:gone.py") == 1
 
-    mocked.replace(responses.GET, f"{API}/repos/octo/app/git/trees/main?recursive=1",
-                   json=gh_tree({"keep.py": ("k", "keep me")}))
+    mocked.replace(
+        responses.GET, f"{API}/repos/octo/app/git/trees/main?recursive=1", json=gh_tree({"keep.py": ("k", "keep me")})
+    )
     run_github(client, gh_user)
 
     assert set(ledger(gh_user, "github")) == {"octo/app:keep.py"}
@@ -261,13 +279,26 @@ def test_github_partial_listing_deletes_nothing(client, gh_user, mocked):
 def test_github_truncated_tree_falls_back_to_subtrees(client, gh_user, mocked):
 
     mock_repos(mocked, [[gh_repo("big")]])
-    mocked.add(responses.GET, f"{API}/repos/octo/big/git/trees/main?recursive=1",
-               json={"sha": "root", "truncated": True, "tree": []})
-    mocked.add(responses.GET, f"{API}/repos/octo/big/git/trees/root",
-               json={"tree": [{"path": "top.md", "type": "blob", "sha": "t", "size": 3},
-                              {"path": "src", "type": "tree", "sha": "srcsha"}]})
-    mocked.add(responses.GET, f"{API}/repos/octo/big/git/trees/srcsha",
-               json={"tree": [{"path": "deep.py", "type": "blob", "sha": "d", "size": 4}]})
+    mocked.add(
+        responses.GET,
+        f"{API}/repos/octo/big/git/trees/main?recursive=1",
+        json={"sha": "root", "truncated": True, "tree": []},
+    )
+    mocked.add(
+        responses.GET,
+        f"{API}/repos/octo/big/git/trees/root",
+        json={
+            "tree": [
+                {"path": "top.md", "type": "blob", "sha": "t", "size": 3},
+                {"path": "src", "type": "tree", "sha": "srcsha"},
+            ]
+        },
+    )
+    mocked.add(
+        responses.GET,
+        f"{API}/repos/octo/big/git/trees/srcsha",
+        json={"tree": [{"path": "deep.py", "type": "blob", "sha": "d", "size": 4}]},
+    )
     mocked.add(responses.GET, f"{API}/repos/octo/big/git/blobs/t", body="top")
     mocked.add(responses.GET, f"{API}/repos/octo/big/git/blobs/d", body="deep")
 
@@ -280,8 +311,11 @@ def test_github_truncated_tree_with_failing_walk_is_incomplete(client, gh_user, 
 
     from app.platforms.github.github_service import GitHubClient
 
-    mocked.add(responses.GET, f"{API}/repos/octo/big/git/trees/main?recursive=1",
-               json={"sha": "root", "truncated": True, "tree": [{"path": "x.md", "type": "blob", "sha": "x", "size": 1}]})
+    mocked.add(
+        responses.GET,
+        f"{API}/repos/octo/big/git/trees/main?recursive=1",
+        json={"sha": "root", "truncated": True, "tree": [{"path": "x.md", "type": "blob", "sha": "x", "size": 1}]},
+    )
     mocked.add(responses.GET, f"{API}/repos/octo/big/git/trees/root", status=404)
 
     entries, complete = GitHubClient("tok").tree("octo", "big", "main")
@@ -293,8 +327,12 @@ def test_github_truncated_tree_with_failing_walk_is_incomplete(client, gh_user, 
 def test_github_empty_repository_is_zero_files(client, gh_user, mocked):
 
     mock_repos(mocked, [[gh_repo("empty")]])
-    mocked.add(responses.GET, f"{API}/repos/octo/empty/git/trees/main?recursive=1", status=409,
-               json={"message": "Git Repository is empty."})
+    mocked.add(
+        responses.GET,
+        f"{API}/repos/octo/empty/git/trees/main?recursive=1",
+        status=409,
+        json={"message": "Git Repository is empty."},
+    )
 
     job = run_github(client, gh_user)
 
@@ -308,8 +346,9 @@ def test_github_open_uses_default_branch(client, gh_user, mocked):
 
     run_github(client, gh_user)
 
-    opened = client.post("/open/", json={"platform": "github", "source_id": "octo/app:docs/read me.md"},
-                         headers=gh_user["headers"]).json()
+    opened = client.post(
+        "/open/", json={"platform": "github", "source_id": "octo/app:docs/read me.md"}, headers=gh_user["headers"]
+    ).json()
 
     assert opened == {"type": "url", "url": "https://github.com/octo/app/blob/develop/docs/read%20me.md"}
     assert ledger(gh_user, "github")["octo/app:docs/read me.md"].default_branch == "develop"
@@ -319,8 +358,12 @@ def test_github_rate_limit_short_wait_then_success(client, gh_user, mocked, no_s
 
     monkeypatch.setattr(http, "now", lambda: 1_000_000.0)
 
-    mocked.add(responses.GET, re.compile(re.escape(API) + r"/user/repos.*"), status=403,
-               headers={"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": str(1_000_000 + 30)})
+    mocked.add(
+        responses.GET,
+        re.compile(re.escape(API) + r"/user/repos.*"),
+        status=403,
+        headers={"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": str(1_000_000 + 30)},
+    )
     mocked.add(responses.GET, re.compile(re.escape(API) + r"/user/repos.*"), json=[])
 
     job = run_github(client, gh_user)
@@ -333,8 +376,12 @@ def test_github_rate_limit_long_wait_fails_the_job(client, gh_user, mocked, monk
 
     monkeypatch.setattr(http, "now", lambda: 1_000_000.0)
 
-    mocked.add(responses.GET, re.compile(re.escape(API) + r"/user/repos.*"), status=403,
-               headers={"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": str(1_000_000 + 3600)})
+    mocked.add(
+        responses.GET,
+        re.compile(re.escape(API) + r"/user/repos.*"),
+        status=403,
+        headers={"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": str(1_000_000 + 3600)},
+    )
 
     job = run_github(client, gh_user)
 
@@ -361,22 +408,27 @@ def test_github_skips_vendored_paths_and_lfs_pointers(client, gh_user, mocked):
     lfs = "version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 123456\n"
 
     mock_repos(mocked, [[gh_repo("app")]])
-    mock_repo_files(mocked, "octo", "app", {
-        "src/main.py": ("m", "def main(): pass"),
-        "node_modules/lib/index.js": ("n", "x"),
-        "dist/bundle.js": ("d", "x"),
-        "web/app.min.js": ("min", "x"),
-        "package-lock.json": ("lock", "{}"),
-        "venv/lib/site.py": ("v", "x"),
-        "data/model.txt": ("lfs", lfs),
-    })
+    mock_repo_files(
+        mocked,
+        "octo",
+        "app",
+        {
+            "src/main.py": ("m", "def main(): pass"),
+            "node_modules/lib/index.js": ("n", "x"),
+            "dist/bundle.js": ("d", "x"),
+            "web/app.min.js": ("min", "x"),
+            "package-lock.json": ("lock", "{}"),
+            "venv/lib/site.py": ("v", "x"),
+            "data/model.txt": ("lfs", lfs),
+        },
+    )
 
     run_github(client, gh_user)
 
     rows = ledger(gh_user, "github")
     assert set(rows) == {"octo/app:src/main.py", "octo/app:data/model.txt"}
     assert rows["octo/app:src/main.py"].status == "indexed"
-    assert rows["octo/app:data/model.txt"].status == "unsupported"      # LFS pointer, not content
+    assert rows["octo/app:data/model.txt"].status == "unsupported"  # LFS pointer, not content
     assert not calls_to(mocked, r"/git/blobs/(n|d|min|lock|v)$")
 
 
@@ -411,11 +463,18 @@ def test_github_too_large_and_unsupported_files_are_recorded_not_downloaded(clie
     monkeypatch.setattr(settings, "MAX_DOWNLOAD_MB", 1)
 
     mock_repos(mocked, [[gh_repo("app")]])
-    mocked.add(responses.GET, f"{API}/repos/octo/app/git/trees/main?recursive=1", json={
-        "sha": "root", "truncated": False, "tree": [
-            {"path": "huge.pdf", "type": "blob", "sha": "h", "size": 5 * 1024 * 1024},
-            {"path": "tool.exe", "type": "blob", "sha": "e", "size": 10},
-        ]})
+    mocked.add(
+        responses.GET,
+        f"{API}/repos/octo/app/git/trees/main?recursive=1",
+        json={
+            "sha": "root",
+            "truncated": False,
+            "tree": [
+                {"path": "huge.pdf", "type": "blob", "sha": "h", "size": 5 * 1024 * 1024},
+                {"path": "tool.exe", "type": "blob", "sha": "e", "size": 10},
+            ],
+        },
+    )
 
     job = run_github(client, gh_user)
 
@@ -460,8 +519,8 @@ def test_github_disconnect_still_works_when_revoke_fails(client, gh_user, mocked
 # Google Drive: platform with a fake client
 # ---------------------------------------------------------------------------
 
-class FakeDrive:
 
+class FakeDrive:
     def __init__(self, files, contents=None, complete=True, fail=()):
         self.files = files
         self.contents = contents or {}
@@ -486,9 +545,15 @@ class FakeDrive:
 
 def d(file_id, name, mime="application/pdf", modified="2026-01-01T00:00:00Z", size=100, **extra):
 
-    return {"id": file_id, "name": name, "mimeType": mime, "modifiedTime": modified,
-            "size": str(size) if size is not None else None, "webViewLink": f"https://drive.google.com/file/d/{file_id}/view",
-            **extra}
+    return {
+        "id": file_id,
+        "name": name,
+        "mimeType": mime,
+        "modifiedTime": modified,
+        "size": str(size) if size is not None else None,
+        "webViewLink": f"https://drive.google.com/file/d/{file_id}/view",
+        **extra,
+    }
 
 
 def run_drive(client, user, fake):
@@ -507,17 +572,19 @@ def test_drive_skips_folders_shortcuts_natives_and_too_large(client, user, monke
 
     monkeypatch.setattr(settings, "MAX_DOWNLOAD_MB", 1)
 
-    fake = FakeDrive([
-        d("F", "Folder", "application/vnd.google-apps.folder", size=None),
-        d("S", "Shortcut", "application/vnd.google-apps.shortcut", size=None),
-        d("FORM", "Survey", "application/vnd.google-apps.form", size=None),
-        d("DOC", "Notes", "application/vnd.google-apps.document", size=None),
-        d("SHEET", "Budget", "application/vnd.google-apps.spreadsheet", size=None),
-        d("SLIDES", "Deck", "application/vnd.google-apps.presentation", size=None),
-        d("BIG", "huge.pdf", size=5 * 1024 * 1024),
-        d("ZIP", "archive.zip"),
-        d("TXT", "a/b:c?.txt", "text/plain"),
-    ])
+    fake = FakeDrive(
+        [
+            d("F", "Folder", "application/vnd.google-apps.folder", size=None),
+            d("S", "Shortcut", "application/vnd.google-apps.shortcut", size=None),
+            d("FORM", "Survey", "application/vnd.google-apps.form", size=None),
+            d("DOC", "Notes", "application/vnd.google-apps.document", size=None),
+            d("SHEET", "Budget", "application/vnd.google-apps.spreadsheet", size=None),
+            d("SLIDES", "Deck", "application/vnd.google-apps.presentation", size=None),
+            d("BIG", "huge.pdf", size=5 * 1024 * 1024),
+            d("ZIP", "archive.zip"),
+            d("TXT", "a/b:c?.txt", "text/plain"),
+        ]
+    )
 
     job = run_drive(client, user, fake)
 
@@ -525,7 +592,7 @@ def test_drive_skips_folders_shortcuts_natives_and_too_large(client, user, monke
     assert sorted(fake.downloads) == ["DOC", "SHEET", "SLIDES", "TXT"]
     assert rows["BIG"].status == "too_large" and rows["ZIP"].status == "unsupported"
     assert {rows[k].file_type for k in ("DOC", "SHEET", "SLIDES")} == {"document"}
-    assert job["skipped_files"] == 5        # folder, shortcut, form, too large, zip
+    assert job["skipped_files"] == 5  # folder, shortcut, form, too large, zip
     assert rows["TXT"].web_view_link == "https://drive.google.com/file/d/TXT/view"
     assert fake.saved == 1
 
@@ -566,7 +633,7 @@ def test_drive_deleted_file_is_purged_only_on_complete_listing(client, user):
     fake.files = [d("A", "a.txt", "text/plain")]
     fake.complete = False
     run_drive(client, user, fake)
-    assert set(ledger(user, "google_drive")) == {"A", "B"}       # partial: nothing deleted
+    assert set(ledger(user, "google_drive")) == {"A", "B"}  # partial: nothing deleted
 
     fake.complete = True
     run_drive(client, user, fake)
@@ -575,8 +642,10 @@ def test_drive_deleted_file_is_purged_only_on_complete_listing(client, user):
 
 def test_drive_export_failure_is_a_per_file_error(client, user):
 
-    fake = FakeDrive([d("DOC", "Big doc", "application/vnd.google-apps.document", size=None),
-                      d("OK", "ok.txt", "text/plain")], fail={"DOC"})
+    fake = FakeDrive(
+        [d("DOC", "Big doc", "application/vnd.google-apps.document", size=None), d("OK", "ok.txt", "text/plain")],
+        fail={"DOC"},
+    )
 
     job = run_drive(client, user, fake)
 
@@ -597,8 +666,8 @@ def test_drive_temp_names_are_sanitized_and_unique():
 # Google Drive: DriveClient with fake service objects
 # ---------------------------------------------------------------------------
 
-class FakeRequest:
 
+class FakeRequest:
     def __init__(self, result):
         self.result = result
 
@@ -617,7 +686,6 @@ class FakeMediaRequest:
 
 
 class FakeFilesResource:
-
     def __init__(self, pages):
         self.pages = pages
         self.list_calls = []
@@ -638,7 +706,6 @@ class FakeFilesResource:
 
 
 class FakeService:
-
     def __init__(self, pages=()):
         self.resource = FakeFilesResource(list(pages))
 
@@ -647,7 +714,6 @@ class FakeService:
 
 
 class FakeCredentials:
-
     def __init__(self, token="t1", valid=True, refresh_error=None):
         self.token = token
         self.valid = valid
@@ -670,11 +736,13 @@ def test_drive_client_paginates(user, db):
 
     connect(db, user, "google_drive", token_json="{}")
 
-    service = FakeService([
-        {"files": [{"id": "1"}], "nextPageToken": "p2"},
-        {"files": [{"id": "2"}], "nextPageToken": "p3"},
-        {"files": [{"id": "3"}]},
-    ])
+    service = FakeService(
+        [
+            {"files": [{"id": "1"}], "nextPageToken": "p2"},
+            {"files": [{"id": "2"}], "nextPageToken": "p3"},
+            {"files": [{"id": "3"}]},
+        ]
+    )
 
     files, complete = DriveClient(user["id"], FakeCredentials(), service=service).list_files()
 
@@ -685,12 +753,21 @@ def test_drive_client_paginates(user, db):
     assert "md5Checksum" in calls[0]["fields"] and "webViewLink" in calls[0]["fields"]
 
 
-@pytest.mark.parametrize("mime, expected", [
-    ("application/vnd.google-apps.document", ("export", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")),
-    ("application/vnd.google-apps.presentation", ("export", "application/vnd.openxmlformats-officedocument.presentationml.presentation")),
-    ("application/vnd.google-apps.spreadsheet", ("export", "text/csv")),
-    ("application/pdf", ("media", None)),
-])
+@pytest.mark.parametrize(
+    "mime, expected",
+    [
+        (
+            "application/vnd.google-apps.document",
+            ("export", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+        ),
+        (
+            "application/vnd.google-apps.presentation",
+            ("export", "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
+        ),
+        ("application/vnd.google-apps.spreadsheet", ("export", "text/csv")),
+        ("application/pdf", ("media", None)),
+    ],
+)
 def test_drive_export_mapping(user, db, tmp_path, monkeypatch, mime, expected):
 
     import googleapiclient.http as gapi_http
@@ -728,10 +805,14 @@ def test_drive_refreshed_token_is_persisted_encrypted(user, db):
     connect(db, user, "google_drive", token="t1", token_json=json.dumps({"token": "t1"}))
 
     creds = FakeCredentials(token="t1", valid=False)
-    DriveClient(user["id"], creds, service=FakeService())       # refresh happens on creation
+    DriveClient(user["id"], creds, service=FakeService())  # refresh happens on creation
 
-    raw = db.execute(text("SELECT token_json, access_token FROM platform_connections "
-                          "WHERE user_id = :u AND platform = 'google_drive'"), {"u": user["id"]}).one()
+    raw = db.execute(
+        text(
+            "SELECT token_json, access_token FROM platform_connections WHERE user_id = :u AND platform = 'google_drive'"
+        ),
+        {"u": user["id"]},
+    ).one()
 
     assert raw.token_json.startswith("gAAAAA") and "t2-refreshed" not in raw.token_json
     assert json.loads(decrypt(raw.token_json))["token"] == "t2-refreshed"
@@ -748,8 +829,13 @@ def test_drive_invalid_grant_disconnects_and_fails(client, user, db):
     connect(db, user, "google_drive", token_json="{}")
 
     def factory(user_id):
-        return DriveClient(user_id, FakeCredentials(valid=False, refresh_error=RefreshError("invalid_grant: Token has been expired or revoked.")),
-                           service=FakeService())
+        return DriveClient(
+            user_id,
+            FakeCredentials(
+                valid=False, refresh_error=RefreshError("invalid_grant: Token has been expired or revoked.")
+            ),
+            service=FakeService(),
+        )
 
     with pytest.raises(GoogleAuthExpired):
         factory(user["id"])
@@ -770,6 +856,7 @@ def test_drive_invalid_grant_disconnects_and_fails(client, user, db):
 # Google Drive: web OAuth
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def fake_google(monkeypatch):
 
@@ -788,8 +875,11 @@ def fake_google(monkeypatch):
     class Creds:
         token = "access"
         refresh_token = "refresh"
-        granted_scopes = ["https://www.googleapis.com/auth/drive.readonly", "openid",
-                          "https://www.googleapis.com/auth/userinfo.email"]
+        granted_scopes = [
+            "https://www.googleapis.com/auth/drive.readonly",
+            "openid",
+            "https://www.googleapis.com/auth/userinfo.email",
+        ]
 
         def to_json(self):
             return json.dumps({"token": "access", "refresh_token": "refresh"})
@@ -841,27 +931,35 @@ def test_drive_callback_valid_state_saves_encrypted_credentials(client, user, fa
 
     from sqlalchemy import text
 
-    state = parse_qs(urlparse(client.get("/platforms/google-drive/connect", headers=user["headers"])
-                              .json()["authorization_url"]).query)["state"][0]
+    state = parse_qs(
+        urlparse(
+            client.get("/platforms/google-drive/connect", headers=user["headers"]).json()["authorization_url"]
+        ).query
+    )["state"][0]
 
     assert redirect_params(drive_callback(client, code="good", state=state)) == {"google_drive": "connected"}
-    assert ("exchange", "good", "verifier-123") in fake_google          # PKCE verifier from the DB row
+    assert ("exchange", "good", "verifier-123") in fake_google  # PKCE verifier from the DB row
 
     status = client.get("/platforms/google-drive/status", headers=user["headers"]).json()
     assert status == {"connected": True, "account_email": "owner@example.com"}
 
-    raw = db.execute(text("SELECT token_json FROM platform_connections WHERE user_id = :u AND platform = 'google_drive'"),
-                     {"u": user["id"]}).scalar_one()
+    raw = db.execute(
+        text("SELECT token_json FROM platform_connections WHERE user_id = :u AND platform = 'google_drive'"),
+        {"u": user["id"]},
+    ).scalar_one()
     assert raw.startswith("gAAAAA") and "refresh" not in raw
 
     # Reusing the same state is rejected.
     assert redirect_params(drive_callback(client, code="good", state=state))["reason"] == "state_already_used"
 
 
-@pytest.mark.parametrize("params, reason", [
-    ({"code": "good"}, "missing_state"),
-    ({"code": "good", "state": "nope"}, "invalid_state"),
-])
+@pytest.mark.parametrize(
+    "params, reason",
+    [
+        ({"code": "good"}, "missing_state"),
+        ({"code": "good", "state": "nope"}, "invalid_state"),
+    ],
+)
 def test_drive_callback_rejects_bad_states(client, fake_google, params, reason):
 
     assert redirect_params(drive_callback(client, **params)) == {"google_drive": "error", "reason": reason}
@@ -884,7 +982,9 @@ def test_drive_callback_expired_state_and_failed_exchange(client, user, fake_goo
     assert redirect_params(drive_callback(client, code="good", state=expired))["reason"] == "state_expired"
 
     assert redirect_params(drive_callback(client, code="bad", state=new_state()))["reason"] == "token_exchange_failed"
-    assert redirect_params(drive_callback(client, error="access_denied", state=new_state()))["reason"] == "access_denied"
+    assert (
+        redirect_params(drive_callback(client, error="access_denied", state=new_state()))["reason"] == "access_denied"
+    )
 
 
 def test_drive_disconnect_revokes_and_can_purge(client, user, fake_google, db):
@@ -892,8 +992,15 @@ def test_drive_disconnect_revokes_and_can_purge(client, user, fake_google, db):
     from app.services.index_store import FileMeta, IndexPoint
 
     connect(db, user, "google_drive", token="access", token_json="{}")
-    meta = FileMeta(user_id=user["id"], platform="google_drive", source_id="D1", file_name="a.txt",
-                    display_path="a.txt", file_type="document", version="v")
+    meta = FileMeta(
+        user_id=user["id"],
+        platform="google_drive",
+        source_id="D1",
+        file_name="a.txt",
+        display_path="a.txt",
+        file_type="document",
+        version="v",
+    )
     index_store.upsert_file(meta, [IndexPoint("document", [1.0] + [0.0] * 383, 0, "x")])
 
     body = client.post("/platforms/google-drive/disconnect?purge=true", headers=user["headers"]).json()
@@ -907,12 +1014,21 @@ def test_drive_open_uses_stored_web_view_link(client, user):
 
     from app.services.index_store import FileMeta, IndexPoint
 
-    meta = FileMeta(user_id=user["id"], platform="google_drive", source_id="DOC1", file_name="Notes",
-                    display_path="Notes", file_type="document", version="v",
-                    web_view_link="https://docs.google.com/document/d/DOC1/edit")
+    meta = FileMeta(
+        user_id=user["id"],
+        platform="google_drive",
+        source_id="DOC1",
+        file_name="Notes",
+        display_path="Notes",
+        file_type="document",
+        version="v",
+        web_view_link="https://docs.google.com/document/d/DOC1/edit",
+    )
     index_store.upsert_file(meta, [IndexPoint("document", [1.0] + [0.0] * 383, 0, "x")])
 
-    opened = client.post("/open/", json={"platform": "google_drive", "source_id": "DOC1"}, headers=user["headers"]).json()
+    opened = client.post(
+        "/open/", json={"platform": "google_drive", "source_id": "DOC1"}, headers=user["headers"]
+    ).json()
 
     assert opened == {"type": "url", "url": "https://docs.google.com/document/d/DOC1/edit"}
 
@@ -920,6 +1036,7 @@ def test_drive_open_uses_stored_web_view_link(client, user):
 # ---------------------------------------------------------------------------
 # Scanned / image-heavy PDFs (OCR fallback)
 # ---------------------------------------------------------------------------
+
 
 def make_image_pdf(path: Path, pages: int = 1, text_layer: str | None = None, image_fraction: float = 1.0):
     """A PDF whose pages are images (optionally with a small text layer)."""
@@ -974,8 +1091,9 @@ def test_image_heavy_page_with_text_appends_ocr(tmp_path, fake_ocr):
 
     from app.extractors.pdf_extract import extract_text
 
-    pdf = make_image_pdf(tmp_path / "card.pdf", text_layer="1234 5678 9012 name address date of birth details here",
-                         image_fraction=0.6)
+    pdf = make_image_pdf(
+        tmp_path / "card.pdf", text_layer="1234 5678 9012 name address date of birth details here", image_fraction=0.6
+    )
 
     text = extract_text(str(pdf))
 
@@ -1024,11 +1142,14 @@ def test_ocr_failure_falls_back_to_text_layer(tmp_path, monkeypatch):
     assert "short" in text
 
 
-@pytest.mark.parametrize("text, noisy", [
-    ("The quick brown fox jumps over the lazy dog again", False),
-    ("Xkcd Qwrtp Zxcvb Bnmlk Hjklm Wrtyp Sdfgh Vbnmq", True),
-    ("abc", False),
-])
+@pytest.mark.parametrize(
+    "text, noisy",
+    [
+        ("The quick brown fox jumps over the lazy dog again", False),
+        ("Xkcd Qwrtp Zxcvb Bnmlk Hjklm Wrtyp Sdfgh Vbnmq", True),
+        ("abc", False),
+    ],
+)
 def test_noise_detection(text, noisy):
 
     from app.extractors.pdf_extract import is_noise
@@ -1056,6 +1177,7 @@ def test_scanned_pdf_becomes_searchable_end_to_end(client, user, local_root, fak
 # ("invalid_grant: Missing code verifier" during the owner checklist)
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def real_google_client(tmp_path, monkeypatch):
     """A Web-application client config so the real Flow can be built."""
@@ -1064,13 +1186,19 @@ def real_google_client(tmp_path, monkeypatch):
     from app.core.config import settings
 
     secret = tmp_path / "client_secret.json"
-    secret.write_text(json.dumps({"web": {
-        "client_id": "test-client.apps.googleusercontent.com",
-        "client_secret": "test-secret",
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://oauth2.googleapis.com/token",
-        "redirect_uris": ["http://127.0.0.1:8000/platforms/google-drive/callback"],
-    }}))
+    secret.write_text(
+        json.dumps(
+            {
+                "web": {
+                    "client_id": "test-client.apps.googleusercontent.com",
+                    "client_secret": "test-secret",
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "redirect_uris": ["http://127.0.0.1:8000/platforms/google-drive/callback"],
+                }
+            }
+        )
+    )
 
     monkeypatch.setattr(settings, "GOOGLE_CLIENT_SECRET_PATH", str(secret))
     monkeypatch.setattr(google_oauth, "account_email", lambda creds: "owner@example.com")
@@ -1084,7 +1212,9 @@ def pkce_challenge(verifier: str) -> str:
     return base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
 
 
-def test_real_flow_stores_the_verifier_matching_the_challenge_and_sends_it(client, user, db, mocked, real_google_client):
+def test_real_flow_stores_the_verifier_matching_the_challenge_and_sends_it(
+    client, user, db, mocked, real_google_client
+):
 
     from urllib.parse import parse_qs as qs
 
@@ -1102,14 +1232,21 @@ def test_real_flow_stores_the_verifier_matching_the_challenge_and_sends_it(clien
     assert 43 <= len(row.code_verifier) <= 128
     assert pkce_challenge(row.code_verifier) == challenge
 
-    mocked.add(responses.POST, "https://oauth2.googleapis.com/token", json={
-        "access_token": "ya29.test", "refresh_token": "1//test", "expires_in": 3600,
-        "token_type": "Bearer",
-        "scope": "https://www.googleapis.com/auth/drive.readonly openid https://www.googleapis.com/auth/userinfo.email",
-    })
+    mocked.add(
+        responses.POST,
+        "https://oauth2.googleapis.com/token",
+        json={
+            "access_token": "ya29.test",
+            "refresh_token": "1//test",
+            "expires_in": 3600,
+            "token_type": "Bearer",
+            "scope": "https://www.googleapis.com/auth/drive.readonly openid https://www.googleapis.com/auth/userinfo.email",
+        },
+    )
 
-    response = client.get("/platforms/google-drive/callback", params={"code": "auth-code", "state": state},
-                          follow_redirects=False)
+    response = client.get(
+        "/platforms/google-drive/callback", params={"code": "auth-code", "state": state}, follow_redirects=False
+    )
 
     assert redirect_params(response) == {"google_drive": "connected"}
 
@@ -1138,22 +1275,28 @@ def test_callback_with_a_state_missing_its_verifier_is_invalid_state(client, use
 
     state = create_oauth_state(db, user["id"], "google_drive", code_verifier=None)
 
-    response = client.get("/platforms/google-drive/callback", params={"code": "auth-code", "state": state},
-                          follow_redirects=False)
+    response = client.get(
+        "/platforms/google-drive/callback", params={"code": "auth-code", "state": state}, follow_redirects=False
+    )
 
     assert redirect_params(response) == {"google_drive": "error", "reason": "invalid_state"}
     assert not calls_to(mocked, r"oauth2\.googleapis\.com/token")
-
 
 
 # ---------------------------------------------------------------------------
 # Bug #2: Drive scope not granted (granular consent)
 # ---------------------------------------------------------------------------
 
+
 def _token_response(scope: str):
 
-    return {"access_token": "ya29.test", "refresh_token": "1//test", "expires_in": 3600,
-            "token_type": "Bearer", "scope": scope}
+    return {
+        "access_token": "ya29.test",
+        "refresh_token": "1//test",
+        "expires_in": 3600,
+        "token_type": "Bearer",
+        "scope": scope,
+    }
 
 
 def _connect_state(client, user):
@@ -1168,12 +1311,16 @@ def test_callback_without_drive_scope_saves_nothing_and_revokes(client, user, db
 
     state = _connect_state(client, user)
 
-    mocked.add(responses.POST, "https://oauth2.googleapis.com/token",
-               json=_token_response("openid https://www.googleapis.com/auth/userinfo.email"))
+    mocked.add(
+        responses.POST,
+        "https://oauth2.googleapis.com/token",
+        json=_token_response("openid https://www.googleapis.com/auth/userinfo.email"),
+    )
     mocked.add(responses.POST, "https://oauth2.googleapis.com/revoke", status=200)
 
-    response = client.get("/platforms/google-drive/callback", params={"code": "c", "state": state},
-                          follow_redirects=False)
+    response = client.get(
+        "/platforms/google-drive/callback", params={"code": "c", "state": state}, follow_redirects=False
+    )
 
     assert redirect_params(response) == {"google_drive": "error", "reason": "drive_scope_not_granted"}
     assert calls_to(mocked, r"oauth2\.googleapis\.com/revoke")
@@ -1192,12 +1339,15 @@ def test_token_json_stores_the_granted_scopes(client, user, db, mocked, real_goo
     granted = "https://www.googleapis.com/auth/drive.readonly openid https://www.googleapis.com/auth/userinfo.email"
     mocked.add(responses.POST, "https://oauth2.googleapis.com/token", json=_token_response(granted))
 
-    response = client.get("/platforms/google-drive/callback", params={"code": "c", "state": state},
-                          follow_redirects=False)
+    response = client.get(
+        "/platforms/google-drive/callback", params={"code": "c", "state": state}, follow_redirects=False
+    )
     assert redirect_params(response) == {"google_drive": "connected"}
 
-    raw = db.execute(text("SELECT token_json FROM platform_connections WHERE user_id = :u AND platform = 'google_drive'"),
-                     {"u": user["id"]}).scalar_one()
+    raw = db.execute(
+        text("SELECT token_json FROM platform_connections WHERE user_id = :u AND platform = 'google_drive'"),
+        {"u": user["id"]},
+    ).scalar_one()
 
     assert json.loads(decrypt(raw))["scopes"] == sorted(granted.split())
 
@@ -1219,10 +1369,11 @@ def test_granted_scopes_not_requested_scopes():
 
 
 class _HttpError403(Exception):
-
     def __init__(self, reason):
-        super().__init__(f"<HttpError 403 when requesting https://www.googleapis.com/drive/v3/files?q=trashed%3Dfalse "
-                         f"returned \"{reason}\">")
+        super().__init__(
+            f"<HttpError 403 when requesting https://www.googleapis.com/drive/v3/files?q=trashed%3Dfalse "
+            f'returned "{reason}">'
+        )
         self.resp = type("Resp", (dict,), {"status": 403})({})
         self.content = json.dumps({"error": {"errors": [{"reason": reason}]}}).encode()
 
@@ -1243,8 +1394,7 @@ def test_drive_403_permission_fails_job_and_disconnects(client, user, db, reason
 
     job = jobs_of(client, user)["google_drive"]
     assert job["status"] == "failed"
-    assert job["error_message"] == ("Google Drive permission missing — "
-                                    "reconnect and allow Drive access.")
+    assert job["error_message"] == ("Google Drive permission missing — reconnect and allow Drive access.")
     assert "http" not in job["error_message"] and "?" not in job["error_message"]
 
     db.expire_all()
@@ -1253,8 +1403,12 @@ def test_drive_403_permission_fails_job_and_disconnects(client, user, db, reason
 
 def test_github_token_without_repo_scope_fails_and_disconnects(client, gh_user, mocked, db):
 
-    mocked.add(responses.GET, re.compile(re.escape(API) + r"/user/repos.*"), status=403,
-               headers={"X-OAuth-Scopes": "read:user", "X-RateLimit-Remaining": "4999"})
+    mocked.add(
+        responses.GET,
+        re.compile(re.escape(API) + r"/user/repos.*"),
+        status=403,
+        headers={"X-OAuth-Scopes": "read:user", "X-RateLimit-Remaining": "4999"},
+    )
 
     job = run_github(client, gh_user)
 

@@ -30,7 +30,7 @@ MAX_TRIES = 5
 BASE_DELAY = 1.0
 MAX_DELAY = 30.0
 MAX_RATE_LIMIT_WAIT = 60.0
-DEFAULT_TIMEOUT = (10, 60)      # connect, read (seconds)
+DEFAULT_TIMEOUT = (10, 60)  # connect, read (seconds)
 
 RETRY_STATUSES = {429, 500, 502, 503, 504}
 
@@ -88,10 +88,18 @@ def transient_network_errors() -> tuple:
     import http.client
     import ssl
 
-    types = [requests.ConnectionError, requests.Timeout, ConnectionError, TimeoutError,
-             ssl.SSLError, http.client.IncompleteRead, http.client.HTTPException]
+    types = [
+        requests.ConnectionError,
+        requests.Timeout,
+        ConnectionError,
+        TimeoutError,
+        ssl.SSLError,
+        http.client.IncompleteRead,
+        http.client.HTTPException,
+    ]
     try:
         import httplib2
+
         types.append(httplib2.HttpLib2Error)
     except ImportError:  # pragma: no cover - httplib2 ships with googleapiclient
         pass
@@ -101,7 +109,7 @@ def transient_network_errors() -> tuple:
 def backoff_delay(attempt: int) -> float:
     """Full jitter: uniform(0, min(MAX_DELAY, BASE_DELAY * 2**attempt))."""
 
-    return random.uniform(0, min(MAX_DELAY, BASE_DELAY * (2 ** attempt)))
+    return random.uniform(0, min(MAX_DELAY, BASE_DELAY * (2**attempt)))
 
 
 def _retry_after_seconds(headers) -> float | None:
@@ -118,6 +126,7 @@ def _retry_after_seconds(headers) -> float | None:
 
     try:
         from email.utils import parsedate_to_datetime
+
         return max(0.0, parsedate_to_datetime(value).timestamp() - now())
     except (TypeError, ValueError):
         return None
@@ -153,7 +162,7 @@ def request(
     session: requests.Session | None = None,
     max_tries: int = MAX_TRIES,
     timeout=DEFAULT_TIMEOUT,
-    **kwargs
+    **kwargs,
 ) -> requests.Response:
     """requests.request with retries. Returns the final response (any status);
     raises on connection errors after the last try or on long rate limits."""
@@ -161,7 +170,6 @@ def request(
     http = session or requests
 
     for attempt in range(max_tries):
-
         last = attempt == max_tries - 1
         gate.wait()
 
@@ -171,7 +179,9 @@ def request(
             if last:
                 raise
             delay = backoff_delay(attempt)
-            logger.warning("%s %s failed (%s); retry %d in %.1fs", method, url, type(error).__name__, attempt + 1, delay)
+            logger.warning(
+                "%s %s failed (%s); retry %d in %.1fs", method, url, type(error).__name__, attempt + 1, delay
+            )
             sleep(delay)
             continue
 
@@ -181,7 +191,7 @@ def request(
             if last:
                 return response
             logger.warning("Rate limited on %s; waiting %.0fs for the reset", url, wait)
-            gate.hold(wait)          # every parallel request waits, not just this one
+            gate.hold(wait)  # every parallel request waits, not just this one
             continue
 
         if response.status_code in RETRY_STATUSES and not last:
@@ -189,7 +199,7 @@ def request(
             delay = backoff_delay(attempt) if delay is None else min(delay, MAX_RATE_LIMIT_WAIT)
             logger.warning("%s %s -> %d; retry %d in %.1fs", method, url, response.status_code, attempt + 1, delay)
             if response.status_code == 429:
-                gate.hold(delay)     # account-wide: pause all parallel requests
+                gate.hold(delay)  # account-wide: pause all parallel requests
             else:
                 sleep(delay)
             continue
@@ -204,7 +214,7 @@ def call_with_retry(
     status_of: Callable[[Exception], int | None],
     headers_of: Callable[[Exception], dict] = lambda error: {},
     max_tries: int = MAX_TRIES,
-    on_retry: Callable[[Exception], None] | None = None
+    on_retry: Callable[[Exception], None] | None = None,
 ):
     """Retry a client-library call (e.g. googleapiclient .execute()) that
     raises on HTTP errors. Non-retryable errors are re-raised immediately.
@@ -213,7 +223,6 @@ def call_with_retry(
     replace a connection that a TLS error left in an unknown state."""
 
     for attempt in range(max_tries):
-
         gate.wait()
 
         try:

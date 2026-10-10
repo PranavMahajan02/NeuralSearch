@@ -16,19 +16,22 @@ def _platform_detail(platform, by_platform, last_by_platform):
 
     last = last_by_platform.get(platform)
 
-    return {"indexed_files": by_platform.get(platform, 0),
-            "last_indexed_at": iso(last)}
+    return {"indexed_files": by_platform.get(platform, 0), "last_indexed_at": iso(last)}
 
 
 def get_dashboard_stats(user_id):
 
     with SessionLocal() as db:
-
         # ONE query (one snapshot) for every count and timestamp: separate queries
         # could see a file indexed in between ("0 files, last indexed just now").
         rows = (
-            db.query(IndexedFile.platform, IndexedFile.file_type, IndexedFile.status,
-                     func.count(), func.max(IndexedFile.indexed_at))
+            db.query(
+                IndexedFile.platform,
+                IndexedFile.file_type,
+                IndexedFile.status,
+                func.count(),
+                func.max(IndexedFile.indexed_at),
+            )
             .filter(IndexedFile.user_id == user_id)
             .group_by(IndexedFile.platform, IndexedFile.file_type, IndexedFile.status)
             .all()
@@ -37,8 +40,7 @@ def get_dashboard_stats(user_id):
         connections = {
             row.platform
             for row in db.query(PlatformConnection.platform).filter(
-                PlatformConnection.user_id == user_id,
-                PlatformConnection.connected.is_(True)
+                PlatformConnection.user_id == user_id, PlatformConnection.connected.is_(True)
             )
         }
 
@@ -75,13 +77,20 @@ def get_dashboard_stats(user_id):
         "ready_platforms": sum(1 for count in by_platform.values() if count > 0),
         "supported_platforms": len(PLATFORMS),
         "platforms": {
-            "google_drive": {"connected": "google_drive" in connections,
-                             **_platform_detail("google_drive", by_platform, last_by_platform)},
-            "github": {"connected": "github" in connections,
-                       **_platform_detail("github", by_platform, last_by_platform)},
-            "local": {"connected": len(folders) > 0, "folders": folders,
-                      **_platform_detail("local", by_platform, last_by_platform)}
-        }
+            "google_drive": {
+                "connected": "google_drive" in connections,
+                **_platform_detail("google_drive", by_platform, last_by_platform),
+            },
+            "github": {
+                "connected": "github" in connections,
+                **_platform_detail("github", by_platform, last_by_platform),
+            },
+            "local": {
+                "connected": len(folders) > 0,
+                "folders": folders,
+                **_platform_detail("local", by_platform, last_by_platform),
+            },
+        },
     }
 
 

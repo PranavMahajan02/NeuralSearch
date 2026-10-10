@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class SearchPlatform(str, Enum):
-
     all = "all"
     local = "local"
     google_drive = "google_drive"
@@ -12,7 +11,6 @@ class SearchPlatform(str, Enum):
 
 
 class SearchType(str, Enum):
-
     all = "all"
     document = "document"
     image = "image"
@@ -26,7 +24,6 @@ MAX_QUERY_LENGTH = 500
 
 
 class SearchRequest(BaseModel):
-
     query: str
     platform: SearchPlatform = SearchPlatform.all
     search_type: SearchType = SearchType.all
@@ -65,12 +62,10 @@ class SearchRequest(BaseModel):
 
 
 class FolderRequest(BaseModel):
-
     folder: str
 
 
 class OpenRequest(BaseModel):
-
     platform: str
     path: str | None = None
     file_id: str | None = None

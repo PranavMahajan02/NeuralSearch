@@ -18,7 +18,6 @@ DOCS_PATHS = ("/docs", "/redoc", "/openapi.json")
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-
     async def dispatch(self, request, call_next):
 
         response = await call_next(request)
@@ -27,8 +26,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
         response.headers.setdefault(
-            "Content-Security-Policy",
-            DOCS_CSP if request.url.path.startswith(DOCS_PATHS) else API_CSP
+            "Content-Security-Policy", DOCS_CSP if request.url.path.startswith(DOCS_PATHS) else API_CSP
         )
 
         return response

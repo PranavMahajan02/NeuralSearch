@@ -98,7 +98,7 @@ def account_email(credentials) -> str:
     response = http.request(
         "GET",
         "https://openidconnect.googleapis.com/v1/userinfo",
-        headers={"Authorization": f"Bearer {credentials.token}"}
+        headers={"Authorization": f"Bearer {credentials.token}"},
     )
 
     if response.status_code != 200:

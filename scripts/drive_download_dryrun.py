@@ -98,16 +98,19 @@ def main() -> int:
             finally:
                 target.unlink(missing_ok=True)
 
-        process_files(Ctx(), eligible, lambda item: item[0]["id"], handle,
-                      workers=args.workers, prefetch=max(8, args.workers))
+        process_files(
+            Ctx(), eligible, lambda item: item[0]["id"], handle, workers=args.workers, prefetch=max(8, args.workers)
+        )
         leftover = sum(1 for _ in Path(tmp).iterdir())
 
     client.save_if_refreshed()
 
     print(f"listed {len(files)} (complete={complete}); eligible {len(eligible)}; skipped {dict(skipped)}")
-    print(f"workers {args.workers}: downloaded {stats['ok']}/{len(eligible)}, "
-          f"{stats['bytes'] / 1e6:.1f} MB, errors {sum(errors.values())} {dict(errors)}, "
-          f"temp files left {leftover}, {time.perf_counter() - started:.1f}s")
+    print(
+        f"workers {args.workers}: downloaded {stats['ok']}/{len(eligible)}, "
+        f"{stats['bytes'] / 1e6:.1f} MB, errors {sum(errors.values())} {dict(errors)}, "
+        f"temp files left {leftover}, {time.perf_counter() - started:.1f}s"
+    )
     return 1 if errors else 0
 
 

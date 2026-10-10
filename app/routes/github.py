@@ -27,57 +27,32 @@ from app.services.index_store import purge_platform
 logger = logging.getLogger("cogniseek.github")
 
 
-router = APIRouter(
-    prefix="/platforms/github",
-    tags=["GitHub"]
-)
+router = APIRouter(prefix="/platforms/github", tags=["GitHub"])
 
 
 def _frontend_redirect(**params) -> RedirectResponse:
 
-    return RedirectResponse(
-        f"{settings.FRONTEND_URL}/?{urlencode(params)}",
-        status_code=303
-    )
+    return RedirectResponse(f"{settings.FRONTEND_URL}/?{urlencode(params)}", status_code=303)
 
 
 @router.get("/connect", response_model=rm.ConnectResponse, response_model_exclude_unset=True)
 @limiter.limit(settings.OAUTH_RATE_LIMIT, key_func=user_key)
-def connect_github(
-    request: Request,
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+def connect_github(request: Request, current_user=Depends(get_current_user), db: Session = Depends(get_db)):
 
-    if is_connected(
-        db,
-        current_user["id"]
-    ):
-
-        user = get_user(
-            db,
-            current_user["id"]
-        )
+    if is_connected(db, current_user["id"]):
+        user = get_user(db, current_user["id"])
 
         return {
             "status": "success",
             "connected": True,
             "username": user["login"],
-            "message": "GitHub already connected."
+            "message": "GitHub already connected.",
         }
 
     # Random single-use state bound to this user in the DB (CSRF protection).
-    state = create_oauth_state(
-        db,
-        current_user["id"],
-        "github"
-    )
+    state = create_oauth_state(db, current_user["id"], "github")
 
-    return {
-        "status": "success",
-        "connected": False,
-        "authorization_url": get_authorization_url(state)
-    }
+    return {"status": "success", "connected": False, "authorization_url": get_authorization_url(state)}
 
 
 @router.get("/callback")
@@ -87,7 +62,7 @@ def github_callback(
     code: str | None = None,
     state: str | None = None,
     error: str | None = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
 
     try:
@@ -99,7 +74,6 @@ def github_callback(
         return _frontend_redirect(github="error", reason="access_denied")
 
     try:
-
         token_data = exchange_code_for_token(code)
 
         if "access_token" not in token_data:
@@ -112,15 +86,9 @@ def github_callback(
             logger.warning("Could not read the GitHub login after connecting")
             login = None
 
-        save_github_credentials(
-            db,
-            user_id,
-            token_data,
-            account_name=login
-        )
+        save_github_credentials(db, user_id, token_data, account_name=login)
 
     except Exception:
-
         # Details go to the server log only; nothing is reflected to the browser.
         logger.exception("GitHub OAuth callback failed")
 
@@ -130,26 +98,16 @@ def github_callback(
 
 
 @router.get("/status", response_model=rm.GithubStatus)
-def github_status(
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+def github_status(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
 
     connection = get_platform_connection(db, current_user["id"], "github")
     connected = connection is not None and bool(connection.connected)
 
-    return {
-        "connected": connected,
-        "account_name": connection.account_name if connected else None
-    }
+    return {"connected": connected, "account_name": connection.account_name if connected else None}
 
 
 @router.post("/disconnect", response_model=rm.DisconnectResponse)
-def disconnect(
-    current_user=Depends(get_current_user),
-    purge: bool = False,
-    db: Session = Depends(get_db)
-):
+def disconnect(current_user=Depends(get_current_user), purge: bool = False, db: Session = Depends(get_db)):
 
     connection = get_platform_connection(db, current_user["id"], "github")
     revoked = None
@@ -160,10 +118,7 @@ def disconnect(
         if not revoked:
             logger.warning("GitHub revoke failed for user %s; disconnecting locally anyway", current_user["id"])
 
-    disconnect_github(
-        db,
-        current_user["id"]
-    )
+    disconnect_github(db, current_user["id"])
 
     # ?purge=true also removes every indexed file of this platform (this user only).
     purged = purge_platform(current_user["id"], "github") if purge else 0
@@ -173,5 +128,5 @@ def disconnect(
         "revoked": revoked,
         "purged_files": purged,
         "connected": False,
-        "message": "GitHub disconnected successfully."
+        "message": "GitHub disconnected successfully.",
     }

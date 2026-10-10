@@ -33,15 +33,18 @@ def test_resolves_relative_and_absolute_paths_inside_base(tree):
     assert resolve_safe(base, "sub/../top.txt") == (base / "top.txt").resolve()
 
 
-@pytest.mark.parametrize("attack", [
-    "../outside/secret.txt",
-    "..\\outside\\secret.txt",
-    "sub/../../outside/secret.txt",
-    "..%2foutside%2fsecret.txt",
-    "..%5coutside%5csecret.txt",
-    "%2e%2e%2foutside%2fsecret.txt",
-    "..%252foutside%252fsecret.txt",
-])
+@pytest.mark.parametrize(
+    "attack",
+    [
+        "../outside/secret.txt",
+        "..\\outside\\secret.txt",
+        "sub/../../outside/secret.txt",
+        "..%2foutside%2fsecret.txt",
+        "..%5coutside%5csecret.txt",
+        "%2e%2e%2foutside%2fsecret.txt",
+        "..%252foutside%252fsecret.txt",
+    ],
+)
 def test_traversal_is_rejected(tree, attack):
 
     base, _ = tree
@@ -68,12 +71,15 @@ def test_drive_letter_paths_are_rejected(tree):
             resolve_safe(base, attack)
 
 
-@pytest.mark.parametrize("attack", [
-    "\\\\server\\share\\file.txt",
-    "//server/share/file.txt",
-    "\\\\?\\C:\\Windows\\win.ini",
-    "\\\\127.0.0.1\\c$\\Windows\\win.ini",
-])
+@pytest.mark.parametrize(
+    "attack",
+    [
+        "\\\\server\\share\\file.txt",
+        "//server/share/file.txt",
+        "\\\\?\\C:\\Windows\\win.ini",
+        "\\\\127.0.0.1\\c$\\Windows\\win.ini",
+    ],
+)
 def test_unc_paths_are_rejected(tree, attack):
 
     base, _ = tree
@@ -154,10 +160,24 @@ def test_resolve_in_any(tree):
     assert resolve_in_any([base], "../outside/secret.txt") is None
 
 
-@pytest.mark.parametrize("name", [
-    "../x.pdf", "..\\x.pdf", "a/b.pdf", "a\\b.pdf", "..", ".", "",
-    "C:x.pdf", "con:stream", "%2e%2e%2fx.pdf", "x\x00.pdf", "x?.pdf", "a" * 256,
-])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "../x.pdf",
+        "..\\x.pdf",
+        "a/b.pdf",
+        "a\\b.pdf",
+        "..",
+        ".",
+        "",
+        "C:x.pdf",
+        "con:stream",
+        "%2e%2e%2fx.pdf",
+        "x\x00.pdf",
+        "x?.pdf",
+        "a" * 256,
+    ],
+)
 def test_safe_filename_rejects(name):
 
     with pytest.raises(UnsafePathError):
@@ -179,10 +199,7 @@ def test_junction_escaping_base_is_rejected(tree):
     base, outside = tree
     link = base / "junction"
 
-    result = subprocess.run(
-        ["cmd", "/c", "mklink", "/J", str(link), str(outside)],
-        capture_output=True, text=True
-    )
+    result = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(outside)], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
 
     assert (link / "secret.txt").exists()

@@ -36,9 +36,9 @@ from app.search.normalize import normalize_name, normalize_text, query_terms, to
 # ---- calibration constants (measured; see the Phase 4 report) -------------
 
 # MiniLM margin: negatives peak at ~0.32, relevant documents reach 0.3-0.65.
-TEXT_MARGIN_FLOOR = 0.10        # semantic signal starts here
-TEXT_MARGIN_FULL = 0.60         # ... and saturates here
-TEXT_MARGIN_EVIDENCE = 0.35     # alone enough to return a result
+TEXT_MARGIN_FLOOR = 0.10  # semantic signal starts here
+TEXT_MARGIN_FULL = 0.60  # ... and saturates here
+TEXT_MARGIN_EVIDENCE = 0.35  # alone enough to return a result
 # Code/config files (Phase 6, docs/eval/phase6-code-gate.md): MiniLM separates
 # them poorly. Irrelevant code candidates: p99 0.351, max 0.502 over 33
 # negative queries; the target file of 14 descriptive code queries: 0.18-0.45.
@@ -50,7 +50,7 @@ TEXT_MARGIN_EVIDENCE_CODE = 0.52
 # (Phase 5, docs/eval): relevant images median 0.044, p10 0.012; irrelevant
 # images (n=873) median -0.047, p99 0.021; visual negatives' best <= -0.003.
 # 0.030 keeps 70% of relevant images and passes 0.5% of irrelevant ones.
-IMAGE_MARGIN_EVIDENCE = 0.030   # alone enough to return an image
+IMAGE_MARGIN_EVIDENCE = 0.030  # alone enough to return an image
 IMAGE_MARGIN_FLOOR = 0.0
 IMAGE_MARGIN_FULL = 0.10
 # z-score among the query's images: ordering only (a small share of the signal).
@@ -85,9 +85,9 @@ VIDEO_FRAME_Z_FLOOR = 3.0
 VIDEO_FRAME_Z_FULL = 9.0
 
 # Lexical evidence.
-NAME_EVIDENCE = 0.5             # half of the query terms in the file name
-CONTENT_EVIDENCE = 0.6          # most of the query terms in the content
-TRIGRAM_NAME_FLOOR = 0.6        # pg_trgm similarity counted as a name match
+NAME_EVIDENCE = 0.5  # half of the query terms in the file name
+CONTENT_EVIDENCE = 0.6  # most of the query terms in the content
+TRIGRAM_NAME_FLOOR = 0.6  # pg_trgm similarity counted as a name match
 
 # Noisy-OR weights.
 W_SEMANTIC = 0.80
@@ -100,7 +100,6 @@ SNIPPET_LENGTH = 200
 
 @dataclass
 class Scored:
-
     candidate: object
     score: float
     semantic: float
@@ -114,6 +113,7 @@ class Scored:
 # Lexical matching
 # ----------------------------------------------------------------------
 
+
 def term_match(term: str, word: str) -> float:
     """1.0 exact, 0.9 prefix (format/formatted), 0.85 typo (jva/java), else 0."""
 
@@ -121,7 +121,7 @@ def term_match(term: str, word: str) -> float:
         return 1.0
 
     if term.isdigit() or word.isdigit():
-        return 0.0                      # numbers must match exactly
+        return 0.0  # numbers must match exactly
 
     shorter, longer = sorted((term, word), key=len)
 
@@ -179,6 +179,7 @@ def _scale(value: float | None, floor: float, full: float) -> float:
 # Snippets
 # ----------------------------------------------------------------------
 
+
 def _word_pattern(word: str) -> str:
     """Whole-word match where '_' and '-' count as separators (file names)."""
 
@@ -215,13 +216,10 @@ def make_snippet(text: str, words: Sequence[str]) -> tuple[str, list[list[int]]]
         return "", []
 
     lowered = clean.lower()
-    first = min(
-        (m.start() for w in words for m in [re.search(_word_pattern(w), lowered)] if m),
-        default=0
-    )
+    first = min((m.start() for w in words for m in [re.search(_word_pattern(w), lowered)] if m), default=0)
 
     start = max(0, first - 60)
-    snippet = clean[start:start + SNIPPET_LENGTH]
+    snippet = clean[start : start + SNIPPET_LENGTH]
 
     return snippet, _highlights(snippet, words)
 
@@ -294,7 +292,6 @@ def score_candidates(candidates, query: str) -> list[Scored]:
     results = []
 
     for c in candidates:
-
         # --- semantic -------------------------------------------------------
         semantic_text = _scale(c.text_margin, TEXT_MARGIN_FLOOR, TEXT_MARGIN_FULL)
         text_evidence = text_evidence_threshold(c)
@@ -303,11 +300,11 @@ def score_candidates(candidates, query: str) -> list[Scored]:
         visual = False
 
         if c.file_type == "image":
-            visual_signal = ((1 - IMAGE_Z_SHARE) * _scale(c.clip_margin, IMAGE_MARGIN_FLOOR, IMAGE_MARGIN_FULL)
-                             + IMAGE_Z_SHARE * _scale(zscores.get(c.key), IMAGE_Z_FLOOR, IMAGE_Z_FULL))
+            visual_signal = (1 - IMAGE_Z_SHARE) * _scale(
+                c.clip_margin, IMAGE_MARGIN_FLOOR, IMAGE_MARGIN_FULL
+            ) + IMAGE_Z_SHARE * _scale(zscores.get(c.key), IMAGE_Z_FLOOR, IMAGE_Z_FULL)
             semantic = max(semantic, visual_signal)
-            if (c.clip_margin is not None and c.clip_margin >= IMAGE_MARGIN_EVIDENCE
-                    and not is_document_photo(c)):
+            if c.clip_margin is not None and c.clip_margin >= IMAGE_MARGIN_EVIDENCE and not is_document_photo(c):
                 evidence = visual = True
 
         elif c.file_type == "video":
@@ -349,12 +346,19 @@ def score_candidates(candidates, query: str) -> list[Scored]:
 
         match = _match(c, chunks, name_words, content_words, reasons)
         if visual and c.file_type == "video" and c.frame_time_s is not None:
-            match["frame_time_s"] = c.frame_time_s   # "Looks similar (frame at mm:ss)"
+            match["frame_time_s"] = c.frame_time_s  # "Looks similar (frame at mm:ss)"
 
-        results.append(Scored(
-            candidate=c, score=round(float(score), 4), semantic=semantic, name=name, content=content,
-            reasons=reasons, match=match
-        ))
+        results.append(
+            Scored(
+                candidate=c,
+                score=round(float(score), 4),
+                semantic=semantic,
+                name=name,
+                content=content,
+                reasons=reasons,
+                match=match,
+            )
+        )
 
     results.sort(key=lambda r: r.score, reverse=True)
 
@@ -369,7 +373,6 @@ def possible_visual_matches(candidates, returned_keys, limit: int = POSSIBLE_LIM
     possible = []
 
     for c in candidates:
-
         if c.key in returned_keys:
             continue
 
@@ -388,13 +391,21 @@ def possible_visual_matches(candidates, returned_keys, limit: int = POSSIBLE_LIM
         else:
             continue
 
-        match = {"reasons": ["visual"], "field": "filename", "snippet": c.file,
-                 "highlights": [], "confidence": "low"}
+        match = {"reasons": ["visual"], "field": "filename", "snippet": c.file, "highlights": [], "confidence": "low"}
         if c.file_type == "video" and c.frame_time_s is not None:
             match["frame_time_s"] = c.frame_time_s
 
-        possible.append(Scored(candidate=c, score=round(float(W_SEMANTIC * semantic), 4), semantic=semantic,
-                               name=0.0, content=0.0, reasons=["visual"], match=match))
+        possible.append(
+            Scored(
+                candidate=c,
+                score=round(float(W_SEMANTIC * semantic), 4),
+                semantic=semantic,
+                name=0.0,
+                content=0.0,
+                reasons=["visual"],
+                match=match,
+            )
+        )
 
     possible.sort(key=lambda r: r.score, reverse=True)
 
@@ -407,9 +418,7 @@ def _match(c, chunks, name_words, content_words, reasons) -> dict:
 
     if content_words:
         best_chunk = max(
-            chunks,
-            key=lambda ch: (sum(1 for w in set(content_words) if w in ch.text.lower()), ch.score),
-            default=None
+            chunks, key=lambda ch: (sum(1 for w in set(content_words) if w in ch.text.lower()), ch.score), default=None
         )
     elif chunks:
         best_chunk = chunks[0]

@@ -57,7 +57,7 @@ def process_files[T](
     file_ref: Callable[[T], str],
     handle: Callable[[int, T], None],
     workers: int | None = None,
-    prefetch: int | None = None
+    prefetch: int | None = None,
 ) -> None:
     """Run `handle` for every item; one failure never stops the others.
 
@@ -109,7 +109,6 @@ def process_files[T](
     exhausted = False
 
     with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="index-io") as pool:
-
         while True:
             while not exhausted and abort is None and len(pending) < window:
                 if ctx.is_cancelled():
@@ -132,7 +131,7 @@ def process_files[T](
                 if isinstance(error, PlatformPreconditionError) and abort is None:
                     abort = error
                 elif error is not None and abort is None:
-                    abort = error   # a bug in the loop itself: fail the job, as before
+                    abort = error  # a bug in the loop itself: fail the job, as before
 
     ctx.report_progress(force=True)
 

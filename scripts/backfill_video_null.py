@@ -46,8 +46,11 @@ def backfill(dry_run: bool) -> int:
         for p in points:
             client.set_payload(
                 collection,
-                payload={"null_mean": mean, "null_std": std,
-                         "frame_time_s": frame_time_s((p.payload or {}).get("frame_number"))},
+                payload={
+                    "null_mean": mean,
+                    "null_std": std,
+                    "frame_time_s": frame_time_s((p.payload or {}).get("frame_number")),
+                },
                 points=[p.id],
                 wait=False,
             )
@@ -56,7 +59,6 @@ def backfill(dry_run: bool) -> int:
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
     print(f"{backfill(parser.parse_args().dry_run)} video(s)")

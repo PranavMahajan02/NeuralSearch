@@ -27,10 +27,7 @@ def temp_routes(app):
 
     yield
 
-    app.router.routes[:] = [
-        route for route in app.router.routes
-        if getattr(route, "path", None) not in added
-    ]
+    app.router.routes[:] = [route for route in app.router.routes if getattr(route, "path", None) not in added]
 
 
 def test_unhandled_exception_returns_generic_500(app, temp_routes, caplog):
@@ -83,7 +80,7 @@ def test_cors_allows_only_configured_origins(client):
 
     preflight = {
         "Access-Control-Request-Method": "POST",
-        "Access-Control-Request-Headers": "Authorization, Content-Type"
+        "Access-Control-Request-Headers": "Authorization, Content-Type",
     }
 
     allowed = client.options("/search/", headers={"Origin": "http://localhost:3000", **preflight})
@@ -97,8 +94,11 @@ def test_cors_allows_only_configured_origins(client):
 
     odd_header = client.options(
         "/search/",
-        headers={"Origin": "http://localhost:3000", "Access-Control-Request-Method": "POST",
-                 "Access-Control-Request-Headers": "X-Custom"}
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "X-Custom",
+        },
     )
     assert odd_header.status_code == 400
 
@@ -117,12 +117,17 @@ print(app.openapi_url, app.docs_url, "/platforms/local/pick-folder" in paths)
 def test_production_disables_docs_and_folder_picker():
 
     env = dict(os.environ)
-    env.update({"ENV": "production", "PYTHONPATH": str(ROOT),
-                "QDRANT_API_KEY": "probe-key", "REDIS_URL": "redis://127.0.0.1:1/0"})
+    env.update(
+        {
+            "ENV": "production",
+            "PYTHONPATH": str(ROOT),
+            "QDRANT_API_KEY": "probe-key",
+            "REDIS_URL": "redis://127.0.0.1:1/0",
+        }
+    )
 
     result = subprocess.run(
-        [sys.executable, "-c", PRODUCTION_PROBE],
-        cwd=os.getcwd(), env=env, capture_output=True, text=True, timeout=180
+        [sys.executable, "-c", PRODUCTION_PROBE], cwd=os.getcwd(), env=env, capture_output=True, text=True, timeout=180
     )
 
     assert result.returncode == 0, result.stderr[-2000:]

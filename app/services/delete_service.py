@@ -21,7 +21,4 @@ def delete_file(user_id, filename):
     # Vectors in every collection + the ledger row, for this user only.
     index_store.delete_file(user_id, "local", source_id)
 
-    return {
-        "status": "success",
-        "message": "File deleted successfully."
-    }
+    return {"status": "success", "message": "File deleted successfully."}

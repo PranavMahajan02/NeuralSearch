@@ -1,6 +1,5 @@
 """Audio -> Whisper transcript chunks -> MiniLM vectors (collection: audio)."""
 
-
 from app.ai.embedder import embed_texts
 from app.services.index_store import IndexPoint
 from app.services.indexers.document_indexer import chunk_text

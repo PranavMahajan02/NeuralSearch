@@ -98,8 +98,4 @@ def owns_local_path(bases: list[Path], path: str) -> bool:
 
 def connected_platforms(db: Session, user_id) -> set:
 
-    return {
-        platform
-        for platform in ("google_drive", "github")
-        if is_platform_connected(db, user_id, platform)
-    }
+    return {platform for platform in ("google_drive", "github") if is_platform_connected(db, user_id, platform)}

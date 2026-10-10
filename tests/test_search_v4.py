@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def folder(local_root):
 
@@ -51,8 +52,15 @@ def results(client, user, query, debug=False, **params):
 def add_point(user, platform, source_id, file_name, file_type, point_type, text, display_path=None, chunk_index=0):
 
     size = 384 if point_type in ("document", "audio", "video") else 512
-    meta = FileMeta(user_id=user["id"], platform=platform, source_id=source_id, file_name=file_name,
-                    display_path=display_path or file_name, file_type=file_type, version="v1")
+    meta = FileMeta(
+        user_id=user["id"],
+        platform=platform,
+        source_id=source_id,
+        file_name=file_name,
+        display_path=display_path or file_name,
+        file_type=file_type,
+        version="v1",
+    )
     vector = _bag_of_words_vector(text, size)
     index_store.upsert_file(meta, [IndexPoint(point_type, vector, chunk_index, text)])
 
@@ -61,17 +69,21 @@ def add_point(user, platform, source_id, file_name, file_type, point_type, text,
 # Validation (BUG-22)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("body, fragment", [
-    ({"query": ""}, "empty"),
-    ({"query": "   \t "}, "empty"),
-    ({"query": "x" * 501}, "500"),
-    ({"query": "java", "platform": "dropbox"}, "platform"),
-    ({"query": "java", "search_type": "spreadsheet"}, "search_type"),
-    ({"query": "java", "limit": 0}, "limit"),
-    ({"query": "java", "limit": 51}, "limit"),
-    ({"query": "java", "offset": -1}, "offset"),
-    ({}, "query"),
-])
+
+@pytest.mark.parametrize(
+    "body, fragment",
+    [
+        ({"query": ""}, "empty"),
+        ({"query": "   \t "}, "empty"),
+        ({"query": "x" * 501}, "500"),
+        ({"query": "java", "platform": "dropbox"}, "platform"),
+        ({"query": "java", "search_type": "spreadsheet"}, "search_type"),
+        ({"query": "java", "limit": 0}, "limit"),
+        ({"query": "java", "limit": 51}, "limit"),
+        ({"query": "java", "offset": -1}, "offset"),
+        ({}, "query"),
+    ],
+)
 def test_invalid_requests_are_422(client, user, body, fragment):
 
     response = post(client, user, body)
@@ -106,12 +118,13 @@ def test_max_length_query_is_accepted(client, user):
 # Normalization
 # ---------------------------------------------------------------------------
 
+
 def test_normalize_text():
 
     from app.search.normalize import normalize_name, normalize_text, query_terms
 
     assert normalize_text("  JAVA!!!@#$% ") == "java"
-    assert normalize_text("Ｊａｖａ   Notes") == "java notes"          # NFKC + whitespace
+    assert normalize_text("Ｊａｖａ   Notes") == "java notes"  # NFKC + whitespace
     assert normalize_name("Hospital_Management-System (2).pptx") == "hospital management system 2"
     assert query_terms("how should a project report be formatted") == ["project", "report", "formatted"]
     assert query_terms("the") == ["the"]
@@ -129,14 +142,17 @@ def test_punctuated_and_upper_case_queries_match_like_plain(client, user, folder
     assert len(plain) == 1
 
 
-@pytest.mark.parametrize("term, word, expected", [
-    ("java", "java", 1.0),
-    ("jva", "java", 0.85),            # typo
-    ("format", "formatted", 0.9),     # prefix
-    ("2024", "2025", 0.0),            # numbers must match exactly
-    ("cat", "cart", 0.85),
-    ("tax", "taxes", 0.0),
-])
+@pytest.mark.parametrize(
+    "term, word, expected",
+    [
+        ("java", "java", 1.0),
+        ("jva", "java", 0.85),  # typo
+        ("format", "formatted", 0.9),  # prefix
+        ("2024", "2025", 0.0),  # numbers must match exactly
+        ("cat", "cart", 0.85),
+        ("tax", "taxes", 0.0),
+    ],
+)
 def test_term_match(term, word, expected):
 
     from app.search.ranking import term_match
@@ -147,6 +163,7 @@ def test_term_match(term, word, expected):
 # ---------------------------------------------------------------------------
 # Hybrid retrieval: file-name rescue (BUG-21)
 # ---------------------------------------------------------------------------
+
 
 def test_exact_file_name_is_found_even_when_its_chunks_rank_low(client, user, folder, monkeypatch):
 
@@ -184,6 +201,7 @@ def test_file_name_lookup_is_scoped_to_the_user(client, make_user, folder):
 # ---------------------------------------------------------------------------
 # Global ranking, merge, pagination, dedupe
 # ---------------------------------------------------------------------------
+
 
 def test_modalities_are_merged_into_one_sorted_page(client, user):
 
@@ -232,15 +250,35 @@ def test_negative_query_returns_nothing(client, user):
 # Response shape
 # ---------------------------------------------------------------------------
 
+
 def test_result_shape_match_object_and_no_debug_fields(client, user):
 
-    add_point(user, "google_drive", "D1", "volcano report.docx", "document", "document",
-              "The volcano eruption in 2024 covered the village in ash for three days.")
+    add_point(
+        user,
+        "google_drive",
+        "D1",
+        "volcano report.docx",
+        "document",
+        "document",
+        "The volcano eruption in 2024 covered the village in ash for three days.",
+    )
 
     result = results(client, user, "volcano eruption")["results"][0]
 
-    assert set(result) == {"platform", "source_id", "type", "file", "display_path", "path", "score", "match",
-                           "file_size", "modified_at", "mime_type", "extension"}
+    assert set(result) == {
+        "platform",
+        "source_id",
+        "type",
+        "file",
+        "display_path",
+        "path",
+        "score",
+        "match",
+        "file_size",
+        "modified_at",
+        "mime_type",
+        "extension",
+    }
     # Not indexed through a connector here: metadata is unknown (null), the extension is derived.
     assert (result["file_size"], result["modified_at"], result["extension"]) == (None, None, "docx")
     match = result["match"]
@@ -258,6 +296,7 @@ def test_debug_fields_only_on_request_and_never_in_production(client, user, monk
     assert "debug" in results(client, user, "volcano", debug=True)["results"][0]
 
     from app.core.config import settings
+
     monkeypatch.setattr(settings, "ENV", "production")
 
     response = post(client, user, {"query": "volcano"}, debug=True)
@@ -270,7 +309,16 @@ def test_temporary_paths_are_never_returned(client, user):
 
     temp_path = os.path.join(settings.TEMP_DIR, "jobs", "abc", "000001", "volcano.docx")
     add_point(user, "google_drive", "D1", "volcano.docx", "document", "document", "volcano", display_path=temp_path)
-    add_point(user, "google_drive", "D2", "volcano 2.docx", "document", "document", "volcano", display_path="temp\\volcano 2.docx")
+    add_point(
+        user,
+        "google_drive",
+        "D2",
+        "volcano 2.docx",
+        "document",
+        "document",
+        "volcano",
+        display_path="temp\\volcano 2.docx",
+    )
 
     for result in results(client, user, "volcano")["results"]:
         assert not result["path"].lower().startswith(os.path.abspath(settings.TEMP_DIR).lower())
@@ -280,13 +328,33 @@ def test_temporary_paths_are_never_returned(client, user):
 
 def test_github_results_carry_owner_and_repo(client, user):
 
-    add_point(user, "github", "octo/app:src/volcano.py", "volcano.py", "document", "document", "def volcano(): pass",
-              display_path="octo/app/src/volcano.py")
+    add_point(
+        user,
+        "github",
+        "octo/app:src/volcano.py",
+        "volcano.py",
+        "document",
+        "document",
+        "def volcano(): pass",
+        display_path="octo/app/src/volcano.py",
+    )
     from app.services.index_store import get_source
+
     # GitHub rows need owner/repo in the ledger; add_point used none, so set via FileMeta.
-    meta = FileMeta(user_id=user["id"], platform="github", source_id="octo/app:src/volcano.py", file_name="volcano.py",
-                    display_path="octo/app/src/volcano.py", file_type="document", version="sha", owner="octo", repo="app")
-    index_store.upsert_file(meta, [IndexPoint("document", _bag_of_words_vector("def volcano(): pass", 384), 0, "def volcano(): pass")])
+    meta = FileMeta(
+        user_id=user["id"],
+        platform="github",
+        source_id="octo/app:src/volcano.py",
+        file_name="volcano.py",
+        display_path="octo/app/src/volcano.py",
+        file_type="document",
+        version="sha",
+        owner="octo",
+        repo="app",
+    )
+    index_store.upsert_file(
+        meta, [IndexPoint("document", _bag_of_words_vector("def volcano(): pass", 384), 0, "def volcano(): pass")]
+    )
 
     result = results(client, user, "volcano")["results"][0]
 
@@ -297,6 +365,7 @@ def test_github_results_carry_owner_and_repo(client, user):
 # ---------------------------------------------------------------------------
 # Caching, CLIP truncation, model loading
 # ---------------------------------------------------------------------------
+
 
 def test_query_embeddings_are_cached(client, user):
 
@@ -319,12 +388,13 @@ def test_query_embeddings_are_cached(client, user):
 
     embedder.backend = Counting()
     from app.search import calibration
-    calibration.text_neutral_matrix()   # computed once, not counted below
+
+    calibration.text_neutral_matrix()  # computed once, not counted below
     calibration.clip_neutral_matrix()
     calls.update(text=0, clip=0)
 
     results(client, user, "Volcano Eruption")
-    results(client, user, "volcano   eruption!!")   # same normalized query
+    results(client, user, "volcano   eruption!!")  # same normalized query
     results(client, user, "volcano eruption", search_type="image")
 
     # One MiniLM and one CLIP encoding in total.
@@ -394,8 +464,7 @@ def test_importing_the_app_loads_no_model():
     env = dict(os.environ, PYTHONPATH=str(ROOT))
 
     result = subprocess.run(
-        [sys.executable, "-c", IMPORT_PROBE],
-        cwd=os.getcwd(), env=env, capture_output=True, text=True, timeout=300
+        [sys.executable, "-c", IMPORT_PROBE], cwd=os.getcwd(), env=env, capture_output=True, text=True, timeout=300
     )
 
     assert result.returncode == 0, result.stderr[-3000:]
@@ -435,12 +504,14 @@ def test_model_manager_loads_lazily_and_once(monkeypatch):
 # Phase 5 bug #3: pure visual image search
 # ---------------------------------------------------------------------------
 
+
 def image(file, margin, ocr="", platform="local", source_id=None):
 
     from app.search.retrieval import Candidate, Chunk
 
-    candidate = Candidate(platform=platform, source_id=source_id or file, file=file, path=file,
-                          file_type="image", clip_margin=margin)
+    candidate = Candidate(
+        platform=platform, source_id=source_id or file, file=file, path=file, file_type="image", clip_margin=margin
+    )
     candidate.chunks.append(Chunk(text=ocr, kind="image", score=0.2))
 
     return candidate
@@ -480,11 +551,14 @@ def test_generic_words_never_match_on_their_own(query):
 
     assert query_terms(query) == ["dog"]
 
-    scored = score_candidates([
-        image("Golden_Retriever.webp", 0.06),                        # the dog, no query word in its name
-        image("photo of the image file.jpg", -0.02),                 # only generic words in common
-        image("my pictures.png", -0.03),
-    ], query)
+    scored = score_candidates(
+        [
+            image("Golden_Retriever.webp", 0.06),  # the dog, no query word in its name
+            image("photo of the image file.jpg", -0.02),  # only generic words in common
+            image("my pictures.png", -0.03),
+        ],
+        query,
+    )
 
     assert [s.candidate.file for s in scored] == ["Golden_Retriever.webp"]
 
@@ -494,8 +568,13 @@ def test_repository_folders_count_as_name_words():
     from app.search.ranking import score_candidates
     from app.search.retrieval import Candidate
 
-    manifest = Candidate(platform="github", source_id="me/tool:extension/manifest.json", file="manifest.json",
-                         path="me/tool/extension/manifest.json", file_type="document")
+    manifest = Candidate(
+        platform="github",
+        source_id="me/tool:extension/manifest.json",
+        file="manifest.json",
+        path="me/tool/extension/manifest.json",
+        file_type="document",
+    )
 
     scored = score_candidates([manifest], "chrome extension manifest")
 
@@ -509,16 +588,17 @@ def test_code_files_need_a_higher_semantic_margin(file, returned):
     from app.search.retrieval import Candidate
 
     margin = (TEXT_MARGIN_EVIDENCE + TEXT_MARGIN_EVIDENCE_CODE) / 2
-    candidate = Candidate(platform="github", source_id=f"me/r:{file}", file=file, path=file,
-                          file_type="document", text_margin=margin)
+    candidate = Candidate(
+        platform="github", source_id=f"me/r:{file}", file=file, path=file, file_type="document", text_margin=margin
+    )
 
     assert bool(score_candidates([candidate], "kubernetes helm deployment")) is returned
-
 
 
 # ---------------------------------------------------------------------------
 # Phase 6: result metadata, suggestions, recent files, job history
 # ---------------------------------------------------------------------------
+
 
 def test_local_results_carry_size_modified_time_and_mime(client, user, folder):
 
@@ -547,7 +627,9 @@ def test_suggestions_are_prefix_first_and_scoped_to_the_user(client, user, make_
     assert "notes quantum.txt" in names and "Turing.pdf" not in names
     assert "quantum secret.pdf" not in names
 
-    assert client.get("/search/suggestions", params={"prefix": "q"}, headers=user["headers"]).json()["suggestions"] == []
+    assert (
+        client.get("/search/suggestions", params={"prefix": "q"}, headers=user["headers"]).json()["suggestions"] == []
+    )
     assert client.get("/search/suggestions", params={"prefix": "quan"}).status_code == 401
 
 
@@ -589,13 +671,23 @@ def test_dashboard_stats_give_one_connection_count_and_per_platform_detail(clien
 # Phase 6C: video frames as evidence on their own
 # ---------------------------------------------------------------------------
 
+
 def video(file, frame_margin, null_mean=-0.01, null_std=0.01, frame_time=160):
 
     from app.search.retrieval import Candidate
 
-    return Candidate(platform="google_drive", source_id=f"V-{file}", file=file, path=file, file_type="video",
-                     clip_margin=frame_margin, frame_number=frame_time // 5, frame_time_s=frame_time,
-                     frame_null_mean=null_mean, frame_null_std=null_std)
+    return Candidate(
+        platform="google_drive",
+        source_id=f"V-{file}",
+        file=file,
+        path=file,
+        file_type="video",
+        clip_margin=frame_margin,
+        frame_number=frame_time // 5,
+        frame_time_s=frame_time,
+        frame_null_mean=null_mean,
+        frame_null_std=null_std,
+    )
 
 
 def test_strong_frame_evidence_alone_returns_the_video_with_its_frame_time():
@@ -607,7 +699,7 @@ def test_strong_frame_evidence_alone_returns_the_video_with_its_frame_time():
     scored = score_candidates([video("nature documentary.mp4", margin)], "polar bear cubs in the snow")
 
     assert [s.candidate.file for s in scored] == ["nature documentary.mp4"]
-    assert scored[0].name == 0 and scored[0].content == 0           # no name, no transcript
+    assert scored[0].name == 0 and scored[0].content == 0  # no name, no transcript
     assert scored[0].reasons == ["visual"]
     assert scored[0].match["frame_time_s"] == 160
 
@@ -626,7 +718,7 @@ def test_the_same_margin_means_less_on_a_video_whose_footage_matches_everything(
 
     from app.search.ranking import frame_z
 
-    generic = video("b.mp4", 0.06, null_mean=0.02, null_std=0.01)   # high null: generic footage
+    generic = video("b.mp4", 0.06, null_mean=0.02, null_std=0.01)  # high null: generic footage
     specific = video("a.mp4", 0.06, null_mean=-0.02, null_std=0.01)
     assert frame_z(specific) > frame_z(generic)
 
@@ -676,12 +768,13 @@ def test_indexed_frames_store_their_time_and_the_video_null(client, user, local_
     mine = sorted((p.payload for p in points if p.payload["file"] == "clip.mp4"), key=lambda p: p["frame_number"])
     assert [p["frame_time_s"] for p in mine] == [0, 5, 10]
     assert all(p["null_mean"] is not None and p["null_std"] > 0 for p in mine)
-    assert len({p["null_mean"] for p in mine}) == 1   # one null per video
+    assert len({p["null_mean"] for p in mine}) == 1  # one null per video
 
 
 # ---------------------------------------------------------------------------
 # Phase 6D: "possible visual matches" (low-confidence tier)
 # ---------------------------------------------------------------------------
+
 
 def z_video(file, z, frame_time=20):
     # null mean 0, std 0.01 -> z = margin / 0.01
@@ -739,12 +832,17 @@ def possible_api(client, user, monkeypatch, search_type="all", offset=0):
 
     import app.services.search_service as service
 
-    candidates = [z_video("forest.mp4", 3.5), z_video("space.mp4", 4.0), image("lake.webp", 0.02),
-                  image("dog.webp", 0.06)]   # dog.webp passes the gate: a confident result
+    candidates = [
+        z_video("forest.mp4", 3.5),
+        z_video("space.mp4", 4.0),
+        image("lake.webp", 0.02),
+        image("dog.webp", 0.06),
+    ]  # dog.webp passes the gate: a confident result
     monkeypatch.setattr(service, "retrieve", lambda *a, **k: {c.key: c for c in candidates})
 
-    response = client.post("/search/", json={"query": "river", "search_type": search_type, "offset": offset},
-                           headers=user["headers"])
+    response = client.post(
+        "/search/", json={"query": "river", "search_type": search_type, "offset": offset}, headers=user["headers"]
+    )
     assert response.status_code == 200, response.text
     return response.json()
 
