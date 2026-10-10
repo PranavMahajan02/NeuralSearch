@@ -22,26 +22,16 @@ def create_access_token(user_id: str, token_version: int) -> str:
         "tv": int(token_version),
         "jti": uuid.uuid4().hex,
         "iat": now,
-        "exp": now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        "exp": now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     }
 
-    return jwt.encode(
-        payload,
-        SECRET_KEY,
-        algorithm=ALGORITHM
-    )
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def verify_token(token: str):
 
     try:
-
-        return jwt.decode(
-            token,
-            SECRET_KEY,
-            algorithms=[ALGORITHM]
-        )
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
     except JWTError:
-
         return None

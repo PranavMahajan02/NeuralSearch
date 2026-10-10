@@ -107,7 +107,7 @@ def render_pages(pdf_path: str, numbers, output_dir: str) -> dict:
                 first_page=first,
                 last_page=last,
                 thread_count=min(4, last - first + 1),
-                poppler_path=settings.POPPLER_PATH or None
+                poppler_path=settings.POPPLER_PATH or None,
             )
             for number, image in zip(range(first, last + 1), images, strict=True):
                 path = os.path.join(output_dir, f"page_{number}.jpg")
@@ -162,7 +162,6 @@ def extract_text(pdf_path: str) -> str:
     ocr_pages = 0
 
     with tempfile.TemporaryDirectory(prefix="pdf-ocr-") as tmp:
-
         try:
             rendered = render_pages(pdf_path, list(reasons), tmp)
         except Exception as error:
@@ -178,8 +177,14 @@ def extract_text(pdf_path: str) -> str:
                 break
             ocr_pages += 1
             text = texts[number - 1]
-            logger.debug("page %d of %s: OCR (%s) %d -> %d alnum chars",
-                         number, name, reason, alnum_count(text), alnum_count(ocr_text))
+            logger.debug(
+                "page %d of %s: OCR (%s) %d -> %d alnum chars",
+                number,
+                name,
+                reason,
+                alnum_count(text),
+                alnum_count(ocr_text),
+            )
             texts[number - 1] = merge_ocr(text, ocr_text, reason)
 
     if ocr_pages:

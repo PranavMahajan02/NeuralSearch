@@ -47,6 +47,7 @@ MEDIA_TYPES = ("audio", "video")
 # Isolation: must run before any app import (settings are read at import).
 # ---------------------------------------------------------------------------
 
+
 def isolate(db_name: str, prefix: str, temp_dir: Path, allowed_root: Path) -> str:
 
     from dotenv import dotenv_values
@@ -67,16 +68,18 @@ def isolate(db_name: str, prefix: str, temp_dir: Path, allowed_root: Path) -> st
             conn.execute(sa.text(f'CREATE DATABASE "{db_name}"'))
     admin.dispose()
 
-    os.environ.update({
-        "DATABASE_URL": scratch,
-        "QDRANT_COLLECTION_PREFIX": prefix,
-        "QDRANT_LOCATION": "",
-        "TEMP_DIR": str(temp_dir),
-        "PRELOAD_MODELS": "true",
-        "COGNISEEK_DISABLE_WORKER": "1",
-        # Exactly the folder being indexed (inside a container: a mounted path).
-        "ALLOWED_LOCAL_ROOTS": str(allowed_root),
-    })
+    os.environ.update(
+        {
+            "DATABASE_URL": scratch,
+            "QDRANT_COLLECTION_PREFIX": prefix,
+            "QDRANT_LOCATION": "",
+            "TEMP_DIR": str(temp_dir),
+            "PRELOAD_MODELS": "true",
+            "COGNISEEK_DISABLE_WORKER": "1",
+            # Exactly the folder being indexed (inside a container: a mounted path).
+            "ALLOWED_LOCAL_ROOTS": str(allowed_root),
+        }
+    )
 
     from alembic.config import Config
 
@@ -94,13 +97,14 @@ def isolate(db_name: str, prefix: str, temp_dir: Path, allowed_root: Path) -> st
 # File set
 # ---------------------------------------------------------------------------
 
+
 def read_set(path: Path):
 
     groups, current = [], None
     for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
         if line.startswith("# ["):
-            current = line[3:line.index("]")]
+            current = line[3 : line.index("]")]
         elif line and not line.startswith("#"):
             kind, rel = line.split(":", 1)
             source = (ROOT / "data" / rel) if kind == "data" else (ROOT / rel)
@@ -124,11 +128,13 @@ def media_minutes(path: Path) -> float:
     try:
         if path.suffix.lower() in (".mp4", ".mov", ".mkv", ".avi", ".webm"):
             import cv2
+
             cap = cv2.VideoCapture(str(path))
             fps, frames = cap.get(cv2.CAP_PROP_FPS), cap.get(cv2.CAP_PROP_FRAME_COUNT)
             cap.release()
             return frames / fps / 60 if fps else 0.0
         from moviepy import AudioFileClip
+
         clip = AudioFileClip(str(path))
         try:
             return clip.duration / 60
@@ -142,8 +148,8 @@ def media_minutes(path: Path) -> float:
 # Resource sampling
 # ---------------------------------------------------------------------------
 
-class Sampler(threading.Thread):
 
+class Sampler(threading.Thread):
     def __init__(self, temp_root: Path, interval: float = 1.0):
 
         super().__init__(daemon=True)
@@ -176,9 +182,16 @@ class Sampler(threading.Thread):
             self.temp.append(self._dir_size())
             if self.has_gpu:
                 try:
-                    out = subprocess.run(
-                        ["nvidia-smi", "--query-gpu=utilization.gpu,memory.used", "--format=csv,noheader,nounits"],
-                        capture_output=True, text=True, timeout=5).stdout.strip().splitlines()[0]
+                    out = (
+                        subprocess.run(
+                            ["nvidia-smi", "--query-gpu=utilization.gpu,memory.used", "--format=csv,noheader,nounits"],
+                            capture_output=True,
+                            text=True,
+                            timeout=5,
+                        )
+                        .stdout.strip()
+                        .splitlines()[0]
+                    )
                     util, mem = (float(x) for x in out.split(","))
                     self.gpu_util.append(util)
                     self.gpu_mem.append(mem)
@@ -197,7 +210,9 @@ class Sampler(threading.Thread):
             "peak_temp_mb": round(max(self.temp, default=0) / 2**20, 1),
             "gpu_util_mean": mean(self.gpu_util),
             "gpu_util_samples": len(self.gpu_util),
-            "gpu_busy_share": round(sum(1 for u in self.gpu_util if u > 10) / len(self.gpu_util), 2) if self.gpu_util else None,
+            "gpu_busy_share": round(sum(1 for u in self.gpu_util if u > 10) / len(self.gpu_util), 2)
+            if self.gpu_util
+            else None,
             "gpu_mem_used_peak_mb": max(self.gpu_mem, default=None),
         }
 
@@ -205,6 +220,7 @@ class Sampler(threading.Thread):
 # ---------------------------------------------------------------------------
 # One run
 # ---------------------------------------------------------------------------
+
 
 def warm_models() -> None:
 
@@ -227,8 +243,12 @@ def create_user(email: str):
     from app.database.models import User
 
     with SessionLocal() as db:
-        user = User(email=email, full_name="Bench", password_hash=hash_password(secrets.token_urlsafe(16)),
-                    onboarding_completed=True)
+        user = User(
+            email=email,
+            full_name="Bench",
+            password_hash=hash_password(secrets.token_urlsafe(16)),
+            onboarding_completed=True,
+        )
         db.add(user)
         db.commit()
         return user.id
@@ -245,23 +265,42 @@ def outputs_per_file(user_id) -> dict:
 
     with SessionLocal() as db:
         rows = db.query(IndexedFile).filter(IndexedFile.user_id == user_id).all()
-        files = {r.source_id: {"file": r.file_name, "type": r.file_type, "status": r.status,
-                               "chunks": r.chunk_count or 0, "indexed_at": r.indexed_at} for r in rows}
+        files = {
+            r.source_id: {
+                "file": r.file_name,
+                "type": r.file_type,
+                "status": r.status,
+                "chunks": r.chunk_count or 0,
+                "indexed_at": r.indexed_at,
+            }
+            for r in rows
+        }
 
     client = get_client()
     for name in all_collections():
         offset = None
         while True:
-            points, offset = client.scroll(name, scroll_filter=user_filter(str(user_id), "all"), limit=512,
-                                           offset=offset, with_payload=True, with_vectors=False)
+            points, offset = client.scroll(
+                name,
+                scroll_filter=user_filter(str(user_id), "all"),
+                limit=512,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False,
+            )
             for point in points:
                 payload = point.payload
                 entry = files.get(payload.get("source_id"))
                 if entry is None:
                     continue
                 kind = payload.get("type")
-                key = {"document": "text_chars", "image": "ocr_chars", "audio": "transcript_chars",
-                       "video": "transcript_chars", "video_frame": "frames"}.get(kind, kind)
+                key = {
+                    "document": "text_chars",
+                    "image": "ocr_chars",
+                    "audio": "transcript_chars",
+                    "video": "transcript_chars",
+                    "video_frame": "frames",
+                }.get(kind, kind)
                 if kind == "video_frame":
                     entry["frames"] = entry.get("frames", 0) + 1
                 else:
@@ -288,6 +327,7 @@ def run_once(folder: Path, media: dict, temp_root: Path) -> dict:
 
     try:
         import torch
+
         if torch.cuda.is_available():
             torch.cuda.reset_peak_memory_stats()
     except Exception:
@@ -324,12 +364,15 @@ def run_once(folder: Path, media: dict, temp_root: Path) -> dict:
 
     try:
         import torch
+
         peak_vram = round(torch.cuda.max_memory_allocated() / 2**20) if torch.cuda.is_available() else None
     except Exception:
         peak_vram = None
 
     result = {
-        "email": email, "user_id": str(user_id), "job_status": status,
+        "email": email,
+        "user_id": str(user_id),
+        "job_status": status,
         "wall_seconds": round(wall, 2),
         "time_to_50pct_searchable_s": round(half, 2) if half is not None else None,
         "time_to_100pct_searchable_s": round(done[-1], 2) if done else None,
@@ -401,6 +444,7 @@ def main() -> int:
     isolate(args.db_name, args.prefix, temp_root, folder)
 
     from app.config.file_types import file_type_for
+
     media = {}
     for _, path in files:
         kind = file_type_for(path.name)
@@ -408,6 +452,7 @@ def main() -> int:
             media[kind] = media.get(kind, 0.0) + media_minutes(path)
 
     from app.vectorstore.schema import ensure_collections
+
     ensure_collections()
 
     print("warming models ...", flush=True)
@@ -418,21 +463,26 @@ def main() -> int:
         print(f"run {number + 1}/{args.runs}: {len(files)} files", flush=True)
         result = run_once(folder, media, temp_root)
         runs.append(result)
-        print(f"  wall {result['wall_seconds']}s, job {result['job_status']}, "
-              f"50% searchable after {result['time_to_50pct_searchable_s']}s", flush=True)
+        print(
+            f"  wall {result['wall_seconds']}s, job {result['job_status']}, "
+            f"50% searchable after {result['time_to_50pct_searchable_s']}s",
+            flush=True,
+        )
         if not (args.keep and number == args.runs - 1):
             delete_user(result["user_id"])
 
     summary = median_of(runs)
-    summary.update({
-        "label": args.label,
-        "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
-        "runs": len(runs),
-        "run_walls": [r["wall_seconds"] for r in runs],
-        "file_count": len(files),
-        "media_minutes": {k: round(v, 2) for k, v in media.items()},
-        "kept_user": runs[-1]["email"] if args.keep else None,
-    })
+    summary.update(
+        {
+            "label": args.label,
+            "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
+            "runs": len(runs),
+            "run_walls": [r["wall_seconds"] for r in runs],
+            "file_count": len(files),
+            "media_minutes": {k: round(v, 2) for k, v in media.items()},
+            "kept_user": runs[-1]["email"] if args.keep else None,
+        }
+    )
     if not args.keep:
         summary.pop("email", None)
     summary.pop("user_id", None)
@@ -440,8 +490,22 @@ def main() -> int:
     out = Path(args.out_dir) / f"{args.label}.json"
     out.write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")
     print(f"saved {out}")
-    print(json.dumps({k: summary[k] for k in ("wall_seconds", "time_to_50pct_searchable_s", "by_type_seconds",
-                                              "stage_seconds", "throughput_per_minute", "resources")}, indent=1))
+    print(
+        json.dumps(
+            {
+                k: summary[k]
+                for k in (
+                    "wall_seconds",
+                    "time_to_50pct_searchable_s",
+                    "by_type_seconds",
+                    "stage_seconds",
+                    "throughput_per_minute",
+                    "resources",
+                )
+            },
+            indent=1,
+        )
+    )
     return 0
 
 

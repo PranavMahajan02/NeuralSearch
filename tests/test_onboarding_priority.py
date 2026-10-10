@@ -17,6 +17,7 @@ from tests.test_jobs import FakePlatform, drain, enqueue, isolated_queue, jobs_o
 # Onboarding
 # ---------------------------------------------------------------------------
 
+
 def profile(client, user):
 
     return client.get("/auth/profile", headers=user["headers"]).json()
@@ -50,6 +51,7 @@ def test_the_flag_is_per_user(client, user, make_user):
 # ---------------------------------------------------------------------------
 # Priority: claim order and "Index next"
 # ---------------------------------------------------------------------------
+
 
 def test_the_priority_platform_is_claimed_first_then_creation_order(client, user):
 
@@ -98,11 +100,24 @@ def test_index_next_is_owner_only_and_queued_only(client, user, make_user):
 # Exclude globs
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("name, excluded", [
-    ("import_log.txt", True), ("server.LOG", True), ("project_files.txt", True), ("package-lock.json", True),
-    ("poetry.lock", True), ("app.min.js", True), ("bundle.js.map", True), ("src/deep/yarn.lock", True),
-    ("notes.txt", False), ("logbook.md", False), ("package.json", False), ("my_project_files.txt", False),
-])
+
+@pytest.mark.parametrize(
+    "name, excluded",
+    [
+        ("import_log.txt", True),
+        ("server.LOG", True),
+        ("project_files.txt", True),
+        ("package-lock.json", True),
+        ("poetry.lock", True),
+        ("app.min.js", True),
+        ("bundle.js.map", True),
+        ("src/deep/yarn.lock", True),
+        ("notes.txt", False),
+        ("logbook.md", False),
+        ("package.json", False),
+        ("my_project_files.txt", False),
+    ],
+)
 def test_default_exclude_globs(name, excluded):
 
     from app.platforms.indexing import is_excluded
@@ -133,17 +148,24 @@ def test_local_connector_records_glob_matches_as_excluded(client, user, local_ro
     (folder / "notes.txt").write_text("real notes", encoding="utf-8")
 
     from unittest.mock import patch
-    with patch("app.platforms.local.local_platform.get_local_folders",
-               return_value=[type("F", (), {"folder_path": str(folder)})()]):
+
+    with patch(
+        "app.platforms.local.local_platform.get_local_folders",
+        return_value=[type("F", (), {"folder_path": str(folder)})()],
+    ):
         LocalPlatform().index(job_context(user, "local"))
 
-    assert index_store.get_source(user["id"], "local", local_source_id(str(folder / "import_log.txt"))).status == "excluded"
+    assert (
+        index_store.get_source(user["id"], "local", local_source_id(str(folder / "import_log.txt"))).status
+        == "excluded"
+    )
     assert index_store.get_source(user["id"], "local", local_source_id(str(folder / "notes.txt"))).status == "indexed"
 
 
 # ---------------------------------------------------------------------------
 # scripts/purge_excluded.py
 # ---------------------------------------------------------------------------
+
 
 def load_purge():
 
@@ -156,8 +178,15 @@ def load_purge():
 
 def add(user_id, source_id, name):
 
-    meta = FileMeta(user_id=user_id, platform="github", source_id=source_id, file_name=name,
-                    display_path=name, file_type="document", version="v1")
+    meta = FileMeta(
+        user_id=user_id,
+        platform="github",
+        source_id=source_id,
+        file_name=name,
+        display_path=name,
+        file_type="document",
+        version="v1",
+    )
     index_store.upsert_file(meta, [IndexPoint("document", _bag_of_words_vector(name, 384), 0, name)])
 
 

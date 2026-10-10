@@ -30,14 +30,12 @@ _LINK_NEXT = re.compile(r'<([^>]+)>;\s*rel="next"')
 
 
 class GitHubAuthExpired(PlatformPreconditionError):
-
     def __init__(self):
 
         super().__init__("GitHub authorization expired — reconnect GitHub.")
 
 
 class GitHubPermissionMissing(PlatformPreconditionError):
-
     def __init__(self):
 
         super().__init__("GitHub permission missing — reconnect and allow repository access.")
@@ -49,14 +47,12 @@ class GitHubError(RuntimeError):
 
 @dataclass
 class TreeEntry:
-
     path: str
     sha: str
     size: int | None
 
 
 class GitHubClient:
-
     def __init__(self, token: str, user_id=None, session: requests.Session | None = None):
 
         self.user_id = user_id
@@ -90,7 +86,9 @@ class GitHubClient:
     def _get(self, url: str, accept: str | None = None, allow: tuple[int, ...] = ()) -> requests.Response:
 
         headers = {"Accept": accept} if accept else None
-        response = http.request("GET", url if url.startswith("http") else API + url, session=self.session, headers=headers)
+        response = http.request(
+            "GET", url if url.startswith("http") else API + url, session=self.session, headers=headers
+        )
 
         if response.status_code == 401:
             self._mark_disconnected()

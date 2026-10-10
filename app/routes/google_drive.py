@@ -24,10 +24,7 @@ from app.services.index_store import purge_platform
 logger = logging.getLogger("cogniseek.google_drive")
 
 
-router = APIRouter(
-    prefix="/platforms/google-drive",
-    tags=["Google Drive"]
-)
+router = APIRouter(prefix="/platforms/google-drive", tags=["Google Drive"])
 
 
 def _frontend_redirect(**params) -> RedirectResponse:
@@ -44,11 +41,7 @@ def _connection(db: Session, user_id):
 
 @router.get("/connect", response_model=rm.ConnectResponse, response_model_exclude_unset=True)
 @limiter.limit(settings.OAUTH_RATE_LIMIT, key_func=user_key)
-def connect_google_drive(
-    request: Request,
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+def connect_google_drive(request: Request, current_user=Depends(get_current_user), db: Session = Depends(get_db)):
 
     connection = _connection(db, current_user["id"])
 
@@ -57,7 +50,7 @@ def connect_google_drive(
             "status": "success",
             "connected": True,
             "account_email": connection.account_email,
-            "message": "Google Drive already connected."
+            "message": "Google Drive already connected.",
         }
 
     try:
@@ -76,11 +69,7 @@ def connect_google_drive(
     # Single-use state bound to this user; the PKCE verifier stays server-side.
     state = create_oauth_state(db, current_user["id"], "google_drive", code_verifier=code_verifier)
 
-    return {
-        "status": "success",
-        "connected": False,
-        "authorization_url": google_oauth.authorization_url(state, flow)
-    }
+    return {"status": "success", "connected": False, "authorization_url": google_oauth.authorization_url(state, flow)}
 
 
 @router.get("/callback")
@@ -90,7 +79,7 @@ def google_drive_callback(
     code: str | None = None,
     state: str | None = None,
     error: str | None = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
 
     try:
@@ -112,8 +101,9 @@ def google_drive_callback(
         # Granular consent: the user may have unticked Drive access. Keep
         # nothing and revoke what we got; the frontend explains what to do.
         if not google_oauth.has_drive_access(credentials):
-            logger.warning("Google granted %s without drive.readonly; not saving",
-                           google_oauth.granted_scopes(credentials))
+            logger.warning(
+                "Google granted %s without drive.readonly; not saving", google_oauth.granted_scopes(credentials)
+            )
             revoke_token(credentials.refresh_token or credentials.token)
             return _frontend_redirect(google_drive="error", reason="drive_scope_not_granted")
 
@@ -125,7 +115,7 @@ def google_drive_callback(
             user_id,
             credentials,
             account_email=google_oauth.account_email(credentials),
-            token_json=google_oauth.credentials_json(credentials)
+            token_json=google_oauth.credentials_json(credentials),
         )
 
     except Exception:
@@ -136,25 +126,15 @@ def google_drive_callback(
 
 
 @router.get("/status", response_model=rm.DriveStatus)
-def google_drive_status(
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+def google_drive_status(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
 
     connection = _connection(db, current_user["id"])
 
-    return {
-        "connected": connection is not None,
-        "account_email": connection.account_email if connection else None
-    }
+    return {"connected": connection is not None, "account_email": connection.account_email if connection else None}
 
 
 @router.post("/disconnect", response_model=rm.DisconnectResponse)
-def disconnect_google_drive(
-    current_user=Depends(get_current_user),
-    purge: bool = False,
-    db: Session = Depends(get_db)
-):
+def disconnect_google_drive(current_user=Depends(get_current_user), purge: bool = False, db: Session = Depends(get_db)):
 
     connection = get_platform_connection(db, current_user["id"], "google_drive")
     revoked = None
@@ -175,5 +155,5 @@ def disconnect_google_drive(
         "connected": False,
         "revoked": revoked,
         "purged_files": purged,
-        "message": "Google Drive disconnected successfully."
+        "message": "Google Drive disconnected successfully.",
     }

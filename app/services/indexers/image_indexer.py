@@ -1,6 +1,5 @@
 """Images -> one CLIP vector + OCR text (collection: image)."""
 
-
 from app.ai.embedder import embed_clip_image
 from app.services.index_store import IndexPoint
 

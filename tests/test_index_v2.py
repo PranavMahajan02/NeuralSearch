@@ -21,6 +21,7 @@ from tests.test_jobs import drain, enqueue, isolated_queue, jobs_of, make_worker
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def folder(local_root):
 
@@ -54,11 +55,11 @@ def count_points(user_id, platform=None, source_id=None, point_type="document"):
 
     extra = {"source_id": source_id} if source_id else {}
 
-    return get_client().count(
-        collection_for_type(point_type),
-        count_filter=user_filter(str(user_id), platform, **extra),
-        exact=True
-    ).count
+    return (
+        get_client()
+        .count(collection_for_type(point_type), count_filter=user_filter(str(user_id), platform, **extra), exact=True)
+        .count
+    )
 
 
 def bump_mtime(path: Path):
@@ -70,6 +71,7 @@ def bump_mtime(path: Path):
 # ---------------------------------------------------------------------------
 # Isolation (SEC-03 real fix)
 # ---------------------------------------------------------------------------
+
 
 def test_two_users_with_identical_files_only_see_their_own(client, make_user, folder):
 
@@ -83,7 +85,7 @@ def test_two_users_with_identical_files_only_see_their_own(client, make_user, fo
     assert index_local_file(alice["id"], str(report)) == "indexed"
 
     assert [r["file"] for r in search(client, alice, "java")] == ["java notes.txt"]
-    assert search(client, bob, "java") == []          # bob has not indexed it
+    assert search(client, bob, "java") == []  # bob has not indexed it
 
     assert index_local_file(bob["id"], str(report)) == "indexed"
 
@@ -101,7 +103,9 @@ def test_two_users_with_identical_files_only_see_their_own(client, make_user, fo
     assert stats_a["documents"] == stats_b["documents"] == 1
 
     # Alice removing the folder purges only Alice's copy.
-    removed = client.request("DELETE", "/platforms/local/folders", json={"folder": str(folder)}, headers=alice["headers"])
+    removed = client.request(
+        "DELETE", "/platforms/local/folders", json={"folder": str(folder)}, headers=alice["headers"]
+    )
     assert removed.json()["purged_files"] == 1
     assert search(client, alice, "java") == []
     assert len(search(client, bob, "java")) == 1
@@ -137,9 +141,10 @@ def test_search_service_requires_a_user():
 # Deterministic ids, stale chunks, upsert-then-prune
 # ---------------------------------------------------------------------------
 
+
 def test_reindexing_overwrites_and_prunes_stale_chunks(user, folder):
 
-    doc = write(folder / "long.txt", "alpha " * 600)   # 3600 chars -> 4 chunks of 1000
+    doc = write(folder / "long.txt", "alpha " * 600)  # 3600 chars -> 4 chunks of 1000
     source_id = local_source_id(str(doc))
 
     assert index_local_file(user["id"], str(doc)) == "indexed"
@@ -150,7 +155,7 @@ def test_reindexing_overwrites_and_prunes_stale_chunks(user, folder):
     assert count_points(user["id"], "local", source_id) == 4
 
     # Shorter file: chunks 2..3 must disappear.
-    write(doc, "beta " * 300)                          # 1500 chars -> 2 chunks
+    write(doc, "beta " * 300)  # 1500 chars -> 2 chunks
     bump_mtime(doc)
     assert index_local_file(user["id"], str(doc)) == "indexed"
     assert count_points(user["id"], "local", source_id) == 2
@@ -188,8 +193,15 @@ def test_upsert_writes_new_points_before_pruning(user, monkeypatch):
     monkeypatch.setattr(client, "upsert", spy_upsert)
     monkeypatch.setattr(client, "delete", spy_delete)
 
-    meta = FileMeta(user_id=user["id"], platform="google_drive", source_id="D1", file_name="d.docx",
-                    display_path="d.docx", file_type="document", version="v1")
+    meta = FileMeta(
+        user_id=user["id"],
+        platform="google_drive",
+        source_id="D1",
+        file_name="d.docx",
+        display_path="d.docx",
+        file_type="document",
+        version="v1",
+    )
     index_store.upsert_file(meta, [IndexPoint("document", [1.0] + [0.0] * 383, 0, "x")])
 
     assert calls == ["upsert", "delete"]
@@ -203,12 +215,22 @@ def test_payload_has_exactly_the_v2_schema(user, folder):
     points, _ = get_client().scroll(
         collection_for_type("document"),
         scroll_filter=user_filter(user["id"], "local", source_id=local_source_id(str(doc))),
-        with_payload=True, with_vectors=False
+        with_payload=True,
+        with_vectors=False,
     )
 
     payload = points[0].payload
-    assert set(payload) == {"user_id", "platform", "source_id", "file", "path", "type",
-                            "version", "chunk_index", "chunk"}
+    assert set(payload) == {
+        "user_id",
+        "platform",
+        "source_id",
+        "file",
+        "path",
+        "type",
+        "version",
+        "chunk_index",
+        "chunk",
+    }
     assert payload["type"] == "document"
     assert payload["file"] == "schema.md"
     assert payload["path"] == os.path.realpath(doc)
@@ -219,6 +241,7 @@ def test_payload_has_exactly_the_v2_schema(user, folder):
 # ---------------------------------------------------------------------------
 # needs_index (BUG-16)
 # ---------------------------------------------------------------------------
+
 
 def test_unchanged_files_are_skipped_and_empty_files_not_reprocessed(user, folder, monkeypatch):
 
@@ -252,6 +275,7 @@ def test_unchanged_files_are_skipped_and_empty_files_not_reprocessed(user, folde
 # ---------------------------------------------------------------------------
 # Deletion sync
 # ---------------------------------------------------------------------------
+
 
 def test_local_job_removes_deleted_files_and_unregistered_folders(client, make_user, folder, local_root):
 
@@ -301,9 +325,17 @@ def test_disconnect_with_purge_removes_platform_sources(client, user, monkeypatc
     monkeypatch.setattr(github_route, "disconnect_github", lambda db, user_id: None)
 
     for source in ("octo/app:a.txt", "octo/app:b.txt"):
-        meta = FileMeta(user_id=user["id"], platform="github", source_id=source, file_name=source[-5:],
-                        display_path=source.replace(":", "/"), file_type="document", version="sha",
-                        owner="octo", repo="app")
+        meta = FileMeta(
+            user_id=user["id"],
+            platform="github",
+            source_id=source,
+            file_name=source[-5:],
+            display_path=source.replace(":", "/"),
+            file_type="document",
+            version="sha",
+            owner="octo",
+            repo="app",
+        )
         index_store.upsert_file(meta, [IndexPoint("document", [1.0] + [0.0] * 383, 0, "x")])
 
     keep = client.post("/platforms/github/disconnect", headers=user["headers"]).json()
@@ -318,13 +350,23 @@ def test_disconnect_with_purge_removes_platform_sources(client, user, monkeypatc
 
 def test_delete_file_removes_points_from_every_collection(user):
 
-    meta = FileMeta(user_id=user["id"], platform="google_drive", source_id="V1", file_name="clip.mp4",
-                    display_path="clip.mp4", file_type="video", version="t")
-    index_store.upsert_file(meta, [
-        IndexPoint("video", [1.0] + [0.0] * 383, 0, "spoken words"),
-        IndexPoint("video_frame", [1.0] + [0.0] * 511, 0, "Frame 0", frame_number=0),
-        IndexPoint("video_frame", [0.0, 1.0] + [0.0] * 510, 1, "Frame 1", frame_number=1),
-    ])
+    meta = FileMeta(
+        user_id=user["id"],
+        platform="google_drive",
+        source_id="V1",
+        file_name="clip.mp4",
+        display_path="clip.mp4",
+        file_type="video",
+        version="t",
+    )
+    index_store.upsert_file(
+        meta,
+        [
+            IndexPoint("video", [1.0] + [0.0] * 383, 0, "spoken words"),
+            IndexPoint("video_frame", [1.0] + [0.0] * 511, 0, "Frame 0", frame_number=0),
+            IndexPoint("video_frame", [0.0, 1.0] + [0.0] * 510, 1, "Frame 1", frame_number=1),
+        ],
+    )
 
     assert count_points(user["id"], "google_drive", "V1", "video") == 1
     assert count_points(user["id"], "google_drive", "V1", "video_frame") == 2
@@ -339,6 +381,7 @@ def test_delete_file_removes_points_from_every_collection(user):
 # ---------------------------------------------------------------------------
 # Search correctness
 # ---------------------------------------------------------------------------
+
 
 def test_same_basename_in_two_folders_is_scored_independently(client, user, local_root):
 
@@ -361,7 +404,7 @@ def test_same_basename_in_two_folders_is_scored_independently(client, user, loca
 
     assert len(results) == 2
     assert paths[first.name]["debug"]["content"] > paths[second.name]["debug"]["content"]
-    assert Path(results[0]["path"]).parent.name == first.name   # better match ranks first
+    assert Path(results[0]["path"]).parent.name == first.name  # better match ranks first
     assert paths[first.name]["source_id"] != paths[second.name]["source_id"]
 
 
@@ -375,8 +418,9 @@ def test_video_transcript_drives_semantic_and_content_scores(client, user, folde
         frame.write_text("sunset over the ocean")
         return [str(frame)]
 
-    monkeypatch.setattr(video_indexer, "extract_video_transcript",
-                        lambda path: "today we explain photosynthesis in green plants")
+    monkeypatch.setattr(
+        video_indexer, "extract_video_transcript", lambda path: "today we explain photosynthesis in green plants"
+    )
     monkeypatch.setattr(video_indexer, "extract_frames", fake_frames)
 
     video = folder / "lecture.mp4"
@@ -428,18 +472,27 @@ def test_results_are_deduplicated_and_carry_identity(client, user, folder):
 # Ownership of /open and /files/local
 # ---------------------------------------------------------------------------
 
+
 def test_open_is_404_for_another_users_sources(client, make_user, folder):
 
     owner, other = make_user(), make_user()
 
     doc = write(folder / "secret.txt", "private")
     register(client, owner, folder)
-    register(client, other, folder)   # other can see the folder, but has not indexed it
+    register(client, other, folder)  # other can see the folder, but has not indexed it
     index_local_file(owner["id"], str(doc))
 
-    gh = FileMeta(user_id=owner["id"], platform="github", source_id="octo/app:src/x.py", file_name="x.py",
-                  display_path="octo/app/src/x.py", file_type="document", version="sha",
-                  owner="octo", repo="app")
+    gh = FileMeta(
+        user_id=owner["id"],
+        platform="github",
+        source_id="octo/app:src/x.py",
+        file_name="x.py",
+        display_path="octo/app/src/x.py",
+        file_type="document",
+        version="sha",
+        owner="octo",
+        repo="app",
+    )
     index_store.upsert_file(gh, [IndexPoint("document", [1.0] + [0.0] * 383, 0, "x")])
 
     for body in (
@@ -449,8 +502,9 @@ def test_open_is_404_for_another_users_sources(client, make_user, folder):
         assert client.post("/open/", json=body, headers=other["headers"]).status_code == 404
         assert client.post("/open/", json=body, headers=owner["headers"]).status_code == 200
 
-    owner_github = client.post("/open/", json={"platform": "github", "source_id": "octo/app:src/x.py"},
-                               headers=owner["headers"]).json()
+    owner_github = client.post(
+        "/open/", json={"platform": "github", "source_id": "octo/app:src/x.py"}, headers=owner["headers"]
+    ).json()
     assert owner_github == {"type": "url", "url": "https://github.com/octo/app/blob/main/src/x.py"}
 
     download = client.get("/files/local", params={"path": str(doc)}, headers=other["headers"])
@@ -460,6 +514,7 @@ def test_open_is_404_for_another_users_sources(client, make_user, folder):
 # ---------------------------------------------------------------------------
 # Dashboard
 # ---------------------------------------------------------------------------
+
 
 def test_dashboard_counts_are_per_user(client, make_user, folder, monkeypatch):
 
@@ -482,7 +537,7 @@ def test_dashboard_counts_are_per_user(client, make_user, folder, monkeypatch):
     stats = client.get("/dashboard/stats", headers=user["headers"]).json()
     assert (stats["total_files"], stats["documents"], stats["no_content_files"], stats["failed_files"]) == (2, 2, 1, 1)
     assert stats["by_platform"]["local"] == 2
-    assert stats["connected_platforms"] == 1          # local folders only
+    assert stats["connected_platforms"] == 1  # local folders only
     assert stats["ready_platforms"] == 1
     assert stats["last_indexed_at"] is not None
 
@@ -493,6 +548,7 @@ def test_dashboard_counts_are_per_user(client, make_user, folder, monkeypatch):
 # ---------------------------------------------------------------------------
 # Collections
 # ---------------------------------------------------------------------------
+
 
 def test_ensure_collections_is_idempotent():
 

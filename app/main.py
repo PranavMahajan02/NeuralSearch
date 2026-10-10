@@ -52,6 +52,7 @@ def preload_models():
 
     # Calibration prompts are embedded once, up front.
     from app.search import calibration
+
     calibration.text_neutral_matrix()
     calibration.clip_neutral_matrix()
 
@@ -104,7 +105,7 @@ app = FastAPI(
     docs_url="/docs" if DOCS_ENABLED else None,
     redoc_url="/redoc" if DOCS_ENABLED else None,
     openapi_url="/openapi.json" if DOCS_ENABLED else None,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.state.limiter = limiter
@@ -146,17 +147,12 @@ app.include_router(auth_router)
 app.include_router(google_drive_router)
 app.include_router(github_router)
 app.include_router(login_state_router)
-app.include_router(
-    delete_router,
-    prefix="/delete",
-    tags=["Delete"]
-)
+app.include_router(delete_router, prefix="/delete", tags=["Delete"])
 app.include_router(platforms.router)
 
 # The tkinter folder picker opens a dialog on the machine running the backend,
 # so it only exists in development. In production, folder paths are typed in.
 if settings.ENV == "development":
-
     from app.routes.local_picker import router as local_picker_router
 
     app.include_router(local_picker_router)
@@ -165,6 +161,4 @@ if settings.ENV == "development":
 @app.get("/")
 def home():
 
-    return {
-        "message": "CogniSeek Backend Running"
-    }
+    return {"message": "CogniSeek Backend Running"}

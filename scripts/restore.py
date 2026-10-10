@@ -69,7 +69,7 @@ def renamed(collection: str, source_prefix: str, target_prefix: str) -> str:
 
     if not collection.startswith(source_prefix + "_"):
         raise ValueError(f"collection {collection!r} does not use prefix {source_prefix!r}")
-    return target_prefix + collection[len(source_prefix):]
+    return target_prefix + collection[len(source_prefix) :]
 
 
 def list_dump(dump: Path, pg_container: str) -> int:
@@ -98,8 +98,17 @@ def create_database(database_url: str, pg_container: str) -> None:
 
 def restore_postgres(dump: Path, database_url: str, pg_container: str) -> None:
 
-    command = pg_command("pg_restore", database_url, pg_container,
-                         "--clean", "--if-exists", "--no-owner", "--no-acl", "--exit-on-error", "--single-transaction")
+    command = pg_command(
+        "pg_restore",
+        database_url,
+        pg_container,
+        "--clean",
+        "--if-exists",
+        "--no-owner",
+        "--no-acl",
+        "--exit-on-error",
+        "--single-transaction",
+    )
     with open(dump, "rb") as handle:
         result = subprocess.run(command, stdin=handle, capture_output=True)
     if result.returncode != 0:
@@ -109,11 +118,18 @@ def restore_postgres(dump: Path, database_url: str, pg_container: str) -> None:
 def upload_snapshot(qdrant: Qdrant, collection: str, snapshot: Path) -> None:
 
     boundary = uuid.uuid4().hex
-    head = (f"--{boundary}\r\nContent-Disposition: form-data; name=\"snapshot\"; filename=\"{snapshot.name}\"\r\n"
-            "Content-Type: application/octet-stream\r\n\r\n").encode()
+    head = (
+        f'--{boundary}\r\nContent-Disposition: form-data; name="snapshot"; filename="{snapshot.name}"\r\n'
+        "Content-Type: application/octet-stream\r\n\r\n"
+    ).encode()
     body = head + snapshot.read_bytes() + f"\r\n--{boundary}--\r\n".encode()
-    qdrant.request("POST", f"/collections/{collection}/snapshots/upload?priority=snapshot&wait=true", body,
-                   headers={"Content-Type": f"multipart/form-data; boundary={boundary}"}, timeout=3600)
+    qdrant.request(
+        "POST",
+        f"/collections/{collection}/snapshots/upload?priority=snapshot&wait=true",
+        body,
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        timeout=3600,
+    )
 
 
 def parse_args(argv=None):
@@ -125,8 +141,11 @@ def parse_args(argv=None):
     parser.add_argument("--database-url", default=env.get("BACKUP_DATABASE_URL") or env.get("DATABASE_URL", ""))
     parser.add_argument("--create-database", action="store_true", help="CREATE DATABASE first (scratch restores)")
     parser.add_argument("--pg-container", default="")
-    parser.add_argument("--qdrant-url",
-                        default=env.get("QDRANT_URL") or f"http://{env.get('QDRANT_HOST', 'localhost')}:{env.get('QDRANT_PORT', '6333')}")
+    parser.add_argument(
+        "--qdrant-url",
+        default=env.get("QDRANT_URL")
+        or f"http://{env.get('QDRANT_HOST', 'localhost')}:{env.get('QDRANT_PORT', '6333')}",
+    )
     parser.add_argument("--qdrant-api-key", default=env.get("QDRANT_API_KEY", ""))
     parser.add_argument("--target-prefix", default="", help="collection prefix to restore into (default: the backup's)")
     parser.add_argument("--yes", action="store_true", help="required to overwrite the live database/collections")
@@ -145,8 +164,10 @@ def main(argv=None) -> int:
         content = workdir / "content"
         entries = list_dump(content / "postgres.dump", args.pg_container)
 
-        print(f"backup {args.archive.name}: created {manifest['created_at']}, database {manifest['database']!r}, "
-              f"{entries} dump entries, checksums OK")
+        print(
+            f"backup {args.archive.name}: created {manifest['created_at']}, database {manifest['database']!r}, "
+            f"{entries} dump entries, checksums OK"
+        )
         for name, meta in manifest["collections"].items():
             print(f"  {name}: {meta['points']} points")
 
@@ -157,8 +178,10 @@ def main(argv=None) -> int:
         target_prefix = args.target_prefix or manifest["prefix"]
         live = target_prefix == manifest["prefix"] or database_name(args.database_url) == manifest["database"]
         if live and not args.yes:
-            raise SystemExit("This overwrites the live database/collections. Re-run with --yes "
-                             "(or use --target-prefix and a scratch --database-url).")
+            raise SystemExit(
+                "This overwrites the live database/collections. Re-run with --yes "
+                "(or use --target-prefix and a scratch --database-url)."
+            )
 
         if args.create_database:
             create_database(args.database_url, args.pg_container)

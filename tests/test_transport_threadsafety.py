@@ -27,6 +27,7 @@ from app.platforms.indexing import process_files
 # helpers
 # ---------------------------------------------------------------------------
 
+
 class Ctx:
     """The part of JobContext that process_files uses."""
 
@@ -59,8 +60,14 @@ def drive_service(api_endpoint="https://www.googleapis.com"):
     from googleapiclient.discovery import build
 
     credentials = Credentials(token="test-token")
-    service = build("drive", "v3", credentials=credentials, static_discovery=True,
-                    cache_discovery=False, client_options={"api_endpoint": api_endpoint})
+    service = build(
+        "drive",
+        "v3",
+        credentials=credentials,
+        static_discovery=True,
+        cache_discovery=False,
+        client_options={"api_endpoint": api_endpoint},
+    )
     return credentials, service
 
 
@@ -80,8 +87,10 @@ class GuardedHttp:
             self.busy.acquire()
         try:
             self.threads.add(threading.get_ident())
-            time.sleep(self.delay)               # widen the window a shared object would hit
-            response = httplib2.Response({"status": "200", "content-range": f"bytes 0-{len(self.payload) - 1}/{len(self.payload)}"})
+            time.sleep(self.delay)  # widen the window a shared object would hit
+            response = httplib2.Response(
+                {"status": "200", "content-range": f"bytes 0-{len(self.payload) - 1}/{len(self.payload)}"}
+            )
             return response, self.payload
         finally:
             self.busy.release()
@@ -117,6 +126,7 @@ def download_all(client, tmp_path, count=50, workers=4):
 # 1. No transport is ever used by two threads at once
 # ---------------------------------------------------------------------------
 
+
 def test_parallel_drive_downloads_use_one_transport_per_thread(drive_client, tmp_path):
 
     GuardedHttp.violations = []
@@ -133,8 +143,8 @@ def test_parallel_drive_downloads_use_one_transport_per_thread(drive_client, tmp
 
     assert ctx.failed == [] and ctx.ok == 50
     assert all(content == b"%PDF-1.4 hello" for content in results.values())
-    assert GuardedHttp.violations == []                       # never two threads on one transport
-    assert 1 <= len(created) <= 4                             # one per worker thread, reused
+    assert GuardedHttp.violations == []  # never two threads on one transport
+    assert 1 <= len(created) <= 4  # one per worker thread, reused
     assert all(len(t.threads) == 1 for t in created)
 
 
@@ -154,6 +164,7 @@ def test_the_old_shared_transport_is_detected_as_unsafe(drive_client, tmp_path):
 # 2. Real TLS: 50 parallel downloads from a local HTTPS server, 0 errors
 # ---------------------------------------------------------------------------
 
+
 def self_signed_cert(directory: Path):
 
     from cryptography import x509
@@ -164,15 +175,22 @@ def self_signed_cert(directory: Path):
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "127.0.0.1")])
     now = datetime.datetime.now(datetime.UTC)
-    cert = (x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key())
-            .serial_number(x509.random_serial_number()).not_valid_before(now - datetime.timedelta(minutes=1))
-            .not_valid_after(now + datetime.timedelta(hours=1))
-            .add_extension(x509.SubjectAlternativeName([x509.IPAddress(ipaddress.ip_address("127.0.0.1"))]), False)
-            .sign(key, hashes.SHA256()))
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - datetime.timedelta(minutes=1))
+        .not_valid_after(now + datetime.timedelta(hours=1))
+        .add_extension(x509.SubjectAlternativeName([x509.IPAddress(ipaddress.ip_address("127.0.0.1"))]), False)
+        .sign(key, hashes.SHA256())
+    )
     cert_path, key_path = directory / "cert.pem", directory / "key.pem"
     cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
-    key_path.write_bytes(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
-                                           serialization.NoEncryption()))
+    key_path.write_bytes(
+        key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+    )
     return cert_path, key_path
 
 
@@ -182,11 +200,11 @@ def https_server(tmp_path):
     cert, key = self_signed_cert(tmp_path)
 
     class Handler(http.server.BaseHTTPRequestHandler):
-        protocol_version = "HTTP/1.1"          # keep-alive: connections are reused, as with Google
+        protocol_version = "HTTP/1.1"  # keep-alive: connections are reused, as with Google
 
         def do_GET(self):
             file_id = self.path.split("/files/")[1].split("?")[0]
-            body = (f"content of {file_id} " * 2000).encode()   # ~30 KB, several TLS records
+            body = (f"content of {file_id} " * 2000).encode()  # ~30 KB, several TLS records
             self.send_response(200)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Content-Range", f"bytes 0-{len(body) - 1}/{len(body)}")
@@ -232,6 +250,7 @@ def test_fifty_parallel_tls_downloads_with_real_transports(drive_client, https_s
 # 3. A TLS error is retried on a fresh transport
 # ---------------------------------------------------------------------------
 
+
 def test_a_single_ssl_error_is_retried_on_a_fresh_transport_and_succeeds(drive_client, tmp_path, monkeypatch):
 
     monkeypatch.setattr(connector_http, "sleep", lambda s: None)
@@ -253,15 +272,18 @@ def test_a_single_ssl_error_is_retried_on_a_fresh_transport_and_succeeds(drive_c
     path = client.download({"id": "F", "mimeType": "application/pdf"}, tmp_path / "f.pdf")
 
     assert Path(path).read_bytes() == b"%PDF ok"
-    assert len(transports) == 2                    # the broken connection was replaced
+    assert len(transports) == 2  # the broken connection was replaced
 
 
-@pytest.mark.parametrize("error", [
-    ssl.SSLError("WRONG_VERSION_NUMBER"),
-    httplib2.ServerNotFoundError("dns"),
-    ConnectionResetError("reset"),
-    __import__("http.client").client.IncompleteRead(b"partial"),
-])
+@pytest.mark.parametrize(
+    "error",
+    [
+        ssl.SSLError("WRONG_VERSION_NUMBER"),
+        httplib2.ServerNotFoundError("dns"),
+        ConnectionResetError("reset"),
+        __import__("http.client").client.IncompleteRead(b"partial"),
+    ],
+)
 def test_transient_network_errors_are_retryable(monkeypatch, error):
 
     monkeypatch.setattr(connector_http, "sleep", lambda s: None)
@@ -317,12 +339,15 @@ def test_a_persistent_tls_failure_ends_as_a_sanitized_file_error(drive_client, t
 # 4. Refreshed credentials are saved once
 # ---------------------------------------------------------------------------
 
+
 def test_a_refreshed_token_is_persisted_exactly_once(drive_client, monkeypatch):
 
     import app.platforms.google_drive.drive_service as drive
 
     saved = []
-    monkeypatch.setattr(drive, "persist_credentials", lambda user_id, creds: saved.append(creds.token) or time.sleep(0.01))
+    monkeypatch.setattr(
+        drive, "persist_credentials", lambda user_id, creds: saved.append(creds.token) or time.sleep(0.01)
+    )
     client = drive_client(http_factory=lambda: GuardedHttp(b""))
     client.credentials.token = "refreshed-token"
 
@@ -339,6 +364,7 @@ def test_a_refreshed_token_is_persisted_exactly_once(drive_client, monkeypatch):
 # 5. GitHub: one requests.Session per thread
 # ---------------------------------------------------------------------------
 
+
 def test_github_client_gives_every_thread_its_own_session():
 
     from app.platforms.github.github_service import GitHubClient
@@ -349,7 +375,7 @@ def test_github_client_gives_every_thread_its_own_session():
     def grab(n):
         barrier.wait()
         sessions[n] = client.session
-        assert client.session is sessions[n]        # stable within a thread
+        assert client.session is sessions[n]  # stable within a thread
 
     threads = [threading.Thread(target=grab, args=(n,)) for n in range(4)]
     for t in threads:
@@ -365,6 +391,7 @@ def test_github_client_gives_every_thread_its_own_session():
 # 6. Qdrant client and DB sessions under the same parallel load
 # ---------------------------------------------------------------------------
 
+
 def test_parallel_upserts_and_ledger_writes_are_safe(user):
     """qdrant-client's HTTP transport is httpx.Client (documented thread-safe);
     the ledger opens one SQLAlchemy session per call from a thread-safe pool."""
@@ -376,8 +403,15 @@ def test_parallel_upserts_and_ledger_writes_are_safe(user):
     ctx = Ctx()
 
     def handle(position, n):
-        meta = FileMeta(user_id=user["id"], platform="google_drive", source_id=f"par-{n}",
-                        file_name=f"f{n}.txt", display_path=f"f{n}.txt", file_type="document", version="1")
+        meta = FileMeta(
+            user_id=user["id"],
+            platform="google_drive",
+            source_id=f"par-{n}",
+            file_name=f"f{n}.txt",
+            display_path=f"f{n}.txt",
+            file_type="document",
+            version="1",
+        )
         index_store.upsert_file(meta, [IndexPoint("document", _bag_of_words_vector(f"word{n}", 384), 0, f"word{n}")])
 
     process_files(ctx, list(range(40)), str, handle, workers=4)
@@ -393,5 +427,5 @@ def test_only_the_local_in_process_qdrant_is_serialized():
     from app.vectorstore.client import _Serialized, _thread_safe
 
     assert isinstance(_thread_safe(QdrantClient(":memory:")), _Serialized)
-    server = QdrantClient(host="127.0.0.1", port=1, https=False)    # no request is sent
+    server = QdrantClient(host="127.0.0.1", port=1, https=False)  # no request is sent
     assert _thread_safe(server) is server

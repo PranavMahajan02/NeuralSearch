@@ -14,17 +14,10 @@ security = HTTPBearer(auto_error=False)
 
 def _unauthorized(detail: str):
 
-    return HTTPException(
-        status_code=401,
-        detail=detail,
-        headers={"WWW-Authenticate": "Bearer"}
-    )
+    return HTTPException(status_code=401, detail=detail, headers={"WWW-Authenticate": "Bearer"})
 
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
-):
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
 
     if credentials is None or not credentials.credentials:
         raise _unauthorized("Not authenticated.")
@@ -52,5 +45,5 @@ def get_current_user(
         "id": str(user.id),
         "name": user.full_name,
         "email": user.email,
-        "onboarding_completed": bool(user.onboarding_completed)
+        "onboarding_completed": bool(user.onboarding_completed),
     }

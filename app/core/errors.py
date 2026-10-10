@@ -24,7 +24,7 @@ STATUS_CODES = {
     429: "rate_limited",
     500: "internal_error",
     502: "bad_gateway",
-    503: "service_unavailable"
+    503: "service_unavailable",
 }
 
 
@@ -43,11 +43,8 @@ def error_response(status_code: int, detail: str, code: str | None = None, heade
 
     return JSONResponse(
         status_code=status_code,
-        content={
-            "detail": detail,
-            "code": code or STATUS_CODES.get(status_code, "error")
-        },
-        headers=headers
+        content={"detail": detail, "code": code or STATUS_CODES.get(status_code, "error")},
+        headers=headers,
     )
 
 
@@ -76,11 +73,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
     detail = exc.detail if isinstance(exc.detail, str) else STATUS_CODES.get(exc.status_code, "error")
 
-    return error_response(
-        exc.status_code,
-        detail,
-        headers=getattr(exc, "headers", None)
-    )
+    return error_response(exc.status_code, detail, headers=getattr(exc, "headers", None))
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -90,11 +83,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
 
-    return error_response(
-        429,
-        "Too many requests. Please try again later.",
-        headers={"Retry-After": "60"}
-    )
+    return error_response(429, "Too many requests. Please try again later.", headers={"Retry-After": "60"})
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception):

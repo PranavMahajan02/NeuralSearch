@@ -6,7 +6,6 @@ DOCUMENTS = (
     ".md",
     ".markdown",
     ".csv",
-
     ".py",
     ".java",
     ".js",
@@ -25,31 +24,14 @@ DOCUMENTS = (
     ".yaml",
     ".yml",
     ".sql",
-    ".sh"
+    ".sh",
 )
 
-IMAGES = (
-    ".jpg",
-    ".jpeg",
-    ".png",
-    ".webp",
-    ".avif"
-)
+IMAGES = (".jpg", ".jpeg", ".png", ".webp", ".avif")
 
-AUDIOS = (
-    ".mp3",
-    ".wav",
-    ".m4a",
-    ".aac",
-    ".flac"
-)
+AUDIOS = (".mp3", ".wav", ".m4a", ".aac", ".flac")
 
-VIDEOS = (
-    ".mp4",
-    ".avi",
-    ".mov",
-    ".mkv"
-)
+VIDEOS = (".mp4", ".avi", ".mov", ".mkv")
 
 # Source code and config files (DOCUMENTS minus prose formats).
 CODE_EXTENSIONS = tuple(
@@ -57,9 +39,7 @@ CODE_EXTENSIONS = tuple(
 )
 
 # Plain-text document formats (read as text, no parser).
-TEXT_DOCUMENTS = tuple(
-    ext for ext in DOCUMENTS if ext not in (".pdf", ".docx", ".pptx", ".csv")
-)
+TEXT_DOCUMENTS = tuple(ext for ext in DOCUMENTS if ext not in (".pdf", ".docx", ".pptx", ".csv"))
 
 
 def file_type_for(name: str):

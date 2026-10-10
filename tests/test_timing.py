@@ -18,8 +18,8 @@ def test_spans_record_self_time_so_stages_add_up():
 
     seconds = timer.snapshot()["seconds"]
     assert 0.04 <= seconds["ocr"] < 0.2
-    assert 0.01 <= seconds["extract_text"] < 0.05          # excludes the nested OCR
-    assert seconds["other"] < 0.01                          # file scope minus its stages
+    assert 0.01 <= seconds["extract_text"] < 0.05  # excludes the nested OCR
+    assert seconds["other"] < 0.01  # file scope minus its stages
     assert timer.snapshot()["by_type"]["document"]["ocr"] == seconds["ocr"]
 
 
@@ -68,7 +68,10 @@ def test_a_job_stores_its_stage_timings(client, user, local_root, monkeypatch):
     folder = local_root / f"timed-{uuid.uuid4().hex[:6]}"
     folder.mkdir()
     (folder / "a.txt").write_text("hello world " * 50, encoding="utf-8")
-    assert client.post("/platforms/local/folders", json={"folder": str(folder)}, headers=user["headers"]).status_code == 200
+    assert (
+        client.post("/platforms/local/folders", json={"folder": str(folder)}, headers=user["headers"]).status_code
+        == 200
+    )
 
     from app.platforms.local.local_platform import LocalPlatform
 
@@ -101,5 +104,5 @@ def test_waiting_for_a_shared_model_is_its_own_stage():
         first.join()
 
     seconds = timer.snapshot()["seconds"]
-    assert seconds["model_wait"] >= 0.05          # the second caller waited for the first
-    assert seconds["minilm"] < 0.02               # ... and that wait is not counted as MiniLM time
+    assert seconds["model_wait"] >= 0.05  # the second caller waited for the first
+    assert seconds["minilm"] < 0.02  # ... and that wait is not counted as MiniLM time

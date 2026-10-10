@@ -5,10 +5,7 @@ from app.core.config import settings
 from app.core.errors import AppError
 from app.services.upload_service import index_upload_in_background, save_uploaded_file
 
-router = APIRouter(
-    prefix="/upload",
-    tags=["Upload"]
-)
+router = APIRouter(prefix="/upload", tags=["Upload"])
 
 
 # Multipart framing overhead allowed on top of MAX_UPLOAD_MB.
@@ -20,7 +17,7 @@ def upload_file(
     request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_user),
 ):
 
     declared = request.headers.get("content-length")
@@ -30,22 +27,12 @@ def upload_file(
 
     result = save_uploaded_file(file, current_user["id"])
 
-    background_tasks.add_task(
-        index_upload_in_background,
-        current_user["id"],
-        result["path"]
-    )
+    background_tasks.add_task(index_upload_in_background, current_user["id"], result["path"])
 
-    return {
-        "status": "uploaded",
-        "filename": result["filename"],
-        "message": "Uploaded Successfully"
-    }
+    return {"status": "uploaded", "filename": result["filename"], "message": "Uploaded Successfully"}
 
 
 @router.get("/health")
 def health():
 
-    return {
-        "status": "Upload API Ready"
-    }
+    return {"status": "Upload API Ready"}

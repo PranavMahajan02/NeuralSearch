@@ -23,21 +23,25 @@ def _extract(path: str) -> str:
 
     if extension == ".pdf":
         from app.extractors.pdf_extract import extract_text
+
         return extract_text(path)
 
     if extension == ".docx":
         from app.extractors.docx_extract import extract_docx
+
         return extract_docx(path)
 
     if extension == ".pptx":
         from app.extractors.pptx_extract import extract_pptx
+
         return extract_pptx(path)
 
     if extension == ".csv":
         from app.services.indexers.csv_extract import extract_csv
+
         return extract_csv(path)
 
-    if extension in TEXT_DOCUMENTS:   # includes .md / .markdown
+    if extension in TEXT_DOCUMENTS:  # includes .md / .markdown
         with open(path, encoding="utf-8", errors="replace") as f:
             return f.read()
 
@@ -46,7 +50,7 @@ def _extract(path: str) -> str:
 
 def chunk_text(text: str, size: int) -> list[str]:
 
-    return [text[i:i + size] for i in range(0, len(text), size)]
+    return [text[i : i + size] for i in range(0, len(text), size)]
 
 
 def build_document_points(path: str, temp_dir=None) -> list[IndexPoint]:
@@ -71,7 +75,9 @@ def build_document_points(path: str, temp_dir=None) -> list[IndexPoint]:
     vectors = embed_texts(chunks)
 
     return Points(
-        (IndexPoint(type="document", vector=vector, chunk_index=index, chunk=chunk)
-         for index, (chunk, vector) in enumerate(zip(chunks, vectors, strict=True))),
-        note=note
+        (
+            IndexPoint(type="document", vector=vector, chunk_index=index, chunk=chunk)
+            for index, (chunk, vector) in enumerate(zip(chunks, vectors, strict=True))
+        ),
+        note=note,
     )

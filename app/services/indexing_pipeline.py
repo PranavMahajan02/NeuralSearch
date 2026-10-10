@@ -29,6 +29,7 @@ BUILDERS = {
 # Source identity (A1)
 # ----------------------------------------------------------------------
 
+
 def local_source_id(path: str) -> str:
     """Absolute, symlink-free, case-normalized (Windows) path."""
 
@@ -74,7 +75,7 @@ def local_meta(user_id, path: str) -> FileMeta:
         version=repr(stat.st_mtime),
         size_bytes=stat.st_size,
         modified_at=datetime.fromtimestamp(stat.st_mtime, tz=UTC),
-        mime_type=guess_mime(real)
+        mime_type=guess_mime(real),
     )
 
 
@@ -97,7 +98,7 @@ def drive_meta(user_id, file: dict, extension: str) -> FileMeta:
         web_view_link=file.get("webViewLink"),
         size_bytes=int(file["size"]) if str(file.get("size") or "").isdigit() else None,
         modified_at=parse_rfc3339(file.get("modifiedTime")),
-        mime_type=file.get("mimeType") or guess_mime(f"x{extension}")
+        mime_type=file.get("mimeType") or guess_mime(f"x{extension}"),
     )
 
 
@@ -117,13 +118,14 @@ def github_meta(user_id, owner: str, repo: str, file: dict, default_branch: str 
         repo=repo,
         default_branch=default_branch,
         size_bytes=file.get("size"),
-        mime_type=guess_mime(path)
+        mime_type=guess_mime(path),
     )
 
 
 # ----------------------------------------------------------------------
 # Indexing
 # ----------------------------------------------------------------------
+
 
 def index_source(meta: FileMeta, local_path: str, temp_dir=None, force: bool = False) -> str:
     """Index one file. Returns 'skipped' | 'indexed' | 'no_content' | 'unsupported'.
@@ -133,7 +135,6 @@ def index_source(meta: FileMeta, local_path: str, temp_dir=None, force: bool = F
     """
 
     with file_scope(meta.file_type):
-
         if not force:
             with span("ledger"):
                 changed = index_store.needs_index(meta.user_id, meta.platform, meta.source_id, meta.version)

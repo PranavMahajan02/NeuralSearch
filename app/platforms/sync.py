@@ -31,7 +31,6 @@ logger = logging.getLogger("cogniseek.sync")
 
 @dataclass
 class RemoteFile:
-
     meta: FileMeta
     # Extension of the file as it will be stored locally (".pdf", ".docx", ...).
     extension: str
@@ -43,7 +42,6 @@ class RemoteFile:
 
 @dataclass
 class SyncResult:
-
     listed: int = 0
     unchanged: int = 0
     skipped: int = 0
@@ -71,7 +69,6 @@ def sync_remote(ctx, platform: str, files: list[RemoteFile], listing_complete: b
     work: list[RemoteFile] = []
 
     for remote in files:
-
         meta = remote.meta
         seen.add(meta.source_id)
 
@@ -132,20 +129,14 @@ def sync_remote(ctx, platform: str, files: list[RemoteFile], listing_complete: b
 
     if not listing_complete:
         result.deletion_skipped = True
-        logger.warning(
-            "%s listing for user %s was incomplete: deletion sync skipped", platform, ctx.user_id
-        )
+        logger.warning("%s listing for user %s was incomplete: deletion sync skipped", platform, ctx.user_id)
         return result
 
     if ctx.is_cancelled():
         result.deletion_skipped = True
         return result
 
-    stale = [
-        row.source_id
-        for row in index_store.list_sources(ctx.user_id, platform)
-        if row.source_id not in seen
-    ]
+    stale = [row.source_id for row in index_store.list_sources(ctx.user_id, platform) if row.source_id not in seen]
 
     result.deleted = index_store.delete_sources(ctx.user_id, platform, stale)
 

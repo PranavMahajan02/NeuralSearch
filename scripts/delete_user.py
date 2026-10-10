@@ -43,8 +43,10 @@ def main(email: str, dry_run: bool) -> int:
         if dry_run:
             return 0
         report = delete_account(db, user.id)
-    print(f"deleted {mask(email)}: revoked {report.revoked}, points {report.points_deleted}, "
-          f"ledger rows {report.ledger_rows}, upload dir removed {report.upload_dir_removed}")
+    print(
+        f"deleted {mask(email)}: revoked {report.revoked}, points {report.points_deleted}, "
+        f"ledger rows {report.ledger_rows}, upload dir removed {report.upload_dir_removed}"
+    )
     return 0
 
 

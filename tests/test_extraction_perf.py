@@ -11,6 +11,7 @@ from app.core.config import settings
 # OCR device
 # ---------------------------------------------------------------------------
 
+
 def _load_real_model_manager():
     """conftest replaces app.ai.model_manager with a stub; load the real file."""
 
@@ -40,13 +41,16 @@ def fake_torch_paddle(monkeypatch):
     return state
 
 
-@pytest.mark.parametrize("setting, cuda, paddle_cuda, expected", [
-    ("auto", True, True, True),      # CUDA build installed + GPU visible
-    ("auto", True, False, False),    # default CPU build of Paddle
-    ("auto", False, True, False),    # no GPU
-    ("cpu", True, True, False),      # forced CPU
-    ("gpu", True, False, False),     # asked for GPU without a CUDA build: falls back, warns
-])
+@pytest.mark.parametrize(
+    "setting, cuda, paddle_cuda, expected",
+    [
+        ("auto", True, True, True),  # CUDA build installed + GPU visible
+        ("auto", True, False, False),  # default CPU build of Paddle
+        ("auto", False, True, False),  # no GPU
+        ("cpu", True, True, False),  # forced CPU
+        ("gpu", True, False, False),  # asked for GPU without a CUDA build: falls back, warns
+    ],
+)
 def test_ocr_device_choice(fake_torch_paddle, monkeypatch, setting, cuda, paddle_cuda, expected):
 
     ocr_uses_gpu = real_model_manager.ocr_uses_gpu
@@ -60,6 +64,7 @@ def test_ocr_device_choice(fake_torch_paddle, monkeypatch, setting, cuda, paddle
 # ---------------------------------------------------------------------------
 # Video transcript
 # ---------------------------------------------------------------------------
+
 
 def test_video_audio_is_transcribed_directly_without_a_wav_export(monkeypatch):
 

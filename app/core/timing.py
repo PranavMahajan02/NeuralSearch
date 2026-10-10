@@ -28,8 +28,19 @@ logger = logging.getLogger("cogniseek.timing")
 
 # Stages, in pipeline order (the Indexing Center shows them in this order).
 STAGES = (
-    "download", "extract_text", "pdf_render", "ocr", "audio_extract", "whisper",
-    "frame_extract", "clip_image", "minilm", "qdrant_upsert", "ledger", "model_wait", "other",
+    "download",
+    "extract_text",
+    "pdf_render",
+    "ocr",
+    "audio_extract",
+    "whisper",
+    "frame_extract",
+    "clip_image",
+    "minilm",
+    "qdrant_upsert",
+    "ledger",
+    "model_wait",
+    "other",
 )
 
 
@@ -73,7 +84,6 @@ _stack: ContextVar[tuple] = ContextVar("stage_stack", default=())
 
 
 class _Frame:
-
     __slots__ = ("child",)
 
     def __init__(self) -> None:

@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 # ---- search ------------------------------------------------------------------
 
+
 class MatchInfo(BaseModel):
     reasons: list[str]
     field: str
@@ -65,6 +66,7 @@ class SuggestionsResponse(BaseModel):
 
 
 # ---- dashboard ---------------------------------------------------------------
+
 
 class RecentFile(BaseModel):
     platform: str
@@ -157,6 +159,7 @@ class IndexQueuedResponse(BaseModel):
 
 
 # ---- platforms -------------------------------------------------------------------
+
 
 class FoldersResponse(BaseModel):
     folders: list[str]

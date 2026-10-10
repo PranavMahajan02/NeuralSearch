@@ -18,78 +18,39 @@ from app.models.auth_models import (
 )
 from app.scheduler.jobs import cancel_user_jobs
 
-router = APIRouter(
-    prefix="/auth",
-    tags=["Authentication"]
-)
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-@router.post(
-    "/register",
-    response_model=UserResponse
-)
+@router.post("/register", response_model=UserResponse)
 @limiter.limit(settings.AUTH_RATE_LIMIT)
-def register(
-    request: Request,
-    body: RegisterRequest
-):
+def register(request: Request, body: RegisterRequest):
 
     try:
-
-        return register_user(
-            body.name,
-            body.email,
-            body.password
-        )
+        return register_user(body.name, body.email, body.password)
 
     except ValueError as e:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        ) from e
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.post(
-    "/login",
-    response_model=TokenResponse
-)
+@router.post("/login", response_model=TokenResponse)
 @limiter.limit(settings.AUTH_RATE_LIMIT)
-def login(
-    request: Request,
-    body: LoginRequest
-):
+def login(request: Request, body: LoginRequest):
 
     try:
-
-        return login_user(
-            body.email,
-            body.password
-        )
+        return login_user(body.email, body.password)
 
     except ValueError as e:
-
-        raise HTTPException(
-            status_code=401,
-            detail=str(e)
-        ) from e
+        raise HTTPException(status_code=401, detail=str(e)) from e
 
 
-@router.get(
-    "/profile",
-    response_model=UserResponse
-)
-def profile(
-    current_user = Depends(
-        get_current_user
-    )
-):
+@router.get("/profile", response_model=UserResponse)
+def profile(current_user=Depends(get_current_user)):
 
     return {
         "id": current_user["id"],
         "name": current_user["name"],
         "email": current_user["email"],
-        "onboarding_completed": current_user["onboarding_completed"]
+        "onboarding_completed": current_user["onboarding_completed"],
     }
 
 
@@ -105,51 +66,35 @@ def _finish_onboarding(db: Session, user_id) -> dict:
 
 
 @router.post("/onboarding/complete")
-def onboarding_complete(
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+def onboarding_complete(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
     """The user started indexing from the onboarding flow."""
 
     return _finish_onboarding(db, current_user["id"])
 
 
 @router.post("/onboarding/skip")
-def onboarding_skip(
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+def onboarding_skip(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
     """The user chose "Skip for now"; they manage platforms from the Platforms page."""
 
     return _finish_onboarding(db, current_user["id"])
 
 
 @router.post("/logout")
-def logout(
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+def logout(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
 
     # Stop this user's indexing: queued jobs are cancelled, the running one
     # stops after its current file.
-    cancel_user_jobs(
-        db,
-        current_user["id"]
-    )
+    cancel_user_jobs(db, current_user["id"])
 
-    revoke_user_tokens(
-        db,
-        current_user["id"]
-    )
+    revoke_user_tokens(db, current_user["id"])
 
-    return {
-        "status": "success"
-    }
+    return {"status": "success"}
 
 
 # ----------------------------------------------------------------------
 # Data rights: password change, export, account deletion
 # ----------------------------------------------------------------------
+
 
 def _require_password(db: Session, user_id, password: str):
     """403 (not 401: the session itself is valid) when the password is wrong."""
@@ -168,10 +113,7 @@ def _require_password(db: Session, user_id, password: str):
 @router.post("/change-password")
 @limiter.limit(settings.AUTH_RATE_LIMIT)
 def change_password(
-    request: Request,
-    body: ChangePasswordRequest,
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db)
+    request: Request, body: ChangePasswordRequest, current_user=Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """New password (registration policy); every existing session ends, this one included."""
 
@@ -181,16 +123,13 @@ def change_password(
     user.password_hash = hash_password(body.new_password)
     db.commit()
 
-    revoke_user_tokens(db, user.id)   # token_version + 1: all tokens, including this one
+    revoke_user_tokens(db, user.id)  # token_version + 1: all tokens, including this one
 
     return {"status": "success", "message": "Password changed. Please sign in again."}
 
 
 @router.get("/export")
-def export_data(
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+def export_data(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
     """Everything CogniSeek stores about you as JSON: profile, connections (account
     names only, never tokens), folders, jobs and the file ledger. No vectors or contents."""
 
@@ -200,7 +139,7 @@ def export_data(
 
     return JSONResponse(
         export_account(db, uuid.UUID(str(current_user["id"]))),
-        headers={"Content-Disposition": 'attachment; filename="cogniseek-export.json"'}
+        headers={"Content-Disposition": 'attachment; filename="cogniseek-export.json"'},
     )
 
 
@@ -210,7 +149,7 @@ def delete_my_account(
     request: Request,
     body: CurrentPasswordRequest,
     current_user=Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Delete the account and ALL its data (needs the current password). Platform grants
     are revoked at Google/GitHub; the token stops working at once (the user no longer exists)."""
@@ -224,7 +163,7 @@ def delete_my_account(
     except JobStillRunning:
         raise HTTPException(
             status_code=409,
-            detail="An indexing job is still running. It has been asked to stop - try again in a moment."
+            detail="An indexing job is still running. It has been asked to stop - try again in a moment.",
         ) from None
 
     return {

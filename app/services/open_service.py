@@ -41,7 +41,6 @@ def open_result(db: Session, user_id, request):
     platform = "local" if request.platform == "local_storage" else request.platform
 
     if platform == "local":
-
         source_id = request.source_id or (local_source_id(request.path) if request.path else None)
         row = _owned_source(user_id, "local", source_id)
 
@@ -53,18 +52,16 @@ def open_result(db: Session, user_id, request):
         return {
             "type": "download",
             "url": "/files/local?" + urlencode({"path": str(resolved)}),
-            "filename": resolved.name
+            "filename": resolved.name,
         }
 
     if platform == "google_drive":
-
         row = _owned_source(user_id, "google_drive", request.source_id or request.file_id)
 
         # The webViewLink stored at index time (works for native Google files too).
         return {"type": "url", "url": row.web_view_link or drive_url(row.source_id)}
 
     if platform == "github":
-
         row = _owned_source(user_id, "github", request.source_id)
         path = row.source_id.split(":", 1)[1]
 

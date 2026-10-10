@@ -9,25 +9,17 @@ from app.models import response_models as rm
 from app.models.request_models import SearchRequest
 from app.services.search_service import search, suggestions
 
-router = APIRouter(
-    prefix="/search",
-    tags=["Search"]
-)
+router = APIRouter(prefix="/search", tags=["Search"])
 
 
 @router.get("/health")
 def health():
 
-    return {
-        "status": "Search API Ready"
-    }
+    return {"status": "Search API Ready"}
 
 
 @router.get("/suggestions", response_model=rm.SuggestionsResponse)
-def search_suggestions(
-    prefix: str = Query("", max_length=200),
-    current_user=Depends(get_current_user)
-):
+def search_suggestions(prefix: str = Query("", max_length=200), current_user=Depends(get_current_user)):
     """Autocomplete: up to 8 of the user's indexed file names."""
 
     return {"prefix": prefix, "suggestions": suggestions(current_user["id"], prefix)}
@@ -39,7 +31,7 @@ def search_files(
     request: Request,
     body: SearchRequest,
     debug: bool = Query(False, description="Include score components (development only)."),
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_user),
 ):
 
     if debug and settings.is_production:
@@ -54,7 +46,7 @@ def search_files(
             search_type=body.search_type.value,
             limit=body.limit,
             offset=body.offset,
-            debug=debug
+            debug=debug,
         )
 
     return {
@@ -65,5 +57,5 @@ def search_files(
         "offset": body.offset,
         "total": found["total"],
         "results": found["results"],
-        "possible_matches": found["possible_matches"]
+        "possible_matches": found["possible_matches"],
     }

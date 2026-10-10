@@ -1,5 +1,3 @@
-
-
 from pathlib import Path
 
 from app.config.file_types import AUDIOS, DOCUMENTS, IMAGES, VIDEOS
@@ -8,9 +6,7 @@ from app.core.errors import AppError
 from app.core.ownership import user_upload_dir
 from app.core.paths import UnsafePathError, safe_filename
 
-ALLOWED_UPLOAD_EXTENSIONS = frozenset(
-    ext.lower() for ext in DOCUMENTS + IMAGES + AUDIOS + VIDEOS
-)
+ALLOWED_UPLOAD_EXTENSIONS = frozenset(ext.lower() for ext in DOCUMENTS + IMAGES + AUDIOS + VIDEOS)
 
 CHUNK_SIZE = 1024 * 1024
 
@@ -53,10 +49,7 @@ def save_uploaded_file(file, user_id):
             while chunk := file.file.read(CHUNK_SIZE):
                 written += len(chunk)
                 if written > limit:
-                    raise AppError(
-                        413,
-                        f"File exceeds the {settings.MAX_UPLOAD_MB} MB limit."
-                    )
+                    raise AppError(413, f"File exceeds the {settings.MAX_UPLOAD_MB} MB limit.")
                 buffer.write(chunk)
 
         partial.rename(target)
@@ -65,11 +58,7 @@ def save_uploaded_file(file, user_id):
         partial.unlink(missing_ok=True)
         raise
 
-    return {
-        "status": "uploaded",
-        "filename": target.name,
-        "path": str(target)
-    }
+    return {"status": "uploaded", "filename": target.name, "path": str(target)}
 
 
 def index_upload_in_background(user_id, file_path):

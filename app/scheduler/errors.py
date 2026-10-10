@@ -84,7 +84,7 @@ def _redact_paths(text: str, allowed_roots: Iterable[Path]) -> str:
 
 
 def sanitize_error(error: BaseException, allowed_roots: Iterable[Path] = (), with_type: bool = True) -> str:
-    """"ExceptionType: message" with URLs, secrets and out-of-scope paths removed.
+    """ "ExceptionType: message" with URLs, secrets and out-of-scope paths removed.
 
     with_type=False keeps only the message (for errors written for users)."""
 

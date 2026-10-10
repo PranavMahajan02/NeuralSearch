@@ -14,8 +14,8 @@ def make_video(path, seconds=23, fps=10, size=(64, 48)):
     writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), fps, size)
     for n in range(seconds * fps):
         frame = np.zeros((size[1], size[0], 3), dtype=np.uint8)
-        frame[:, :, 0] = (n % 32) * 8 + 4          # low bits, in steps of 8 (robust to JPEG noise)
-        frame[:, :, 1] = (n // 32) * 8 + 4         # high bits
+        frame[:, :, 0] = (n % 32) * 8 + 4  # low bits, in steps of 8 (robust to JPEG noise)
+        frame[:, :, 1] = (n // 32) * 8 + 4  # high bits
         writer.write(frame)
     writer.release()
     return path
@@ -32,10 +32,10 @@ def test_sample_numbers_and_timestamps_match_the_calibration_interval():
 
     assert video_frames.INTERVAL_SECONDS == FRAME_INTERVAL_S == 5
     assert video_frames.sample_frame_numbers(25, 1000) == list(range(0, 1000, 125))
-    assert video_frames.sample_frame_numbers(29.97, 300) == [0, 149, 298]   # int(fps * 5), as before
-    assert video_frames.sample_frame_numbers(0, 3) == [0, 1, 2]           # unreadable fps: every frame
+    assert video_frames.sample_frame_numbers(29.97, 300) == [0, 149, 298]  # int(fps * 5), as before
+    assert video_frames.sample_frame_numbers(0, 3) == [0, 1, 2]  # unreadable fps: every frame
     for k, n in enumerate(video_frames.sample_frame_numbers(30, 5000)):
-        assert abs(n / 30 - frame_time_s(k)) <= 0.5                        # within +/-0.5 s of the stored time
+        assert abs(n / 30 - frame_time_s(k)) <= 0.5  # within +/-0.5 s of the stored time
 
 
 def test_seeking_returns_exactly_the_frames_of_the_sequential_decode(tmp_path):

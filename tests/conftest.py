@@ -55,39 +55,40 @@ LOCAL_ROOT = WORK_DIR / "local-root"
 DATA_DIR.mkdir()
 LOCAL_ROOT.mkdir()
 
-os.environ.update({
-    "ENV": "development",
-    "DATABASE_URL": TEST_DATABASE_URL,
-    "JWT_SECRET_KEY": secrets.token_urlsafe(48),
-    "TOKEN_ENCRYPTION_KEY": Fernet.generate_key().decode(),
-    "DATA_DIR": str(DATA_DIR),
-    "ALLOWED_LOCAL_ROOTS": str(LOCAL_ROOT),
-    "AUTH_RATE_LIMIT": "5/minute",
-    "MAX_UPLOAD_MB": "1",
-    "CORS_ORIGINS": "http://localhost:3000",
-    "FRONTEND_URL": "http://localhost:3000",
-    "PRELOAD_MODELS": "false",
-    # Tests drive the indexing worker explicitly (IndexingWorker.run_once).
-    "COGNISEEK_DISABLE_WORKER": "1",
-    # Sequential file loop by default, so counts after cancel/abort are exact;
-    # tests/test_pipeline_concurrency.py covers the parallel loop explicitly.
-    "INDEX_IO_WORKERS": "1",
-    # In-process Qdrant + a throwaway prefix: tests can never reach the real
-    # collections (cogniseek_v2_* / cogniseek*).
-    "QDRANT_LOCATION": ":memory:",
-    "QDRANT_COLLECTION_PREFIX": f"test_{uuid.uuid4().hex[:12]}",
-    "TEMP_DIR": str(WORK_DIR / "temp"),
-    "BACKEND_PUBLIC_URL": "http://127.0.0.1:8000",
-    "GITHUB_OAUTH_CONFIG_PATH": str(WORK_DIR / "no-github-oauth.json"),
-    "GOOGLE_CLIENT_SECRET_PATH": str(WORK_DIR / "no-client-secret.json"),
-})
+os.environ.update(
+    {
+        "ENV": "development",
+        "DATABASE_URL": TEST_DATABASE_URL,
+        "JWT_SECRET_KEY": secrets.token_urlsafe(48),
+        "TOKEN_ENCRYPTION_KEY": Fernet.generate_key().decode(),
+        "DATA_DIR": str(DATA_DIR),
+        "ALLOWED_LOCAL_ROOTS": str(LOCAL_ROOT),
+        "AUTH_RATE_LIMIT": "5/minute",
+        "MAX_UPLOAD_MB": "1",
+        "CORS_ORIGINS": "http://localhost:3000",
+        "FRONTEND_URL": "http://localhost:3000",
+        "PRELOAD_MODELS": "false",
+        # Tests drive the indexing worker explicitly (IndexingWorker.run_once).
+        "COGNISEEK_DISABLE_WORKER": "1",
+        # Sequential file loop by default, so counts after cancel/abort are exact;
+        # tests/test_pipeline_concurrency.py covers the parallel loop explicitly.
+        "INDEX_IO_WORKERS": "1",
+        # In-process Qdrant + a throwaway prefix: tests can never reach the real
+        # collections (cogniseek_v2_* / cogniseek*).
+        "QDRANT_LOCATION": ":memory:",
+        "QDRANT_COLLECTION_PREFIX": f"test_{uuid.uuid4().hex[:12]}",
+        "TEMP_DIR": str(WORK_DIR / "temp"),
+        "BACKEND_PUBLIC_URL": "http://127.0.0.1:8000",
+        "GITHUB_OAUTH_CONFIG_PATH": str(WORK_DIR / "no-github-oauth.json"),
+        "GOOGLE_CLIENT_SECRET_PATH": str(WORK_DIR / "no-client-secret.json"),
+    }
+)
 
 
 assert os.environ["QDRANT_COLLECTION_PREFIX"].startswith("test_")
 
 
 if os.environ.get("COGNISEEK_TEST_REAL_MODELS") != "1":
-
     stub = types.ModuleType("app.ai.model_manager")
     stub.model_manager = MagicMock(name="model_manager")
     stub.ModelManager = MagicMock(name="ModelManager")
@@ -97,6 +98,7 @@ if os.environ.get("COGNISEEK_TEST_REAL_MODELS") != "1":
 # ---------------------------------------------------------------------------
 # Test database
 # ---------------------------------------------------------------------------
+
 
 def _admin_engine():
 
@@ -110,12 +112,11 @@ def _drop_abandoned_test_databases(conn):
     import psutil
 
     names = conn.execute(
-        text("SELECT datname FROM pg_database WHERE starts_with(datname, :prefix)"),
-        {"prefix": TEST_DB_PREFIX}
+        text("SELECT datname FROM pg_database WHERE starts_with(datname, :prefix)"), {"prefix": TEST_DB_PREFIX}
     ).scalars()
 
     for name in names:
-        pid = name[len(TEST_DB_PREFIX):].split("_", 1)[0]
+        pid = name[len(TEST_DB_PREFIX) :].split("_", 1)[0]
         if pid.isdigit() and not psutil.pid_exists(int(pid)):
             conn.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
 
@@ -170,6 +171,7 @@ def _test_database():
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _isolated_working_dir():
@@ -252,16 +254,10 @@ def make_user(client):
 
         email = f"user-{uuid.uuid4().hex[:10]}@example.com"
 
-        registered = client.post(
-            "/auth/register",
-            json={"name": "Test User", "email": email, "password": password}
-        )
+        registered = client.post("/auth/register", json={"name": "Test User", "email": email, "password": password})
         assert registered.status_code == 200, registered.text
 
-        login = client.post(
-            "/auth/login",
-            json={"email": email, "password": password}
-        )
+        login = client.post("/auth/login", json={"email": email, "password": password})
         assert login.status_code == 200, login.text
 
         # Fixture logins must not count against rate-limit tests.
@@ -274,7 +270,7 @@ def make_user(client):
             "email": email,
             "password": password,
             "token": token,
-            "headers": {"Authorization": f"Bearer {token}"}
+            "headers": {"Authorization": f"Bearer {token}"},
         }
 
     return _make
@@ -314,7 +310,6 @@ def _bag_of_words_vector(text: str, size: int):
 
 
 class FakeEmbedder:
-
     def text(self, texts):
         return [_bag_of_words_vector(t, 384) for t in texts]
 

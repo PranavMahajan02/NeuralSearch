@@ -30,13 +30,7 @@ def encode_clip_text(text: str) -> list[float]:
     processor = model_manager.clip_processor
     model = model_manager.clip_model
 
-    inputs = processor(
-        text=[text],
-        return_tensors="pt",
-        padding=True,
-        truncation=True,
-        max_length=CLIP_MAX_TOKENS
-    )
+    inputs = processor(text=[text], return_tensors="pt", padding=True, truncation=True, max_length=CLIP_MAX_TOKENS)
     inputs = {key: value.to(model_manager.device) for key, value in inputs.items()}
 
     with waiting_for(model_manager.clip_lock), torch.no_grad():
@@ -59,7 +53,7 @@ def encode_clip_images(paths: Sequence[str], batch_size: int = 32) -> list[list[
 
     for start in range(0, len(paths), batch_size):
         images = []
-        for path in paths[start:start + batch_size]:
+        for path in paths[start : start + batch_size]:
             with Image.open(path) as image:
                 images.append(image.convert("RGB"))
         inputs = processor(images=images, return_tensors="pt")

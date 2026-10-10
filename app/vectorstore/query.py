@@ -4,7 +4,6 @@ Every query is built here with a mandatory must-filter on user_id, so no
 caller can forget it: a missing user_id raises instead of searching everyone.
 """
 
-
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
 from app.vectorstore.client import get_client
@@ -33,13 +32,7 @@ def user_filter(user_id: str, platform: str | None = None, **extra) -> Filter:
     return Filter(must=must)
 
 
-def search_points(
-    point_type: str,
-    vector: list[float],
-    user_id: str,
-    platform: str | None = None,
-    limit: int = 100
-):
+def search_points(point_type: str, vector: list[float], user_id: str, platform: str | None = None, limit: int = 100):
     """Nearest neighbours of `vector` among this user's points of one type."""
 
     result = get_client().query_points(
@@ -48,7 +41,7 @@ def search_points(
         query_filter=user_filter(user_id, platform),
         limit=limit,
         with_payload=True,
-        with_vectors=False
+        with_vectors=False,
     )
 
     return result.points
