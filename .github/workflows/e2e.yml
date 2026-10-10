@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Model cache (HuggingFace, faster-whisper, PaddleOCR)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .ci-models
           key: models-v1-${{ hashFiles('app/ai/model_manager.py') }}
