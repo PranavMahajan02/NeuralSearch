@@ -268,3 +268,87 @@ def test_encrypt_migration_is_idempotent_and_reversible(user, db):
             migration.downgrade()
             assert read() == "legacy-plain"  # reversible
             migration.upgrade()  # leave every row encrypted again
+
+
+def test_token_key_rotation_re_encrypts_every_stored_token(user, db):
+    """scripts/rotate_token_key.py: old key -> new key in one transaction, verified."""
+
+    import importlib.util
+    from pathlib import Path
+
+    from cryptography.fernet import Fernet
+
+    from app.core.config import settings
+    from app.database.db import engine
+    from app.database.models import PlatformConnection
+
+    spec = importlib.util.spec_from_file_location(
+        "rotate_token_key", Path(__file__).resolve().parent.parent / "scripts" / "rotate_token_key.py"
+    )
+    rotation = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rotation)
+
+    db.add(
+        PlatformConnection(
+            user_id=user["id"],
+            platform="github",
+            connected=True,
+            access_token="gho_access",
+            refresh_token="refresh-1",
+            token_json='{"token": "x"}',
+        )
+    )
+    db.commit()
+    old_key, new_key = settings.TOKEN_ENCRYPTION_KEY, Fernet.generate_key().decode()
+
+    def raw():
+        return db.execute(
+            text("SELECT access_token, refresh_token, token_json FROM platform_connections WHERE user_id = :u"),
+            {"u": user["id"]},
+        ).one()
+
+    before = raw()
+    assert rotation.rotate(engine, old_key, new_key, dry_run=True)["values"] >= 3
+    db.expire_all()
+    assert raw() == before  # dry run writes nothing
+
+    rotation.rotate(engine, old_key, new_key)
+    db.expire_all()
+    after = raw()
+    new = Fernet(new_key.encode())
+    assert [new.decrypt(v.encode()).decode() for v in after] == ["gho_access", "refresh-1", '{"token": "x"}']
+
+    # Back to the test key so the rest of the session can read its rows.
+    rotation.rotate(engine, new_key, old_key)
+
+
+def test_rotation_with_a_wrong_old_key_changes_nothing(user, db):
+
+    import importlib.util
+    from pathlib import Path
+
+    from cryptography.fernet import Fernet
+
+    from app.database.db import engine
+    from app.database.models import PlatformConnection
+
+    spec = importlib.util.spec_from_file_location(
+        "rotate_token_key", Path(__file__).resolve().parent.parent / "scripts" / "rotate_token_key.py"
+    )
+    rotation = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rotation)
+
+    db.add(PlatformConnection(user_id=user["id"], platform="google_drive", connected=True, access_token="ya29.x"))
+    db.commit()
+    before = db.execute(
+        text("SELECT access_token FROM platform_connections WHERE user_id = :u"), {"u": user["id"]}
+    ).scalar()
+
+    with pytest.raises(SystemExit, match="OLD key"):
+        rotation.rotate(engine, Fernet.generate_key().decode(), Fernet.generate_key().decode())
+
+    db.expire_all()
+    assert (
+        db.execute(text("SELECT access_token FROM platform_connections WHERE user_id = :u"), {"u": user["id"]}).scalar()
+        == before
+    )
