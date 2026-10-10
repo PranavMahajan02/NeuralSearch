@@ -604,10 +604,18 @@ class FakeRequest:
     def __init__(self, result):
         self.result = result
 
-    def execute(self):
+    def execute(self, http=None):
+        self.http = http
         if isinstance(self.result, Exception):
             raise self.result
         return self.result
+
+
+class FakeMediaRequest:
+    """Like googleapiclient's HttpRequest: MediaIoBaseDownload reads .http."""
+
+    def __init__(self, kind, file_id):
+        self.kind, self.file_id, self.http = kind, file_id, None
 
 
 class FakeFilesResource:
@@ -624,11 +632,11 @@ class FakeFilesResource:
 
     def export_media(self, fileId, mimeType):
         self.exports.append((fileId, mimeType))
-        return ("export", fileId)
+        return FakeMediaRequest("export", fileId)
 
     def get_media(self, fileId):
         self.media.append(fileId)
-        return ("media", fileId)
+        return FakeMediaRequest("media", fileId)
 
 
 class FakeService:
