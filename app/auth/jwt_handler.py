@@ -1,10 +1,9 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from jose import jwt, JWTError
+from jose import JWTError, jwt
 
 from app.core.config import settings
-
 
 SECRET_KEY = settings.JWT_SECRET_KEY
 
@@ -16,7 +15,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 def create_access_token(user_id: str, token_version: int) -> str:
     """Claims: user_id, tv (token_version for revocation), jti, iat, exp."""
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     payload = {
         "user_id": str(user_id),

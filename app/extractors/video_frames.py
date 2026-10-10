@@ -14,10 +14,8 @@ that fails mid-way) fall back to the sequential decode.
 
 import logging
 import os
-from typing import List
 
 import cv2
-
 
 logger = logging.getLogger("cogniseek.extractors.frames")
 
@@ -31,7 +29,7 @@ def sample_step(fps: float, interval: float = INTERVAL_SECONDS) -> int:
     return max(1, int((fps or 0) * interval))
 
 
-def sample_frame_numbers(fps: float, frame_count: int, interval: float = INTERVAL_SECONDS) -> List[int]:
+def sample_frame_numbers(fps: float, frame_count: int, interval: float = INTERVAL_SECONDS) -> list[int]:
 
     return list(range(0, max(0, int(frame_count)), sample_step(fps, interval)))
 
@@ -43,7 +41,7 @@ def _save(frame, output_folder: str, number: int) -> str:
     return path
 
 
-def _sequential(video_path: str, output_folder: str, interval: float) -> List[str]:
+def _sequential(video_path: str, output_folder: str, interval: float) -> list[str]:
     """Decode every frame and keep each step-th one (the original method)."""
 
     os.makedirs(output_folder, exist_ok=True)
@@ -69,7 +67,7 @@ def _probe(cap) -> tuple:
     return cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
 
 
-def extract_frames(video_path: str, output_folder: str, interval: float = INTERVAL_SECONDS) -> List[str]:
+def extract_frames(video_path: str, output_folder: str, interval: float = INTERVAL_SECONDS) -> list[str]:
 
     os.makedirs(output_folder, exist_ok=True)
 

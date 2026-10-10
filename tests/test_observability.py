@@ -6,7 +6,6 @@ import logging
 
 from app.core.logging_setup import build_handler, request_id_var
 
-
 # ---------------------------------------------------------------------------
 # Health / readiness
 # ---------------------------------------------------------------------------

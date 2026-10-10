@@ -31,14 +31,13 @@ os.chdir(ROOT)
 
 from qdrant_client.models import PointStruct  # noqa: E402
 
+from app.core.clock import utcnow  # noqa: E402
 from app.database.db import SessionLocal  # noqa: E402
 from app.database.models import IndexedFile, LocalStorageFolder, PlatformConnection, User  # noqa: E402
 from app.services.indexing_pipeline import github_source_id, local_source_id  # noqa: E402
 from app.vectorstore.client import get_client  # noqa: E402
 from app.vectorstore.config import collection_for_type  # noqa: E402
 from app.vectorstore.schema import ensure_collections, point_id  # noqa: E402
-from app.core.clock import utcnow  # noqa: E402
-
 
 OLD_COLLECTIONS = {
     "cogniseek": "document",
@@ -361,7 +360,7 @@ def main():
 
         if not args.owner_email:
             print("Owner candidates (users with local folders and/or connections):")
-            for email, user_id, folders, connections in candidates:
+            for email, _user_id, folders, connections in candidates:
                 print(f"  {email:30} folders={folders} connections={','.join(connections) or '-'}")
             print("\nRe-run with --owner-email <email> (and --dry-run first). Nothing was written.")
             return 2

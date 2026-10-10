@@ -4,13 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from app.core.paths import (
-    UnsafePathError,
-    is_within,
-    resolve_in_any,
-    resolve_safe,
-    safe_filename
-)
+from app.core.paths import UnsafePathError, is_within, resolve_in_any, resolve_safe, safe_filename
 
 
 @pytest.fixture

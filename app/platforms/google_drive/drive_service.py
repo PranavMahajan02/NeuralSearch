@@ -12,7 +12,6 @@ import json
 import logging
 import threading
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 from app.database.db import SessionLocal
 from app.database.platform_connection_service import (
@@ -21,7 +20,6 @@ from app.database.platform_connection_service import (
 )
 from app.platforms import http
 from app.platforms.errors import PlatformPreconditionError
-
 
 logger = logging.getLogger("cogniseek.google_drive")
 
@@ -82,7 +80,7 @@ def is_permission_error(error: Exception) -> bool:
     return any(reason in text or reason in str(error) for reason in PERMISSION_REASONS)
 
 
-def http_status(error: Exception) -> Optional[int]:
+def http_status(error: Exception) -> int | None:
 
     status = getattr(getattr(error, "resp", None), "status", None)
 
@@ -92,7 +90,7 @@ def http_status(error: Exception) -> Optional[int]:
         return None
 
 
-def http_headers(error: Exception) -> Dict:
+def http_headers(error: Exception) -> dict:
 
     resp = getattr(error, "resp", None)
 
@@ -277,17 +275,17 @@ class DriveClient:
 
     # ------------------------------------------------------------------
 
-    def list_files(self) -> Tuple[List[Dict], bool]:
+    def list_files(self) -> tuple[list[dict], bool]:
         """(all non-trashed files, complete). Paginates with pageSize=1000."""
 
-        files: List[Dict] = []
+        files: list[dict] = []
         page_token = None
 
         while True:
-            response = self._call(lambda: self.service.files().list(
+            response = self._call(lambda token=page_token: self.service.files().list(
                 q="trashed=false",
                 pageSize=1000,
-                pageToken=page_token,
+                pageToken=token,
                 fields=LIST_FIELDS,
                 supportsAllDrives=False,
             ))
@@ -296,7 +294,7 @@ class DriveClient:
             if not page_token:
                 return files, True
 
-    def download(self, file: Dict, target: Path) -> str:
+    def download(self, file: dict, target: Path) -> str:
         """Download (or export) one file to `target`; returns the path."""
 
         from googleapiclient.http import MediaIoBaseDownload

@@ -27,7 +27,6 @@ from app.vectorstore.client import get_client  # noqa: E402
 from app.vectorstore.config import collection_for_type  # noqa: E402
 from app.vectorstore.query import user_filter  # noqa: E402
 
-
 ALNUM = re.compile(r"[A-Za-z0-9]")
 
 

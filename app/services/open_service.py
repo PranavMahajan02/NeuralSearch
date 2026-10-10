@@ -24,7 +24,7 @@ def drive_url(file_id: str) -> str:
     return f"https://drive.google.com/file/d/{quote(file_id, safe='')}/view"
 
 
-def github_url(owner: str, repo: str, path: str, branch: str = None) -> str:
+def github_url(owner: str, repo: str, path: str, branch: str | None = None) -> str:
     """Blob URL on the repository's default branch (stored at index time)."""
 
     return f"https://github.com/{quote(owner)}/{quote(repo)}/blob/{quote(branch or 'main', safe='')}/{quote(path)}"

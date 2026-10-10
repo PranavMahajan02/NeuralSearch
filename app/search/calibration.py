@@ -20,7 +20,6 @@ import numpy as np
 
 from app.ai import embedder
 
-
 TEXT_NEUTRAL_PROMPTS = (
     "document", "a text file", "notes", "a page of text", "information",
     "some content", "a file", "general text about a topic", "a report", "a list",

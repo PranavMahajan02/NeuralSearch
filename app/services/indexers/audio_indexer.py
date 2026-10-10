@@ -1,11 +1,9 @@
 """Audio -> Whisper transcript chunks -> MiniLM vectors (collection: audio)."""
 
-from typing import List
 
 from app.ai.embedder import embed_texts
 from app.services.index_store import IndexPoint
 from app.services.indexers.document_indexer import chunk_text
-
 
 CHUNK_SIZE = 500
 
@@ -17,7 +15,7 @@ def extract_audio_transcript(path: str) -> str:
     return extract_audio_text(path) or ""
 
 
-def build_audio_points(path: str, temp_dir=None) -> List[IndexPoint]:
+def build_audio_points(path: str, temp_dir=None) -> list[IndexPoint]:
     """Silent audio -> no points ('no_content', not re-transcribed next run)."""
 
     transcript = extract_audio_transcript(path)
@@ -30,5 +28,5 @@ def build_audio_points(path: str, temp_dir=None) -> List[IndexPoint]:
 
     return [
         IndexPoint(type="audio", vector=vector, chunk_index=index, chunk=chunk)
-        for index, (chunk, vector) in enumerate(zip(chunks, vectors))
+        for index, (chunk, vector) in enumerate(zip(chunks, vectors, strict=True))
     ]

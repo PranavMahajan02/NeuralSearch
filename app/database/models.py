@@ -1,26 +1,25 @@
-from sqlalchemy import (
-    Column,
-    String,
-    Boolean,
-    Integer,
-    BigInteger,
-    DateTime,
-    Text,
-    ForeignKey,
-    CheckConstraint,
-    Index,
-    UniqueConstraint,
-    text
-)
+import uuid
 
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.sql import func
 
-import uuid
-
-from .db import Base
 from app.core.crypto import EncryptedText
 
+from .db import Base
 
 # Mirrors the live schema (see alembic/versions/0001_baseline.py).
 # Python-side defaults are kept so ORM inserts behave as before.

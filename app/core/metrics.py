@@ -6,7 +6,6 @@ and job outcomes are recorded here.
 
 from prometheus_client import Counter, Histogram
 
-
 SEARCH_LATENCY = Histogram(
     "cogniseek_search_seconds",
     "Time to answer a search request.",

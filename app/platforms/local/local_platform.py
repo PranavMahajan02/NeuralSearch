@@ -1,11 +1,11 @@
 import os
 from pathlib import Path
 
+from app.database.db import SessionLocal
+from app.database.local_storage_service import get_local_folders
 from app.platforms.base_platform import BasePlatform
 from app.platforms.errors import PlatformPreconditionError
 from app.platforms.indexing import EXCLUDED_REASON, is_excluded, is_supported, process_files, schedule_key
-from app.database.db import SessionLocal
-from app.database.local_storage_service import get_local_folders
 
 
 class LocalPlatform(BasePlatform):

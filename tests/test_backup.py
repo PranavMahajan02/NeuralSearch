@@ -28,7 +28,7 @@ def key():
     return Fernet.generate_key().decode()
 
 
-def roundtrip(data: bytes, key: str, decrypt_key: str = None) -> bytes:
+def roundtrip(data: bytes, key: str, decrypt_key: str | None = None) -> bytes:
 
     sealed = io.BytesIO()
     backup.encrypt_stream(io.BytesIO(data), sealed, key)

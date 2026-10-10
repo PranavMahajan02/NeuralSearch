@@ -2,7 +2,7 @@
 
 import logging
 import os
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from app.platforms.base_platform import BasePlatform
 from app.platforms.google_drive.drive_service import (
@@ -15,11 +15,10 @@ from app.platforms.google_drive.drive_service import (
 )
 from app.platforms.sync import RemoteFile, sync_remote
 
-
 logger = logging.getLogger("cogniseek.google_drive")
 
 
-def local_extension(file: dict) -> Optional[str]:
+def local_extension(file: dict) -> str | None:
     """Extension the file will have locally, or None when it can't be fetched
     (folders, shortcuts, non-exportable Google-native types)."""
 
@@ -39,7 +38,7 @@ def local_extension(file: dict) -> Optional[str]:
 
 class GoogleDrivePlatform(BasePlatform):
 
-    def __init__(self, client_factory: Optional[Callable[[object], DriveClient]] = None):
+    def __init__(self, client_factory: Callable[[object], DriveClient] | None = None):
 
         self._client_factory = client_factory or client_for_user
 

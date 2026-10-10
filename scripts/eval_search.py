@@ -250,7 +250,8 @@ def main():
                         help="keep results from this repo's own eval/test files (indexed via GitHub)")
     args = parser.parse_args()
 
-    queries = yaml.safe_load(open(args.queries, encoding="utf-8"))["queries"]
+    with open(args.queries, encoding="utf-8") as handle:
+        queries = yaml.safe_load(handle)["queries"]
 
     report = run(args.base_url, owner_headers(args.email), queries, args.limit, args.include_self)
     report["include_self"] = args.include_self

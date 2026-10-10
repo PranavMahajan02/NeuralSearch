@@ -20,7 +20,6 @@ import tempfile
 from app.core.config import settings
 from app.core.timing import span
 
-
 logger = logging.getLogger("cogniseek.extractors.pdf")
 
 MIN_ALNUM = 30
@@ -110,7 +109,7 @@ def render_pages(pdf_path: str, numbers, output_dir: str) -> dict:
                 thread_count=min(4, last - first + 1),
                 poppler_path=settings.POPPLER_PATH or None
             )
-            for number, image in zip(range(first, last + 1), images):
+            for number, image in zip(range(first, last + 1), images, strict=True):
                 path = os.path.join(output_dir, f"page_{number}.jpg")
                 image.save(path, "JPEG")
                 paths[number] = path

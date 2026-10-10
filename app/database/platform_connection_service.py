@@ -61,17 +61,17 @@ def save_platform_connection(
 
     platform: str,
 
-    account_email: str = None,
+    account_email: str | None = None,
 
-    account_name: str = None,
+    account_name: str | None = None,
 
-    access_token: str = None,
+    access_token: str | None = None,
 
-    refresh_token: str = None,
+    refresh_token: str | None = None,
 
-    token_json: str = None,
+    token_json: str | None = None,
 
-    token_type: str = None
+    token_type: str | None = None
 
 ):
 
@@ -144,7 +144,7 @@ def update_platform_tokens(
 
     access_token: str,
 
-    refresh_token: str = None
+    refresh_token: str | None = None
 
 ):
 

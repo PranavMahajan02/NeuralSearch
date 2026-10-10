@@ -1,15 +1,10 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.auth.jwt_handler import create_access_token
+from app.auth.password import hash_password, verify_password
 from app.database.db import SessionLocal
 from app.database.models import User
-
-from app.auth.password import (
-    hash_password,
-    verify_password
-)
-
-from app.auth.jwt_handler import create_access_token
 
 
 def _find_by_email(db: Session, email: str):

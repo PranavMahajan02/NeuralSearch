@@ -1,23 +1,14 @@
-from fastapi import APIRouter
-from fastapi import Depends
-
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.database.db import get_db
-
 from app.auth.auth_dependency import get_current_user
-
 from app.core.config import settings
+from app.core.local_folders import normalize_folder, validate_local_folder
+from app.database.db import get_db
+from app.database.local_storage_service import add_local_folder, get_local_folders, remove_local_folder
 from app.models import response_models as rm
 from app.models.request_models import FolderRequest
-from app.core.local_folders import normalize_folder, validate_local_folder
 from app.platforms.local.local_platform import sync_deleted_sources as purge_unregistered_local_sources
-
-from app.database.local_storage_service import (
-    get_local_folders,
-    add_local_folder,
-    remove_local_folder
-)
 
 
 def picker_available() -> bool:

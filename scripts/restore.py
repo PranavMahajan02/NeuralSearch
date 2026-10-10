@@ -33,7 +33,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from backup import FORMAT, Qdrant, _safe, database_name, decrypt_stream, pg_command, sha256_file  # noqa: E402
+from backup import FORMAT, Qdrant, _safe, database_name, decrypt_stream, pg_command, sha256_file
 
 
 def extract(archive: Path, workdir: Path, key: str) -> dict:

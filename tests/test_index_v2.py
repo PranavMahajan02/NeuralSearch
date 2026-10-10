@@ -4,7 +4,6 @@ Runs against an in-memory Qdrant with a test_ prefix and a fake embedder.
 """
 
 import os
-import time
 import uuid
 from pathlib import Path
 
@@ -17,7 +16,6 @@ from app.vectorstore.client import get_client
 from app.vectorstore.config import all_collections, collection_for_type
 from app.vectorstore.query import MissingUserScope, search_points, user_filter
 from tests.test_jobs import drain, enqueue, isolated_queue, jobs_of, make_worker  # noqa: F401
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -261,7 +259,7 @@ def test_local_job_removes_deleted_files_and_unregistered_folders(client, make_u
 
     alice, bob = make_user(), make_user()
 
-    keep = write(folder / "keep.txt", "java keep")
+    write(folder / "keep.txt", "java keep")
     gone = write(folder / "gone.txt", "java gone")
     other_folder = local_root / f"other-{uuid.uuid4().hex[:6]}"
     elsewhere = write(other_folder / "elsewhere.txt", "java elsewhere")
@@ -271,15 +269,18 @@ def test_local_job_removes_deleted_files_and_unregistered_folders(client, make_u
     register(client, bob, folder)
 
     worker = make_worker(local=LocalPlatform)
-    enqueue(client, alice, ["local"]); drain(worker)
-    enqueue(client, bob, ["local"]); drain(worker)
+    enqueue(client, alice, ["local"])
+    drain(worker)
+    enqueue(client, bob, ["local"])
+    drain(worker)
 
     assert {r["file"] for r in search(client, alice, "java")} == {"keep.txt", "gone.txt", "elsewhere.txt"}
 
     gone.unlink()
     client.request("DELETE", "/platforms/local/folders", json={"folder": str(other_folder)}, headers=alice["headers"])
 
-    enqueue(client, alice, ["local"]); drain(worker)
+    enqueue(client, alice, ["local"])
+    drain(worker)
 
     assert {r["file"] for r in search(client, alice, "java")} == {"keep.txt"}
     assert index_store.get_source(alice["id"], "local", local_source_id(str(gone))) is None
@@ -288,7 +289,8 @@ def test_local_job_removes_deleted_files_and_unregistered_folders(client, make_u
     # Bob's rows for the same paths were not touched by Alice's sync; his own
     # next run removes his copy of the deleted file.
     assert index_store.get_source(bob["id"], "local", local_source_id(str(gone))) is not None
-    enqueue(client, bob, ["local"]); drain(worker)
+    enqueue(client, bob, ["local"])
+    drain(worker)
     assert {r["file"] for r in search(client, bob, "java")} == {"keep.txt"}
 
 

@@ -1,8 +1,7 @@
 import re
-
-from pydantic import BaseModel, EmailStr, field_validator
 from uuid import UUID
 
+from pydantic import BaseModel, EmailStr, field_validator
 
 BCRYPT_MAX_BYTES = 72
 

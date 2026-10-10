@@ -1,17 +1,16 @@
 """GitHub OAuth state (SEC-06) and token encryption at rest."""
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 from sqlalchemy import text
 
 import app.platforms.github.oauth as oauth
+from app.core.clock import utcnow
 from app.core.config import settings
 from app.database.models import OAuthState
-from app.core.clock import utcnow
-
 
 FRONTEND = settings.FRONTEND_URL
 

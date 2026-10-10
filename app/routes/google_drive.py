@@ -1,10 +1,7 @@
 import logging
-from typing import Optional
 from urllib.parse import urlencode
 
-from fastapi import APIRouter
-from fastapi import Depends
-from fastapi import Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -14,6 +11,7 @@ from app.core.errors import AppError
 from app.core.rate_limit import limiter, user_key
 from app.database.db import get_db
 from app.database.platform_connection_service import get_platform_connection
+from app.models import response_models as rm
 from app.platforms.google_drive import oauth as google_oauth
 from app.platforms.google_drive.drive_service import revoke_token
 from app.platforms.google_drive.google_drive_credentials import (
@@ -22,8 +20,6 @@ from app.platforms.google_drive.google_drive_credentials import (
 )
 from app.platforms.oauth_state import InvalidOAuthState, consume_oauth_state_row, create_oauth_state
 from app.services.index_store import purge_platform
-from app.models import response_models as rm
-
 
 logger = logging.getLogger("cogniseek.google_drive")
 
@@ -68,7 +64,7 @@ def connect_google_drive(
         flow = google_oauth.build_flow()
     except (OSError, ValueError):
         logger.exception("Google OAuth client configuration is missing or invalid")
-        raise AppError(503, "Google Drive is not configured on the server.")
+        raise AppError(503, "Google Drive is not configured on the server.") from None
 
     # The verifier exists from build_flow() on, independent of call order.
     code_verifier = flow.code_verifier
@@ -91,9 +87,9 @@ def connect_google_drive(
 @limiter.limit(settings.OAUTH_RATE_LIMIT)
 def google_drive_callback(
     request: Request,
-    code: Optional[str] = None,
-    state: Optional[str] = None,
-    error: Optional[str] = None,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
     db: Session = Depends(get_db)
 ):
 

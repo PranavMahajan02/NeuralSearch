@@ -3,9 +3,8 @@ from sqlalchemy.orm import Session
 
 from app.auth.auth_dependency import get_current_user
 from app.database.db import get_db
-from app.scheduler.jobs import indexed_platforms
 from app.models import response_models as rm
-
+from app.scheduler.jobs import indexed_platforms
 
 router = APIRouter(
     prefix="/auth",

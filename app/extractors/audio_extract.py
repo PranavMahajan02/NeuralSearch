@@ -6,7 +6,6 @@ import os
 from app.ai.model_manager import model_manager
 from app.core.timing import span, waiting_for
 
-
 logger = logging.getLogger("cogniseek.extractors.audio")
 
 

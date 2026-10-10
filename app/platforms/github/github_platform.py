@@ -3,7 +3,6 @@
 import logging
 import os
 from pathlib import PurePosixPath
-from typing import List, Optional
 
 from app.core.config import settings
 from app.database.db import SessionLocal
@@ -11,7 +10,6 @@ from app.platforms.base_platform import BasePlatform
 from app.platforms.errors import PlatformPreconditionError
 from app.platforms.github.github_service import GitHubClient, TreeEntry
 from app.platforms.sync import RemoteFile, sync_remote
-
 
 logger = logging.getLogger("cogniseek.github")
 
@@ -53,15 +51,12 @@ def include_repository(repo: dict) -> bool:
     if repo.get("fork") and not settings.GITHUB_INCLUDE_FORKS:
         return False
 
-    if repo.get("archived") and not settings.GITHUB_INCLUDE_ARCHIVED:
-        return False
-
-    return True
+    return not (repo.get("archived") and not settings.GITHUB_INCLUDE_ARCHIVED)
 
 
 class GitHubPlatform(BasePlatform):
 
-    def __init__(self, client: Optional[GitHubClient] = None):
+    def __init__(self, client: GitHubClient | None = None):
 
         self._client = client
 
@@ -83,7 +78,7 @@ class GitHubPlatform(BasePlatform):
 
         client = self._make_client(ctx.user_id)
 
-        remote_files: List[RemoteFile] = []
+        remote_files: list[RemoteFile] = []
         complete = True
 
         repos = [repo for repo in client.iter_repositories() if include_repository(repo)]

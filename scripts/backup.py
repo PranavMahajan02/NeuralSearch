@@ -17,6 +17,7 @@ Restore with scripts/restore.py (use --dry-run first). Secrets are never printed
 """
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -28,9 +29,8 @@ import tempfile
 import time
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-
 
 MAGIC = b"COGNISEEK-BACKUP-1\n"
 CHUNK = 8 * 1024 * 1024
@@ -197,7 +197,7 @@ def database_name(database_url: str) -> str:
 
 def build_archive(args, workdir: Path) -> dict:
 
-    manifest = {"format": FORMAT, "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    manifest = {"format": FORMAT, "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
                 "database": database_name(args.database_url), "prefix": args.prefix, "files": {}, "collections": {}}
 
     started = time.monotonic()
@@ -257,7 +257,7 @@ def main(argv=None) -> int:
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     target = out_dir / f"cogniseek-{stamp}.tar.enc"
     started = time.monotonic()
 
@@ -278,10 +278,8 @@ def main(argv=None) -> int:
         finally:
             plain.unlink(missing_ok=True)
 
-    try:
+    with contextlib.suppress(OSError):
         os.chmod(target, 0o600)
-    except OSError:
-        pass
     removed = prune(out_dir, args.keep)
     print(f"backup written: {target} ({target.stat().st_size / 1e6:.1f} MB, {time.monotonic() - started:.1f}s)"
           + (f"; pruned {len(removed)} old archive(s)" if removed else ""))

@@ -10,17 +10,15 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy import text
 
 from app.database.db import SessionLocal
 from app.search import calibration, query_vectors
-from app.vectorstore.client import get_client
 from app.search.frame_null import frame_time_s
+from app.vectorstore.client import get_client
 from app.vectorstore.config import collection_for_type
 from app.vectorstore.query import user_filter
-
 
 logger = logging.getLogger("cogniseek.search.retrieval")
 
@@ -66,27 +64,27 @@ class Candidate:
     file: str
     path: str
     file_type: str
-    owner: Optional[str] = None
-    repo: Optional[str] = None
+    owner: str | None = None
+    repo: str | None = None
     text_cosine: float = 0.0
-    text_margin: Optional[float] = None
+    text_margin: float | None = None
     clip_cosine: float = 0.0
-    clip_margin: Optional[float] = None
+    clip_margin: float | None = None
     # Videos: the best retrieved frame and this video's null (app/search/frame_null.py).
-    frame_number: Optional[int] = None
-    frame_time_s: Optional[int] = None
-    frame_null_mean: Optional[float] = None
-    frame_null_std: Optional[float] = None
+    frame_number: int | None = None
+    frame_time_s: int | None = None
+    frame_null_mean: float | None = None
+    frame_null_std: float | None = None
     name_similarity: float = 0.0
-    chunks: List[Chunk] = field(default_factory=list)
+    chunks: list[Chunk] = field(default_factory=list)
 
     @property
-    def key(self) -> Tuple[str, str]:
+    def key(self) -> tuple[str, str]:
 
         return self.platform, self.source_id
 
 
-def search_types(search_type: str) -> List[str]:
+def search_types(search_type: str) -> list[str]:
 
     if search_type == "all":
         return list(VECTOR_SOURCES)
@@ -94,7 +92,7 @@ def search_types(search_type: str) -> List[str]:
     return list(TYPES_FOR_SEARCH[search_type])
 
 
-def _vector_query(point_type: str, vector, user_id: str, platform: Optional[str], limit: int):
+def _vector_query(point_type: str, vector, user_id: str, platform: str | None, limit: int):
 
     result = get_client().query_points(
         collection_name=collection_for_type(point_type),
@@ -108,7 +106,7 @@ def _vector_query(point_type: str, vector, user_id: str, platform: Optional[str]
     return point_type, result.points
 
 
-def _trigram_query(user_id: str, query: str, platform: Optional[str], file_types: List[str]):
+def _trigram_query(user_id: str, query: str, platform: str | None, file_types: list[str]):
 
     sql = """
         SELECT platform, source_id, file_name, display_path, file_type, owner, repo,
@@ -132,7 +130,7 @@ def _trigram_query(user_id: str, query: str, platform: Optional[str], file_types
     return [dict(row) for row in rows if row["sim"] >= TRIGRAM_MIN_SIMILARITY]
 
 
-def retrieve(user_id: str, normalized_query: str, platform: Optional[str], search_type: str) -> Dict[Tuple[str, str], Candidate]:
+def retrieve(user_id: str, normalized_query: str, platform: str | None, search_type: str) -> dict[tuple[str, str], Candidate]:
 
     timings = {}
     start = time.perf_counter()
@@ -161,7 +159,7 @@ def retrieve(user_id: str, normalized_query: str, platform: Optional[str], searc
     name_rows = trigram_future.result()
     timings["queries"] = time.perf_counter() - t
 
-    candidates: Dict[Tuple[str, str], Candidate] = {}
+    candidates: dict[tuple[str, str], Candidate] = {}
 
     for point_type, points in hits:
 
@@ -172,7 +170,7 @@ def retrieve(user_id: str, normalized_query: str, platform: Optional[str], searc
         neutral = calibration.text_neutral_matrix() if space == "text" else calibration.clip_neutral_matrix()
         point_margins = calibration.margins([p.score for p in points], [p.vector for p in points], neutral)
 
-        for point, margin in zip(points, point_margins):
+        for point, margin in zip(points, point_margins, strict=True):
 
             payload = point.payload or {}
             key = (payload.get("platform"), payload.get("source_id"))

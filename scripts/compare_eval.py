@@ -36,7 +36,7 @@ def main() -> int:
 
     print(f"| Subset | Metric | {a['label']} | {b['label']} |")
     print("|---|---|---|---|")
-    for subset in SUBSETS + ("all",):
+    for subset in (*SUBSETS, "all"):
         before = a["aggregate"] if subset == "all" else a["aggregate"].get(subset, {})
         after = b["aggregate"] if subset == "all" else b["aggregate"].get(subset, {})
         for metric in METRICS:
@@ -77,7 +77,7 @@ def main() -> int:
             violations.append(f"rank drop {q['query']!r}: {r1} -> {r2}")
 
     print(f"\nQueries whose first relevant rank or top 5 changed: {len(changed)}")
-    for query, r1, r2, t1, t2 in changed:
+    for query, r1, r2, _t1, _t2 in changed:
         show = lambda r: "-" if r == MISSING else r  # noqa: E731
         print(f"  {query[:40]:40} rank {show(r1)} -> {show(r2)}" + ("" if r1 != r2 else "  (same rank, top-5 order differs)"))
 

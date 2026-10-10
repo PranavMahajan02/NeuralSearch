@@ -24,15 +24,14 @@ margin distributions measured on the owner's data; see docs/eval.
 
 import os
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 from rapidfuzz import fuzz
 
 from app.config.file_types import CODE_EXTENSIONS
 from app.search.normalize import normalize_name, normalize_text, query_terms, tokens
-
 
 # ---- calibration constants (measured; see the Phase 4 report) -------------
 
@@ -107,8 +106,8 @@ class Scored:
     semantic: float
     name: float
     content: float
-    reasons: List[str] = field(default_factory=list)
-    match: Dict = field(default_factory=dict)
+    reasons: list[str] = field(default_factory=list)
+    match: dict = field(default_factory=dict)
 
 
 # ----------------------------------------------------------------------
@@ -129,14 +128,14 @@ def term_match(term: str, word: str) -> float:
     if len(shorter) >= 5 and longer.startswith(shorter) and len(shorter) / len(longer) >= 0.6:
         return 0.9
 
-    if len(term) >= 3 and abs(len(term) - len(word)) <= (1 if len(term) == 3 else 2):
-        if fuzz.ratio(term, word) >= 85:
-            return 0.85
+    close_length = abs(len(term) - len(word)) <= (1 if len(term) == 3 else 2)
+    if len(term) >= 3 and close_length and fuzz.ratio(term, word) >= 85:
+        return 0.85
 
     return 0.0
 
 
-def coverage(terms: Sequence[str], words: Sequence[str], phrase: str, text: str) -> Tuple[float, List[str]]:
+def coverage(terms: Sequence[str], words: Sequence[str], phrase: str, text: str) -> tuple[float, list[str]]:
     """Share of query terms present in `words` (best match per term), and the
     words that matched. A contiguous phrase match counts as full coverage."""
 
@@ -168,7 +167,7 @@ def coverage(terms: Sequence[str], words: Sequence[str], phrase: str, text: str)
     return score, matched
 
 
-def _scale(value: Optional[float], floor: float, full: float) -> float:
+def _scale(value: float | None, floor: float, full: float) -> float:
 
     if value is None:
         return 0.0
@@ -186,7 +185,7 @@ def _word_pattern(word: str) -> str:
     return r"(?<![a-z0-9])" + re.escape(word) + r"(?![a-z0-9])"
 
 
-def _highlights(snippet: str, words: Sequence[str]) -> List[List[int]]:
+def _highlights(snippet: str, words: Sequence[str]) -> list[list[int]]:
 
     spans = []
     lowered = snippet.lower()
@@ -207,7 +206,7 @@ def _highlights(snippet: str, words: Sequence[str]) -> List[List[int]]:
     return merged
 
 
-def make_snippet(text: str, words: Sequence[str]) -> Tuple[str, List[List[int]]]:
+def make_snippet(text: str, words: Sequence[str]) -> tuple[str, list[list[int]]]:
     """Up to 200 chars around the first matched word; highlight offsets."""
 
     clean = re.sub(r"\s+", " ", text or "").strip()
@@ -234,7 +233,7 @@ def make_snippet(text: str, words: Sequence[str]) -> Tuple[str, List[List[int]]]
 CONTENT_FIELD = {"document": "content", "image": "ocr", "audio": "transcript", "video": "transcript"}
 
 
-def image_zscores(candidates) -> Dict[Tuple[str, str], float]:
+def image_zscores(candidates) -> dict[tuple[str, str], float]:
     """z-score of each image candidate's CLIP margin among this query's images."""
 
     images = [c for c in candidates if c.file_type == "image" and c.clip_margin is not None]
@@ -269,7 +268,7 @@ def name_for_matching(candidate) -> str:
     return name
 
 
-def frame_z(candidate) -> Optional[float]:
+def frame_z(candidate) -> float | None:
     """Best retrieved frame vs this video's null distribution (None without frames or null)."""
 
     if candidate.clip_margin is None or candidate.frame_null_mean is None or not candidate.frame_null_std:
@@ -286,7 +285,7 @@ def is_document_photo(candidate) -> bool:
     return words >= DOCUMENT_PHOTO_OCR_WORDS
 
 
-def score_candidates(candidates, query: str) -> List[Scored]:
+def score_candidates(candidates, query: str) -> list[Scored]:
 
     phrase = normalize_text(query)
     terms = query_terms(query)
@@ -362,7 +361,7 @@ def score_candidates(candidates, query: str) -> List[Scored]:
     return results
 
 
-def possible_visual_matches(candidates, returned_keys, limit: int = POSSIBLE_LIMIT) -> List[Scored]:
+def possible_visual_matches(candidates, returned_keys, limit: int = POSSIBLE_LIMIT) -> list[Scored]:
     """Images/videos just below the visual evidence gates: video floor <= z < threshold,
     image floor <= CLIP margin < threshold (document photos excluded, as in the gate).
     Only candidates that are not already results; best `limit` by score; match.confidence="low"."""
@@ -402,7 +401,7 @@ def possible_visual_matches(candidates, returned_keys, limit: int = POSSIBLE_LIM
     return possible[:limit]
 
 
-def _match(c, chunks, name_words, content_words, reasons) -> Dict:
+def _match(c, chunks, name_words, content_words, reasons) -> dict:
 
     best_chunk = None
 

@@ -8,7 +8,6 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-
 logger = logging.getLogger("cogniseek.errors")
 
 
@@ -32,7 +31,7 @@ STATUS_CODES = {
 class AppError(Exception):
     """Raise from services to return a specific status/code/message."""
 
-    def __init__(self, status_code: int, detail: str, code: str = None):
+    def __init__(self, status_code: int, detail: str, code: str | None = None):
 
         super().__init__(detail)
         self.status_code = status_code
@@ -40,7 +39,7 @@ class AppError(Exception):
         self.code = code or STATUS_CODES.get(status_code, "error")
 
 
-def error_response(status_code: int, detail: str, code: str = None, headers=None):
+def error_response(status_code: int, detail: str, code: str | None = None, headers=None):
 
     return JSONResponse(
         status_code=status_code,

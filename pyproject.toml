@@ -1,0 +1,44 @@
+# Tooling configuration (the app itself is not packaged; dependencies are in
+# requirements*.txt / backend/requirements-linux.lock).
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+extend-exclude = ["alembic/versions", "frontend", "venv", "paddle_env", "florence_env", "data", "temp", "backups"]
+
+[tool.ruff.lint]
+# pycodestyle errors/warnings, pyflakes, import order, bugbear, pyupgrade,
+# simplify, comprehensions and the ruff-specific checks.
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "C4", "RUF"]
+ignore = [
+    "E501",    # line length is the formatter's job
+    "B008",    # FastAPI's Depends()/Query() in argument defaults is the framework idiom
+    "RUF001", "RUF002", "RUF003",   # intentional Unicode (en dashes, ellipses) in strings/comments
+    "UP042",   # (str, Enum) -> StrEnum would change str() of the API enums (behaviour change)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "B011",     # assert False in test helpers is fine
+    "RUF012",   # test fakes keep shared state in class attributes on purpose
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "tests"]
+
+[tool.ruff.format]
+# The codebase uses double quotes and 4-space indents (formatter defaults).
+
+[tool.mypy]
+python_version = "3.12"
+files = ["app"]
+ignore_missing_imports = true
+follow_imports = "silent"
+check_untyped_defs = false
+warn_unused_ignores = false
+# Non-strict baseline: existing errors are recorded in mypy-baseline.txt and CI
+# fails only on NEW errors (scripts/check_mypy_baseline.py).
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/routes/local_picker.py"]

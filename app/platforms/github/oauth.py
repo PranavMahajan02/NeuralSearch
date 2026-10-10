@@ -13,10 +13,13 @@ from app.platforms.errors import PlatformPreconditionError
 from app.platforms.oauth_state import (  # noqa: F401  (re-exported)
     OAUTH_STATE_TTL,
     InvalidOAuthState,
-    create_oauth_state as _create_state,
+)
+from app.platforms.oauth_state import (
     consume_oauth_state as _consume_state,
 )
-
+from app.platforms.oauth_state import (
+    create_oauth_state as _create_state,
+)
 
 logger = logging.getLogger("cogniseek.github")
 
@@ -27,7 +30,7 @@ REDIRECT_URI = f"{settings.BACKEND_PUBLIC_URL}/platforms/github/callback"
 
 def load_config():
 
-    with open(GITHUB_CONFIG, "r") as f:
+    with open(GITHUB_CONFIG) as f:
         return json.load(f)
 
 

@@ -20,10 +20,9 @@ job that started them.
 import logging
 import threading
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Dict, Iterator, List, Optional
-
 
 logger = logging.getLogger("cogniseek.timing")
 
@@ -40,11 +39,11 @@ class StageTimer:
     def __init__(self) -> None:
 
         self._lock = threading.Lock()
-        self.seconds: Dict[str, float] = {}
-        self.calls: Dict[str, int] = {}
-        self.by_type: Dict[str, Dict[str, float]] = {}
+        self.seconds: dict[str, float] = {}
+        self.calls: dict[str, int] = {}
+        self.by_type: dict[str, dict[str, float]] = {}
 
-    def add(self, stage: str, seconds: float, file_type: Optional[str] = None) -> None:
+    def add(self, stage: str, seconds: float, file_type: str | None = None) -> None:
 
         with self._lock:
             self.seconds[stage] = self.seconds.get(stage, 0.0) + seconds
@@ -56,7 +55,7 @@ class StageTimer:
     def snapshot(self) -> dict:
         """JSON-ready totals (rounded to milliseconds) in STAGES order."""
 
-        def ordered(values: Dict[str, float]) -> Dict[str, float]:
+        def ordered(values: dict[str, float]) -> dict[str, float]:
             keys = [s for s in STAGES if s in values] + sorted(k for k in values if k not in STAGES)
             return {k: round(values[k], 3) for k in keys}
 
@@ -68,8 +67,8 @@ class StageTimer:
             }
 
 
-_timer: ContextVar[Optional[StageTimer]] = ContextVar("stage_timer", default=None)
-_file_type: ContextVar[Optional[str]] = ContextVar("stage_file_type", default=None)
+_timer: ContextVar[StageTimer | None] = ContextVar("stage_timer", default=None)
+_file_type: ContextVar[str | None] = ContextVar("stage_file_type", default=None)
 _stack: ContextVar[tuple] = ContextVar("stage_stack", default=())
 
 
@@ -87,7 +86,7 @@ def span(stage: str) -> Iterator[None]:
 
     frame = _Frame()
     parents = _stack.get()
-    token = _stack.set(parents + (frame,))
+    token = _stack.set((*parents, frame))
     started = time.perf_counter()
 
     try:
@@ -116,7 +115,7 @@ def collecting(timer: StageTimer) -> Iterator[StageTimer]:
 
 
 @contextmanager
-def file_scope(file_type: Optional[str]) -> Iterator[None]:
+def file_scope(file_type: str | None) -> Iterator[None]:
     """Spans inside count towards this file type; time not covered by a stage is 'other'."""
 
     token = _file_type.set(file_type)
@@ -141,11 +140,11 @@ def waiting_for(lock) -> Iterator[None]:
         lock.release()
 
 
-def current_timer() -> Optional[StageTimer]:
+def current_timer() -> StageTimer | None:
 
     return _timer.get()
 
 
-def stage_names() -> List[str]:
+def stage_names() -> list[str]:
 
     return list(STAGES)

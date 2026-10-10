@@ -5,8 +5,7 @@ Replaces process_uploaded_file / index_file and the old file-based indexes.
 
 import mimetypes
 import os
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from app.config.file_types import file_type_for
 from app.core.timing import file_scope, span
@@ -17,7 +16,6 @@ from app.services.indexers.audio_indexer import build_audio_points
 from app.services.indexers.document_indexer import build_document_points
 from app.services.indexers.image_indexer import build_image_points
 from app.services.indexers.video_indexer import build_video_points
-
 
 BUILDERS = {
     "document": build_document_points,
@@ -42,12 +40,12 @@ def github_source_id(owner: str, repo: str, path: str) -> str:
     return f"{owner}/{repo}:{path}"
 
 
-def guess_mime(name: str) -> Optional[str]:
+def guess_mime(name: str) -> str | None:
 
     return mimetypes.guess_type(name or "")[0]
 
 
-def parse_rfc3339(value: Optional[str]) -> Optional[datetime]:
+def parse_rfc3339(value: str | None) -> datetime | None:
     """'2026-10-06T15:25:53.000Z' -> aware UTC datetime (None if absent/invalid)."""
 
     if not value:
@@ -58,7 +56,7 @@ def parse_rfc3339(value: Optional[str]) -> Optional[datetime]:
     except ValueError:
         return None
 
-    return parsed.astimezone(timezone.utc) if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(UTC) if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
 def local_meta(user_id, path: str) -> FileMeta:
@@ -75,7 +73,7 @@ def local_meta(user_id, path: str) -> FileMeta:
         file_type=file_type_for(real) or "unsupported",
         version=repr(stat.st_mtime),
         size_bytes=stat.st_size,
-        modified_at=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
+        modified_at=datetime.fromtimestamp(stat.st_mtime, tz=UTC),
         mime_type=guess_mime(real)
     )
 
@@ -103,7 +101,7 @@ def drive_meta(user_id, file: dict, extension: str) -> FileMeta:
     )
 
 
-def github_meta(user_id, owner: str, repo: str, file: dict, default_branch: Optional[str] = None) -> FileMeta:
+def github_meta(user_id, owner: str, repo: str, file: dict, default_branch: str | None = None) -> FileMeta:
 
     path = file["path"]
 

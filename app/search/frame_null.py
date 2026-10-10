@@ -12,8 +12,8 @@ by scripts/backfill_video_null.py for older videos) and stored on every frame
 point; a query needs only its retrieved frames.
 """
 
+from collections.abc import Sequence
 from functools import lru_cache
-from typing import Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -35,7 +35,7 @@ def null_matrix() -> np.ndarray:
     return rows / np.linalg.norm(rows, axis=1, keepdims=True)
 
 
-def null_stats(frame_vectors: Sequence[Sequence[float]]) -> Tuple[Optional[float], Optional[float]]:
+def null_stats(frame_vectors: Sequence[Sequence[float]]) -> tuple[float | None, float | None]:
     """(mean, std) of the best-frame margin of each null prompt over this video's frames."""
 
     from app.search.calibration import clip_neutral_matrix, margins
@@ -52,12 +52,12 @@ def null_stats(frame_vectors: Sequence[Sequence[float]]) -> Tuple[Optional[float
     return float(np.mean(best)), float(max(np.std(best), 1e-3))
 
 
-def frame_time_s(frame_number: Optional[int]) -> Optional[int]:
+def frame_time_s(frame_number: int | None) -> int | None:
 
     return None if frame_number is None else int(frame_number) * FRAME_INTERVAL_S
 
 
-def format_timestamp(seconds: Optional[int]) -> Optional[str]:
+def format_timestamp(seconds: int | None) -> str | None:
     """75 -> '1:15', 3725 -> '1:02:05'."""
 
     if seconds is None:

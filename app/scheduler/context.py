@@ -11,14 +11,12 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import Optional
 
+from app.core.clock import utcnow
+from app.core.timing import StageTimer
 from app.database.db import SessionLocal
 from app.database.models import IndexingJob, IndexingJobError
 from app.scheduler.errors import sanitize_error
-from app.core.clock import utcnow
-from app.core.timing import StageTimer
-
 
 logger = logging.getLogger("cogniseek.jobs")
 

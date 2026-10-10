@@ -11,11 +11,10 @@ def test_spans_record_self_time_so_stages_add_up():
 
     timer = StageTimer()
 
-    with collecting(timer), file_scope("document"):
-        with span("extract_text"):
-            time.sleep(0.02)
-            with span("ocr"):
-                time.sleep(0.05)
+    with collecting(timer), file_scope("document"), span("extract_text"):
+        time.sleep(0.02)
+        with span("ocr"):
+            time.sleep(0.05)
 
     seconds = timer.snapshot()["seconds"]
     assert 0.04 <= seconds["ocr"] < 0.2
@@ -64,7 +63,6 @@ def test_a_job_stores_its_stage_timings(client, user, local_root, monkeypatch):
 
     import uuid
 
-    from app.services import indexing_pipeline as pipeline
     from tests.test_jobs import drain, enqueue, jobs_of, make_worker
 
     folder = local_root / f"timed-{uuid.uuid4().hex[:6]}"

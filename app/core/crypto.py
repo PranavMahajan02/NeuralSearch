@@ -5,7 +5,6 @@ from sqlalchemy.types import Text, TypeDecorator
 
 from app.core.config import settings
 
-
 _fernet = Fernet(settings.TOKEN_ENCRYPTION_KEY.encode())
 
 

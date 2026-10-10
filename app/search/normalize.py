@@ -3,7 +3,6 @@
 import os
 import re
 import unicodedata
-from typing import List
 
 _SPACE = re.compile(r"\s+")
 _WORD = re.compile(r"\w+", re.UNICODE)
@@ -11,13 +10,7 @@ _NAME_SEPARATORS = re.compile(r"[_\-.()\[\]]+")
 _EDGE_PUNCT = re.compile(r"^[\W_]+|[\W_]+$", re.UNICODE)
 
 # Words that carry no meaning on their own; ignored by lexical matching.
-STOPWORDS = frozenset("""
-a an and are as at be by can do does for from how i in is it its me my of on or
-should so that the this to was what when where which who why will with you your
-find show get give
-photo photos image images picture pictures pic pics img imgs file files
-document documents doc docs
-""".split())
+STOPWORDS = frozenset(["a", "an", "and", "are", "as", "at", "be", "by", "can", "do", "does", "for", "from", "how", "i", "in", "is", "it", "its", "me", "my", "of", "on", "or", "should", "so", "that", "the", "this", "to", "was", "what", "when", "where", "which", "who", "why", "will", "with", "you", "your", "find", "show", "get", "give", "photo", "photos", "image", "images", "picture", "pictures", "pic", "pics", "img", "imgs", "file", "files", "document", "documents", "doc", "docs"])
 
 
 def normalize_text(text: str) -> str:
@@ -30,12 +23,12 @@ def normalize_text(text: str) -> str:
     return _EDGE_PUNCT.sub("", text)
 
 
-def tokens(text: str) -> List[str]:
+def tokens(text: str) -> list[str]:
 
     return _WORD.findall(normalize_text(text))
 
 
-def query_terms(query: str) -> List[str]:
+def query_terms(query: str) -> list[str]:
     """Meaningful query tokens (stopwords dropped unless nothing else is left)."""
 
     words = tokens(query)

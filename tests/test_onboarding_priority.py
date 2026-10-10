@@ -6,13 +6,12 @@ from pathlib import Path
 import pytest
 
 from app.database.db import SessionLocal
-from app.database.models import IndexedFile, IndexingJob
+from app.database.models import IndexedFile
 from app.scheduler.jobs import claim_next_job
 from app.services import index_store
 from app.services.index_store import FileMeta, IndexPoint
 from tests.conftest import _bag_of_words_vector
 from tests.test_jobs import FakePlatform, drain, enqueue, isolated_queue, jobs_of, make_worker  # noqa: F401
-
 
 # ---------------------------------------------------------------------------
 # Onboarding

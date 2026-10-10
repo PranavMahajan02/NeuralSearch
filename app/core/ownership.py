@@ -7,7 +7,6 @@ local folders or their upload directory.
 
 import os
 from pathlib import Path
-from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -33,7 +32,7 @@ def user_upload_dir(user_id, create: bool = False) -> Path:
     return path
 
 
-def user_local_bases(db: Session, user_id) -> List[Path]:
+def user_local_bases(db: Session, user_id) -> list[Path]:
     """Resolved directories this user may read from: registered folders + uploads."""
 
     bases = []
@@ -57,7 +56,7 @@ def user_local_bases(db: Session, user_id) -> List[Path]:
     return bases
 
 
-def resolve_user_file(db: Session, user_id, user_path: str) -> Optional[Path]:
+def resolve_user_file(db: Session, user_id, user_path: str) -> Path | None:
     """Resolve an absolute or relative path to an existing file the user owns."""
 
     resolved = resolve_in_any(user_local_bases(db, user_id), user_path)
@@ -79,7 +78,7 @@ def resolve_upload(user_id, filename: str) -> Path:
     return resolved
 
 
-def owns_local_path(bases: List[Path], path: str) -> bool:
+def owns_local_path(bases: list[Path], path: str) -> bool:
     """Ownership test for search results.
 
     realpath (not abspath) so links, "..", and Windows 8.3 short names are

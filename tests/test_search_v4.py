@@ -13,7 +13,6 @@ from app.services.index_store import FileMeta, IndexPoint
 from app.services.indexing_pipeline import index_local_file
 from tests.conftest import _bag_of_words_vector
 
-
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -334,9 +333,10 @@ def test_query_embeddings_are_cached(client, user):
 
 def test_clip_text_encoding_truncates_to_77_tokens(monkeypatch):
 
+    from unittest.mock import MagicMock
+
     import numpy as np
     import torch
-    from unittest.mock import MagicMock
 
     from app.ai import encoders
 
@@ -491,8 +491,8 @@ def test_generic_words_never_match_on_their_own(query):
 
 def test_repository_folders_count_as_name_words():
 
-    from app.search.retrieval import Candidate
     from app.search.ranking import score_candidates
+    from app.search.retrieval import Candidate
 
     manifest = Candidate(platform="github", source_id="me/tool:extension/manifest.json", file="manifest.json",
                          path="me/tool/extension/manifest.json", file_type="document")
@@ -505,8 +505,8 @@ def test_repository_folders_count_as_name_words():
 @pytest.mark.parametrize("file, returned", [("notes.pdf", True), ("chart.tsx", False), ("deploy.yaml", False)])
 def test_code_files_need_a_higher_semantic_margin(file, returned):
 
-    from app.search.retrieval import Candidate
     from app.search.ranking import TEXT_MARGIN_EVIDENCE, TEXT_MARGIN_EVIDENCE_CODE, score_candidates
+    from app.search.retrieval import Candidate
 
     margin = (TEXT_MARGIN_EVIDENCE + TEXT_MARGIN_EVIDENCE_CODE) / 2
     candidate = Candidate(platform="github", source_id=f"me/r:{file}", file=file, path=file,
