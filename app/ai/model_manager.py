@@ -9,6 +9,7 @@ thrashing it.
 
 import logging
 import os
+import sys
 import threading
 
 logger = logging.getLogger("cogniseek.models")
@@ -185,7 +186,7 @@ def register_cuda_dll_dirs() -> list:
     nvidia-cudnn-cu12 wheel (requirements-gpu.txt) has cuDNN 8, which Paddle 2.6
     needs. No-op elsewhere."""
 
-    if os.name != "nt":
+    if sys.platform != "win32":  # sys.platform (not os.name) so type checkers understand the guard
         return []
 
     import importlib.util

@@ -11,6 +11,7 @@ value type); migrating the models to `Mapped[...]` would clear them.
 
 import argparse
 import collections
+import os
 import re
 import subprocess
 import sys
@@ -53,8 +54,11 @@ def main() -> int:
         f"mypy: {sum(errors.values())} errors (baseline {sum(baseline.values())}); "
         f"{sum(new.values())} new, {sum(fixed.values())} fixed since the baseline"
     )
+    in_ci = bool(os.environ.get("GITHUB_ACTIONS"))
     for error in sorted(new.elements()):
         print(f"  NEW {error}")
+        if in_ci:  # surfaces in the run summary / PR checks as an annotation
+            print(f"::error title=New mypy error::{error}")
     return 1 if new else 0
 
 
