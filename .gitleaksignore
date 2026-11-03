@@ -1,2 +1,4 @@
 # Fake JWT used to test log redaction (tests/test_observability.py, commit 353755c after the history rewrite); not a real secret.
 353755c47ab943ccbbc8296b6adeb2e39a73c203:tests/test_observability.py:jwt:74
+# The same fake JWT at its pre-rewrite commit, still reachable from the old remote fix/* branches.
+624fbd0f47b4a39c8b2e820a1d868b70c7fc6f64:tests/test_observability.py:jwt:74
