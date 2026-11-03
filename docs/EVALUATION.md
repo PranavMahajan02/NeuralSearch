@@ -80,10 +80,18 @@ GitHub connector, because they contain every query verbatim (`--include-self` ke
 | `20261007-222029-video-after` | frames as evidence (per-video null, z ≥ 5.3) | 83 | 0.662 | 1 | visual-video P@5 **0.500** |
 | `20261008-215156-possible-tier` | low-confidence tier | 83 | 0.662 | 1 | main metrics unchanged by design |
 | `20261009-*-perf-*` | Phase 7A.5 quality check | 83 | 0.418 | 2 | scratch index from a copy of `data/` (no Drive/GitHub): before = after |
+| `20261103-*-ab-*` | public-release prep (aliases, dependency upgrades): v1.0.0 code vs new code on the **same** current index | 83 | 0.556 | 1 | 0/83 queries changed between the two; non-visual 0.935 |
 
 The `perf-*` runs use a different corpus (local copies only), so compare them with each other,
 not with the owner's index: they proved the 7A.5 speed-ups changed nothing (0/83 queries
 changed on CPU OCR; 1 query improved with GPU OCR).
+
+The `ab-*` runs (2026-11-03, with `--aliases`) compare the v1.0.0 code with the
+public-release code on the owner's index as it is today: identical on every query. Compared
+with the October 8 run, visual-only P@5 is 0.688 (was 0.719) and visual-video P@5 0.111 (was
+0.500) **for both code versions**, so the difference comes from the index (the owner's
+video/frame data changed since then), not from the code. Re-indexing the videos is the
+first thing to check.
 
 ## Calibration methods
 
