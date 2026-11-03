@@ -123,6 +123,10 @@ class Settings(BaseSettings):
     # Empty = the home directory of the user running the backend.
     ALLOWED_LOCAL_ROOTS: str = ""
 
+    # The owner account (comma list): admin scripts refuse to delete it, and the
+    # evaluation runs as it by default. Never hard-code a real address in the repo.
+    COGNISEEK_OWNER_EMAIL: str = ""
+
     @property
     def cors_origins_list(self) -> list[str]:
 

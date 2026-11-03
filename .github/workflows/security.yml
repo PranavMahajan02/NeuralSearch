@@ -63,10 +63,31 @@ jobs:
         language: [python, javascript-typescript]
     steps:
       - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
+      # Uploading results to code scanning needs a public repo (or GitHub Advanced Security).
+      # On a private repo the analysis still runs and fails on errors, but the SARIF is kept
+      # as a workflow artifact instead of being uploaded (see docs/SECURITY.md).
+      - name: Repository visibility
+        id: visibility
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          private="$(gh api "repos/${GITHUB_REPOSITORY}" --jq .private)"
+          echo "private=${private}" >> "$GITHUB_OUTPUT"
+          if [ "$private" = "true" ]; then echo "::notice::Private repository: CodeQL results kept as an artifact, not uploaded."; fi
+      - uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: none
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v4
         with:
           category: /language:${{ matrix.language }}
+          upload: ${{ steps.visibility.outputs.private == 'true' && 'never' || 'always' }}
+          output: codeql-results
+      - name: Keep the SARIF
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-${{ matrix.language }}-sarif
+          path: codeql-results
+          if-no-files-found: ignore
+          retention-days: 30

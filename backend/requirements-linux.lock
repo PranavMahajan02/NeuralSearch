@@ -16,7 +16,7 @@ bcrypt==4.0.1
 beautifulsoup4==4.15.0
 blinker==1.9.0
 cachetools==7.2.1
-certifi==2026.7.22
+certifi==2026.10.23
 cffi==2.1.1
 chardet==7.6.0
 charset-normalizer==3.5.2
@@ -32,14 +32,14 @@ cycler==0.12.1
 Cython==3.3.0
 decorator==5.3.1
 Deprecated==3.0.0
-dnspython==2.8.0
+dnspython==2.9.1
 ecdsa==0.19.2
 email-validator==2.3.0
 encutils==1.0.0
 et_xmlfile==2.0.0
 fastapi==0.138.0
 faster-whisper==1.2.1
-filelock==3.32.3
+filelock==4.2.7
 fire==0.7.1
 Flask==3.1.3
 flask-babel==4.0.0
@@ -112,7 +112,7 @@ proto-plus==1.29.0
 protobuf==7.36.2
 psutil==7.2.2
 psycopg2-binary==2.9.12
-pyasn1==0.6.4
+pyasn1==0.6.5
 pyasn1_modules==0.4.2
 pyclipper==1.4.0
 pycparser==3.1

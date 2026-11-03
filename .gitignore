@@ -59,5 +59,9 @@ htmlcov/
 # Local Claude Code launch config
 .claude/
 
+# Eval alias map (real personal file names). It belongs OUTSIDE the repo
+# (%USERPROFILE%\.cogniseek\eval-aliases.json); never commit a copy.
+eval-aliases*.json
+
 # Local compose override (dev-only host ports); see docker-compose.override.example.yml
 docker-compose.override.yml

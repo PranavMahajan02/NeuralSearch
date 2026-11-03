@@ -2,6 +2,21 @@
 
     venv\\Scripts\\python scripts\\eval_search.py [--base-url http://127.0.0.1:8000]
                                                [--email owner@example.com] [--label baseline]
+                                               [--aliases %USERPROFILE%\\.cogniseek\\eval-aliases.json]
+
+--email defaults to COGNISEEK_OWNER_EMAIL (env or .env).
+
+Aliases: tests/eval/queries.yaml names personal files by neutral aliases
+(id-document-01.pdf, fee-receipt-01.pdf, ...). The mapping to the real names lives
+OUTSIDE the repo, in a JSON file:
+
+    {"files":   {"<alias>": "<real file name>", ...},
+     "queries": {"<alias query>": "<real query>", ...}}
+
+With --aliases the real query is sent and relevance is judged on the real names, but
+the saved report only ever contains aliases: a returned file that is neither an alias
+target nor a (public) name from queries.yaml is written as "unlisted-<hash>.<ext>".
+Without --aliases the names are used as they are (demo data).
 
 Mints the owner's JWT in-process (never printed), runs tests/eval/queries.yaml
 through POST /search/, and reports per query and in aggregate:
@@ -17,6 +32,7 @@ Results are saved to docs/eval/<timestamp>-<label>.json.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -46,6 +62,48 @@ def owner_headers(email: str) -> dict:
         token = create_access_token(str(user.id), user.token_version)
 
     return {"Authorization": f"Bearer {token}"}
+
+
+class Aliases:
+    """Maps the repo's alias names to the owner's real names and back (see the module docstring)."""
+
+    def __init__(self, mapping: dict | None, queries: list):
+
+        mapping = mapping or {}
+        self.enabled = bool(mapping)
+        self.files = {k.lower(): v for k, v in (mapping.get("files") or {}).items()}
+        self.queries = dict(mapping.get("queries") or {})
+        self.reverse = {v.lower(): k for k, v in (mapping.get("files") or {}).items()}
+        # Names in queries.yaml that are not aliases are public and may be written as they are.
+        self.public = {
+            name.lower() for q in queries for name in (q.get("expected") or []) if name.lower() not in self.files
+        }
+
+    def real_query(self, query: str) -> str:
+        return self.queries.get(query, query)
+
+    def real_expected(self, names) -> set:
+        return {self.files.get(name.lower(), name).lower() for name in names}
+
+    def display(self, name: str | None) -> str | None:
+
+        if not self.enabled or name is None:
+            return name
+        lowered = name.lower()
+        if lowered in self.reverse:
+            return self.reverse[lowered]
+        if lowered in self.public:
+            return name
+        suffix = Path(name).suffix.lower()
+        return "unlisted-" + hashlib.sha256(lowered.encode("utf-8")).hexdigest()[:8] + suffix
+
+
+def load_aliases(path: str | None) -> dict | None:
+
+    if not path:
+        return None
+    with open(os.path.expanduser(os.path.expandvars(path)), encoding="utf-8") as handle:
+        return json.load(handle)
 
 
 def percentile(values, pct):
@@ -83,8 +141,11 @@ def is_self_artifact(result: dict) -> bool:
     return bool(SELF_ARTIFACT.search(path))
 
 
-def run(base_url: str, headers: dict, queries: list, limit: int, include_self: bool = False) -> dict:
+def run(
+    base_url: str, headers: dict, queries: list, limit: int, include_self: bool = False, aliases: Aliases | None = None
+) -> dict:
 
+    aliases = aliases or Aliases(None, queries)
     per_query = []
     latencies = []
 
@@ -93,7 +154,7 @@ def run(base_url: str, headers: dict, queries: list, limit: int, include_self: b
 
     for item in queries:
         query = item["query"]
-        body = {"query": query}
+        body = {"query": aliases.real_query(query)}
         if limit:
             body["limit"] = limit
 
@@ -106,7 +167,7 @@ def run(base_url: str, headers: dict, queries: list, limit: int, include_self: b
         dropped = 0 if include_self else sum(1 for r in results if is_self_artifact(r))
         if not include_self:
             results = [r for r in results if not is_self_artifact(r)]
-        files = [r.get("file") for r in results]
+        files = [aliases.display(r.get("file")) for r in results]
 
         record = {
             "query": query,
@@ -115,7 +176,11 @@ def run(base_url: str, headers: dict, queries: list, limit: int, include_self: b
             "returned": len(results),
             "top5": files[:5],
             # Low-confidence tier: reported separately, never part of the metrics above.
-            "possible": [r.get("file") for r in response.json().get("possible_matches", []) if not is_self_artifact(r)]
+            "possible": [
+                aliases.display(r.get("file"))
+                for r in response.json().get("possible_matches", [])
+                if not is_self_artifact(r)
+            ]
             if response.status_code == 200
             else [],
         }
@@ -136,7 +201,7 @@ def run(base_url: str, headers: dict, queries: list, limit: int, include_self: b
             record["negative"] = True
             record["false_positives"] = len(results)
         else:
-            expected = {name.lower() for name in item["expected"]}
+            expected = aliases.real_expected(item["expected"])
             flags = [is_relevant(r, expected) for r in results]
             first = next((i + 1 for i, hit in enumerate(flags) if hit), None)
             record.update(
@@ -260,7 +325,8 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="http://127.0.0.1:8000")
-    parser.add_argument("--email", default="owner@example.com")
+    parser.add_argument("--email", default=None, help="default: the first COGNISEEK_OWNER_EMAIL")
+    parser.add_argument("--aliases", default=None, help="JSON alias map kept outside the repo (see the docstring)")
     parser.add_argument("--label", default="run")
     parser.add_argument("--queries", default=str(ROOT / "tests" / "eval" / "queries.yaml"))
     parser.add_argument("--limit", type=int, default=0, help="send a limit (0 = server default)")
@@ -274,7 +340,15 @@ def main():
     with open(args.queries, encoding="utf-8") as handle:
         queries = yaml.safe_load(handle)["queries"]
 
-    report = run(args.base_url, owner_headers(args.email), queries, args.limit, args.include_self)
+    from app.core.config import settings
+
+    email = args.email or next((e.strip() for e in settings.COGNISEEK_OWNER_EMAIL.split(",") if e.strip()), None)
+    if not email:
+        raise SystemExit("Pass --email or set COGNISEEK_OWNER_EMAIL.")
+
+    aliases = Aliases(load_aliases(args.aliases), queries)
+    report = run(args.base_url, owner_headers(email), queries, args.limit, args.include_self, aliases)
+    report["aliases"] = aliases.enabled
     report["include_self"] = args.include_self
     report["label"] = args.label
     report["created_at"] = datetime.now().isoformat(timespec="seconds")
