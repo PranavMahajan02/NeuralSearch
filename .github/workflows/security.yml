@@ -7,6 +7,7 @@ on:
     branches: [main]
   schedule:
     - cron: "17 4 * * 1"   # weekly, Monday 04:17 UTC: new advisories for unchanged code
+  workflow_dispatch:     # manual run, e.g. right after the repository becomes public
 
 permissions:
   contents: read
