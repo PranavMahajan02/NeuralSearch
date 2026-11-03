@@ -1,6 +1,7 @@
 # Direct runtime dependencies (each verified by an import in app/ or a root module).
-# Pinned versions live in requirements.txt.
---extra-index-url https://download.pytorch.org/whl/cu128
+# Pinned versions live in requirements.txt (Windows/CUDA dev freeze, which carries the PyTorch
+# CUDA index) and backend/requirements-linux.lock (Linux/CPU, Docker and CI). No extra index
+# here: Dependabot reads this file and cannot query the PyTorch index.
 
 # API
 fastapi==0.138.0
@@ -31,7 +32,7 @@ prometheus_client==0.26.0
 qdrant-client==1.18.0
 
 # ML / embeddings
-torch==2.11.0+cu128
+torch==2.11.0
 transformers==4.49.0
 sentence-transformers==5.6.0
 faster-whisper==1.2.1
