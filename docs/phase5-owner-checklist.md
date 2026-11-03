@@ -1,6 +1,6 @@
 # Phase 5 – owner checklist (connectors)
 
-Do these steps as **owner@example.com**. Everything else (backups, code, tests) is ready.
+Do these steps as **the owner account** (`COGNISEEK_OWNER_EMAIL`). Everything else (backups, code, tests) is ready.
 Backups of the index and DB are in `backups/phase5-*/` (Qdrant snapshot files + `pg_dump`).
 
 ## 1. One-time setup: Google "Web application" client (required)

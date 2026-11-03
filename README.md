@@ -181,12 +181,14 @@ already indexed from that platform.
 ## Search quality evaluation
 
 ```powershell
-venv\Scripts\python scripts\eval_search.py --base-url http://127.0.0.1:8000 --label mine
+venv\Scripts\python scripts\eval_search.py --base-url http://127.0.0.1:8000 --label mine --aliases $env:USERPROFILE\.cogniseek\eval-aliases.json
 venv\Scripts\python scripts\compare_eval.py docs\eval\<before>.json docs\eval\<after>.json
 ```
 
 83 labelled queries over the owner's data. Current results: non-visual P@5 **0.935**, visual-only
 images 0.719, visual-only video 0.500, 0 false positives on the non-visual negatives.
+Personal files in the evaluation set are named by neutral aliases (`id-document-01.pdf`,
+`fee-receipt-01.pdf`, …); the mapping to the real names stays outside the repository (`--aliases`).
 Methodology, calibration and history: [docs/EVALUATION.md](docs/EVALUATION.md).
 
 ## Performance

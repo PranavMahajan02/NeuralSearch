@@ -22,6 +22,16 @@ queries (12) must return nothing.
 real `POST /search/` of a running backend as the owner (a token is minted in-process, never
 printed). Results go to `docs/eval/<timestamp>-<label>.json`.
 
+**Privacy: aliases.** The owner's personal files (ID documents, fee receipts, certificates,
+academic records, photos, recordings) appear in `tests/eval/queries.yaml` and in every saved
+report only under neutral aliases such as `id-document-01.pdf` or `photo-07.jpeg`. The mapping
+to the real names is a JSON file kept **outside the repository**
+(`%USERPROFILE%\.cogniseek\eval-aliases.json`; format in the script's docstring) and passed
+with `--aliases`. The harness then sends the real queries and judges relevance on the real
+names, but writes only aliases; any other returned file that is not a public name from the
+query set is written as `unlisted-<hash>.<ext>`. Without `--aliases`, names are used as they
+are (demo data). The run account is `--email` or `COGNISEEK_OWNER_EMAIL`.
+
 **Metrics:**
 
 | Metric | Definition |

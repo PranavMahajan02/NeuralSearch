@@ -194,8 +194,7 @@ def test_delete_account_waits_for_a_running_job(client, user):
     )
 
 
-@pytest.mark.parametrize("email", ["owner@example.com", " owner@example.com "])
-def test_the_admin_script_refuses_the_owner(email):
+def _load_delete_user_script():
 
     import importlib.util
     from pathlib import Path
@@ -204,6 +203,27 @@ def test_the_admin_script_refuses_the_owner(email):
     spec = importlib.util.spec_from_file_location("delete_user", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize("email", ["owner@example.com", " OWNER@example.com "])
+def test_the_admin_script_refuses_the_owner(email, monkeypatch):
+
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "COGNISEEK_OWNER_EMAIL", "admin@example.com, owner@example.com")
+    module = _load_delete_user_script()
 
     with pytest.raises(SystemExit, match="protected"):
         module.main(email, dry_run=False)
+
+
+def test_the_admin_script_fails_closed_without_an_owner_setting(monkeypatch):
+
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "COGNISEEK_OWNER_EMAIL", "")
+    module = _load_delete_user_script()
+
+    with pytest.raises(SystemExit, match="COGNISEEK_OWNER_EMAIL"):
+        module.main("someone@example.com", dry_run=True)

@@ -1,11 +1,14 @@
-# Search evaluation set for the owner's real data (owner@example.com).
+# Search evaluation set for the owner's real data (account: COGNISEEK_OWNER_EMAIL).
+#
+# Personal files are named by neutral aliases (id-document-01.pdf, photo-07.jpeg, ...);
+# pass the out-of-repo alias map with --aliases to evaluate the real index.
 #
 # expected: file names (case-insensitive, exact) of the relevant sources.
 #           Any listed file counts as relevant; order does not matter.
 # modality: the main kind of evidence (documentation only; scoring uses all).
 # negative: true -> the query should return NO results.
 #
-# Run: venv\Scripts\python scripts\eval_search.py
+# Run: venv\Scripts\python scripts\eval_search.py --aliases %USERPROFILE%\.cogniseek\eval-aliases.json
 
 queries:
 

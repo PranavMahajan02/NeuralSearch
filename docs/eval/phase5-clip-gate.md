@@ -1,6 +1,6 @@
 # Phase 5 — CLIP image gate calibration (bug #3)
 
-Measured 2026-10-06 on the owner's index (`owner@example.com`), all image candidates of the
+Measured 2026-10-06 on the owner's index (`COGNISEEK_OWNER_EMAIL`), all image candidates of the
 33 image queries in `tests/eval/queries.yaml` (16 visual-only, 3 visual negatives, the rest
 image queries with name hits). Margin = CLIP cosine − neutral-prompt baseline.
 

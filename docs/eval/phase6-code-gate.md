@@ -1,6 +1,6 @@
 # Phase 6 — semantic evidence threshold for code files (A1)
 
-Measured 2026-10-07 on the owner's full index (`owner@example.com`, 879 GitHub files), MiniLM
+Measured 2026-10-07 on the owner's full index (`COGNISEEK_OWNER_EMAIL`, 879 GitHub files), MiniLM
 text margin (cosine − neutral baseline) of code/config candidates (`CODE_EXTENSIONS`: the
 DOCUMENTS set minus .pdf .docx .pptx .txt .md .markdown .csv). This repo's own eval/test files
 are excluded (see `scripts/eval_search.py`).
