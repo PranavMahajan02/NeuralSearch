@@ -17,14 +17,25 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      # httpx2 pins httpcore2 exactly: they must move together.
+      httpx:
+        patterns: [httpx2, httpcore2]
   - package-ecosystem: npm
     directory: /frontend
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
+      # react and react-dom must have the exact same version.
+      react:
+        patterns: [react, react-dom]
       dev-tooling:
         dependency-type: development
+    ignore:
+      # eslint 10 is outside eslint-plugin-jsx-a11y's peer range (6.10.x); revisit when it supports 10.
+      - dependency-name: eslint
+        update-types: [version-update:semver-major]
   - package-ecosystem: github-actions
     directory: /
     schedule:
