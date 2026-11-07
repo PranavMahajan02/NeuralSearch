@@ -6,7 +6,7 @@ httpx2==2.13.1                # starlette TestClient (plain httpx is deprecated 
 httpcore2==2.13.1             # (httpx2)
 truststore==0.10.4            # (httpx2)
 responses==0.26.3
-reportlab==5.0.1
+reportlab==5.1.0
 ruff==0.17.0
 mypy==2.4.0
 pip-audit==2.10.1
